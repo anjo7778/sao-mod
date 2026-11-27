@@ -18,6 +18,7 @@ while ((SECONDS<deadline)); do
         grep -q 'SAO_NPC_SOCIAL_RELOAD_OK' "$log"
         test -s run-npc/npc-probe/01-plaza-npcs.png
         test -s run-npc/npc-probe/02-social-encounter.png
+        test -s run-npc/npc-probe/03-night-capital.png
         grep 'SAO_NPC_' "$log"
         exit 0
     fi

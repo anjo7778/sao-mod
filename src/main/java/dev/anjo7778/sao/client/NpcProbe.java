@@ -159,19 +159,24 @@ public final class NpcProbe {
             }
             case 6 -> {
                 if(ticks<240)return;
+                capture(c,"03-night-capital");
                 action(c,p->{
-                    int rest=0,moved=0;
+                    int rest=0,moved=0,awake=0;
+                    var population=NpcPopulationData.get(p.serverLevel().getServer());
                     for(var npc:npcs(p)){
-                        if(npc.activity().equals("REST"))rest++;
+                        var state=population.state(1,npc.getUUID());
+                        if(state==null||!npc.activity().equals(NpcDailyPlan.at(state,p.serverLevel().getDayTime()).activity().name()))
+                            throw new IllegalStateException("NPC did not follow its personal routine");
+                        if(npc.activity().equals("REST"))rest++;else awake++;
                         Vec3 v=before.get(npc.getUUID());
                         if(v!=null&&v.distanceTo(npc.position())>3)moved++;
                     }
-                    if(rest<1||moved<1)throw new IllegalStateException("No real schedule movement/rest: "+rest+"/"+moved);
+                    if(rest<1||awake<1||moved<1)throw new IllegalStateException("No mixed nighttime behavior: "+rest+"/"+awake+"/"+moved);
                     var data=NpcPopulationData.get(p.serverLevel().getServer());
                     var restored=NpcPopulationData.load(data.save(new net.minecraft.nbt.CompoundTag(),p.serverLevel().registryAccess()),p.serverLevel().registryAccess());
                     if(restored.state(1,greeted).relationship(p.getUUID()).trust()!=51)
                         throw new IllegalStateException("Relationship not restored");
-                    LOG.info("SAO_NPC_NIGHT_SCHEDULE_OK rest={} moved={}",rest,moved);
+                    LOG.info("SAO_NPC_NIGHT_SCHEDULE_OK rest={} awake={} moved={}",rest,awake,moved);
                     if(!p.teleportTo(p.serverLevel(),500.5,130,0.5,Set.of(),0,0))
                         throw new IllegalStateException("Cannot move away");
                     p.getAbilities().flying=true;p.onUpdateAbilities();

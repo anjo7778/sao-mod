@@ -165,4 +165,23 @@ public final class FoundationTests {
         helper.assertTrue(restored.converse(1,second,first,5).isEmpty(),"Reload prevents replay");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void individualNightRoutines(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        data.discover(1,42);
+        int awake=0,rest=0,dayRest=0;
+        for(var s:data.roster(1)){
+            if(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,18000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.REST)rest++;
+            else awake++;
+            if(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,6000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.REST)dayRest++;
+        }
+        helper.assertTrue(awake>0&&rest>0&&dayRest>0,"Not a universal bedtime");
+        var r=helper.getLevel().registryAccess();
+        var loaded=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),r),r);
+        for(var s:data.roster(1)){
+            var other=loaded.state(1,s.profile().id());
+            helper.assertTrue(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,18000).equals(dev.anjo7778.sao.simulation.NpcDailyPlan.at(other,18000)),"Routine preserved after serialization");
+        }
+        helper.succeed();
+    }
 }
