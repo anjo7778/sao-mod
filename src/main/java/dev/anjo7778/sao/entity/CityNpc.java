@@ -49,10 +49,15 @@ public final class CityNpc extends PathfinderMob {
         setInvulnerable(true);
         setCanPickUpLoot(false);
         setHealth(getMaxHealth()*Math.max(1,state.needs().health())/100f);
-        plan=NpcDailyPlan.at(state,level().getDayTime());
+        plan=level() instanceof ServerLevel serverLevel?AdventureSimulationData.plan(serverLevel,state):NpcDailyPlan.at(state,level().getDayTime());
         updateDisplayItem();
     }
     public long originFloor(){return floor;}
+    public boolean atScheduledDestination(){
+        if(plan==null)return false;
+        var c=FloorLayout.center(floor);
+        return distanceToSqr(c.x()+plan.destination().x()+.5,CityPlan.GROUND+1,c.z()+plan.destination().z()+.5)<=16;
+    }
     public String activity(){return plan==null?"unassigned":plan.activity().name();}
     public boolean canConverse(){
         return profile!=null&&isAlive()&&plan!=null&&
@@ -103,7 +108,7 @@ public final class CityNpc extends PathfinderMob {
             var data=NpcPopulationData.get(level.getServer());
             State state=data.state(floor,getUUID());
             if(state==null){discard();return;}
-            Plan next=NpcDailyPlan.at(state,level.getDayTime());
+            Plan next=AdventureSimulationData.plan(level,state);
             if(!next.equals(plan)){
                 endConversation();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
             }

@@ -184,4 +184,23 @@ public final class FoundationTests {
         }
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void adventureLedgerRoundTrip(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        var id=new java.util.UUID(8,9);
+        var mode=dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE;
+        helper.assertFalse(data.update(1,id,20,mode,true),"Discovery initializes without retroactive reward");
+        helper.assertTrue(data.update(1,id,21,mode,true),"Abstract update");
+        helper.assertFalse(data.update(1,id,21,mode,true),"Duplicate epoch rejected");
+        var ledger=data.ledger(1,id);
+        helper.assertTrue(ledger.practice()==1&&ledger.abstractUpdates()==1&&ledger.fatigue()==12,"Practice and fatigue recorded");
+        var r=helper.getLevel().registryAccess();
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(data.save(new CompoundTag(),r),r);
+        helper.assertTrue(ledger.equals(restored.ledger(1,id)),"Progress persists");
+        helper.assertFalse(restored.update(1,id,21,mode,true),"Saved epoch prevents replay");
+        helper.assertTrue(restored.update(1,id,10000,mode,false),"Single bounded later update");
+        helper.assertTrue(restored.ledger(1,id).practice()==2&&restored.ledger(1,id).abstractUpdates()==1,"No backlog reward");
+        helper.assertTrue(restored.ledger(2,id)==null,"No unrelated floor allocation");
+        helper.succeed();
+    }
 }

@@ -14,7 +14,7 @@ import java.util.*;
 /** Persistent authoritative profiles of visited capitals; nearby entities are temporary projections. */
 public final class NpcPopulationData extends SavedData {
     private static final Factory<NpcPopulationData> FACTORY=new Factory<>(NpcPopulationData::new,NpcPopulationData::load,null);
-    private final Map<Long,LinkedHashMap<UUID,State>> floors=new TreeMap<>();
+    private final NavigableMap<Long,LinkedHashMap<UUID,State>> floors=new TreeMap<>();
     public static NpcPopulationData get(MinecraftServer server){
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY,"sao_population");
     }
@@ -39,6 +39,7 @@ public final class NpcPopulationData extends SavedData {
         return r==null?List.of():List.copyOf(r.values());
     }
     public State state(long floor,UUID id){var r=floors.get(floor);return r==null?null:r.get(id);}
+    public long nextDiscoveredFloor(long after){var next=floors.higherKey(after);return next!=null?next:floors.isEmpty()?0:floors.firstKey();}
     public int discoveredCapitals(){return floors.size();}
     public boolean remember(long floor,UUID npc,Memory event){
         var r=floors.get(floor);if(r==null||!r.containsKey(npc))return false;
