@@ -13,9 +13,14 @@ public final class FloorCatalog {
         long seed = mix(worldSeed + number * 0x9E3779B97F4A7C15L);
         Theme[] themes = Theme.values();
         Theme theme = number <= 5 ? themes[(int) number - 1] : themes[(int) Math.floorMod(seed, number < 50 ? 7 : themes.length)];
-        int radius = 4000 - 2 * (int) Math.min(number - 1, 1600);
+        int radius = radiusFor(number);
         double threat = 1.0 + 0.65 * Math.log(number);
         return new Floor(number, seed, theme, radius, threat, number % 10 == 0);
+    }
+
+    public static int radiusFor(long number) {
+        if (number < 1) throw new IllegalArgumentException("Floor must be positive");
+        return 4000 - 2 * (int)Math.min(number - 1, 1600);
     }
 
     private static long mix(long z) {

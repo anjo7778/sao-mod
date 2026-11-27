@@ -9,7 +9,7 @@ displayName="${mod_name}"
 authors="anjo7778"
 description='''
 A Sword Art Online inspired mod for Minecraft 1.21.1.
-Experimental first-floor world preset, save-backed progression and standalone NPC simulation primitives.
+Experimental Aincrad world preset, shared upper realm and save-backed progression; standalone NPC simulation primitives.
 '''
 
 [[dependencies.${mod_id}]]

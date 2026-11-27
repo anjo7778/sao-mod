@@ -11,7 +11,12 @@ export ALSOFT_DRIVERS=null
 
 # The first-run accessibility wizard otherwise blocks the title-screen trigger.
 mkdir -p run-visual
-printf '%s\n' 'version:3955' 'onboardAccessibility:false' 'pauseOnLostFocus:false' 'renderDistance:6' 'simulationDistance:5' 'maxFps:30' > run-visual/options.txt
+printf '%s\n' 'version:3955' 'onboardAccessibility:false' 'pauseOnLostFocus:false' 'renderDistance:6' 'simulationDistance:5' 'maxFps:30' 'tutorialStep:none' > run-visual/options.txt
+if [[ -e run-visual/saves/sao-visual-test ]]; then
+    echo 'Refusing to reuse a previous visual-test save.' >&2
+    exit 1
+fi
+rm -f run-visual/probe-first-captured run-visual/probe-upper-captured
 
 # Capture only the isolated virtual display. Do not use a real desktop or user account.
 setsid bash ./gradlew --no-daemon --no-configuration-cache runVisualProbe >"$log" 2>&1 &
@@ -27,13 +32,29 @@ cleanup() {
 }
 trap cleanup EXIT
 
+capture() {
+    sleep 2
+    kill -0 "$pid"
+    timeout 15s import -window root "$out/$1.png"
+    identify "$out/$1.png"
+}
+
 deadline=$((SECONDS + 540))
 while (( SECONDS < deadline )); do
-    if grep -q 'SAO_VISUAL_PROBE_WORLD_READY' "$log"; then
-        sleep 3
-        kill -0 "$pid"
-        timeout 15s import -window root "$out/floor-one-spawn.png"
-        identify "$out/floor-one-spawn.png"
+    if [[ ! -e run-visual/probe-first-captured ]] && grep -q 'SAO_VISUAL_PROBE_FIRST_READY' "$log"; then
+        capture floor-one-spawn
+        touch run-visual/probe-first-captured
+    fi
+    if [[ ! -e run-visual/probe-upper-captured ]] && grep -q 'SAO_VISUAL_PROBE_UPPER_READY' "$log"; then
+        capture floor-two-arrival
+        touch run-visual/probe-upper-captured
+    fi
+    if grep -q 'SAO_VISUAL_PROBE_RETURN_READY' "$log"; then
+        grep -q 'SAO_VISUAL_PROBE_LOCKED_REJECTED' "$log"
+        grep -q 'SAO_VISUAL_PROBE_SYNTHETIC_VICTORY' "$log"
+        test -s "$out/floor-one-spawn.png"
+        test -s "$out/floor-two-arrival.png"
+        capture floor-one-return
         grep 'SAO_VISUAL_PROBE_' "$log" | tee "$out/result.txt"
         exit 0
     fi
@@ -43,5 +64,5 @@ while (( SECONDS < deadline )); do
     fi
     sleep 2
 done
-echo 'Timed out before the Aincrad world was ready.' >&2
+echo 'Timed out before the complete Aincrad travel round trip.' >&2
 exit 1

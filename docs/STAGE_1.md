@@ -1,26 +1,31 @@
 # Stage 1 — A / B / C / R
-Statuses denote source implementation, not a claim of successful runtime testing.
 
-| ID | Feature | Source status |
+Source status is distinct from verified test results. v0.1.2 baseline CI: successful compile, metadata checks, 40,020 simulation assertions, 6.25 million geometry samples, 2 required Minecraft GameTests. v0.1.3 changes require their own CI verification.
+
+| ID | Feature | Status |
 |---|---|---|
-| A1 | Automated builds and jar checks | Existing CI verified on v0.1.1 |
-| A2 | Pure Java tests | Existing checks; radial geometry stress check added |
-| A3 | Headless Minecraft GameTests | Two tests written; need CI results |
-| A4 | Graphical client tests | Experimental cloud probe on separate branch; awaiting run |
-| B1 | Selectable Aincrad preset | Prototype implemented |
-| B2 | Circular floating terrain | Prototype implemented, 4000-block radius, noise-based height, void below |
-| B3 | Boundaries, ceiling, castle pillars | Partial: terrain edge only |
-| B4 | Higher-floor terrain | Catalog only; not generated |
-| C1 | Saved world progression | Overworld SavedData, NBT round-trip test; full restart not yet tested |
-| C2 | Teleportation and safe returns | Planned |
-| C3 | Boss-gated unlocking | Policy + saved data API; no live boss source yet |
-| R1 | On-demand floor generation | Catalog calculates descriptors on demand |
-| R2 | Chunk/dimension management | Uses normal Minecraft chunk loading for first floor; further architecture pending |
-| R3 | Benchmarks | Pure Java geometry sample loop; runtime measurements pending |
+| A1 | Automated builds and JAR checks | v0.1.2 CI verified |
+| A2 | Pure Java tests | v0.1.2 verified; v0.1.3 addressing tests added |
+| A3 | Headless Minecraft GameTests | 2 passed v0.1.2; new upper-floor density test added |
+| A4 | Graphical client tests | v0.1.2 world creation and spawn screenshot succeeded in run 46070486020; v0.1.3 travel probe pending |
+| B1 | Selectable Aincrad preset | Source registered; actual new-world spawn unverified |
+| B2 | Circular floating terrain | Density test passed v0.1.2; chunk visuals unverified |
+| B3 | Boundaries, ceiling, castle pillars | Terrain edge only |
+| B4 | Higher-floor terrain | Shared upper realm implemented, pending CI; plains placeholder biome |
+| C1 | Saved world progression | v0.1.2 NBT round trip passed; full restart pending |
+| C2 | Teleportation and safe returns | Server command prototype, safe landing search, locked-floor guard; runtime travel unverified |
+| C3 | Boss-gated unlocking | Saved policy, no live boss source yet |
+| R1 | On-demand floor generation | Catalog verified; address/density prototype for upper realm |
+| R2 | Chunk/dimension management | One shared realm; no per-floor dimensions; live chunk eviction tests pending |
+| R3 | Benchmarks | Geometry and addressing tests; runtime CPU/memory pending |
 
-## Prototype
+## Upper realm architecture
 
-In Create New World choose Aincrad - Floor One (Prototype). Do not open an existing save to change its generation. The preset replaces only the Overworld; standard world presets remain available. Nether/End remain vanilla. Fixed plains, stone slab, grass and dirt, seeded surface noise. The void is dangerous. No roof, pillars, waterways, custom towns or travel yet. Vanilla feature/structure placement around the edge, spawn safety, and terrain appearance must be tested before claiming playable quality. `/sao progress` and `/sao floor <number>` only inspect progression and catalog descriptions, not teleport or grant victories. The current API accepts server-authoritative boss outcomes once the boss system exists. No external dependencies yet. No self-hosted runner.
+Floor 1 remains the Overworld. All upper floors use one additional dimension, `sao:upper_floors`. Fixed 16,384-block region stride and square-spiral coordinates keep large empty gaps between islands. Layout version 1 supports 12,967,202 floor numbers (including Floor 1) within Minecraft's current world border. This is an addressing capacity, not a claim that millions of unique playable floors have been tested or authored. Normal Minecraft chunk loading applies; no force-loading all floors or allocation of a dimension for each floor. More advanced biome generation, individual floor lighting, climate and dungeon identities remain future work. A shared realm also needs explicit isolation of floor events and effects. Do not change addressing constants for existing saves without migration.
 
-## A4 visual probe
-The isolated GitHub-hosted workflow uses Xvfb and software OpenGL to start an actual Minecraft client, create a deterministic creative test world using the Aincrad preset, confirm its generator and settled spawn, and capture a screenshot. It fails if the world never becomes ready. Normal clients never activate the probe; its dedicated run directory is ignored. The workflow is not a substitute for visual inspection, shader testing, or real GPU benchmarks. It is not a release gate while experimental.
+## Prototype instructions
+
+Create a NEW world with Aincrad - Floor One (Prototype). The old v0.1.2 first-floor generator is preserved, but existing worlds might not gain the upper realm; do not attempt conversion on valued saves. Vanilla Nether and End remain. `/sao progress` and `/sao floor <number>` inspect state. `/sao travel <number>` allows only unlocked and supported floors from a SAO floor, searches central safe ground without overwriting blocks, and refuses unavailable destinations. A periodic server guard attempts to return a player who enters a locked upper region to Floor 1. This is an initial gameplay restriction, not security against administrators or arbitrary mod code. No live boss exists yet, so ordinary players start with only Floor 1 accessible; no debug victory command is added. Teleport cooldown, physical gates, robust emergency arrival, real save/restart and traversal tests are still pending. Upper-floor biomes are fixed plains while the terrain profiles vary. No castle roof, pillars or settlements yet. Cloud-only CI, no personal-computer runner.
+
+## Visual test branch
+The first cloud client timeout was resolved by setting the first-launch accessibility option. The v0.1.2 probe captured a real 1280×720 world screenshot. The v0.1.3 probe creates a new isolated world, asserts locked Floor 2 travel is denied, injects a synthetic floor-one victory on the integrated server exclusively in that test fixture, uses the production travel method to reach Floor 2, captures the upper realm, returns to Floor 1, and captures again. It does not use a real boss, grant unlocks during normal play or run commands received over a network. Full save/restart, castle visuals and runtime performance testing are still pending.

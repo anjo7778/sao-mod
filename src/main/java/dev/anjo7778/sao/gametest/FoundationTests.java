@@ -1,6 +1,7 @@
 package dev.anjo7778.sao.gametest;
 
 import dev.anjo7778.sao.simulation.FloorProgress;
+import dev.anjo7778.sao.simulation.FloorLayout;
 import dev.anjo7778.sao.world.SaoWorldData;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
@@ -43,6 +44,22 @@ public final class FoundationTests {
         helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(0, 200, 0)) < 0, "Open sky");
         helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(4100, 0, 0)) < 0, "Void past edge");
         helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(3000, 0, 3000)) < 0, "Circular corner");
+        helper.succeed();
+    }
+    @GameTest(template = "empty")
+    public static void upperFloorShape(GameTestHelper helper) {
+        var access = helper.getLevel().registryAccess();
+        var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors"));
+        var settings = access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
+        var density = RandomState.create(settings, access.lookupOrThrow(Registries.NOISE), 42L).router().initialDensityWithoutJaggedness();
+        for (long floor : new long[] {2, 3, 1000, 10000, FloorLayout.MAX_FLOOR}) {
+            var c = FloorLayout.center(floor);
+            helper.assertTrue(FloorLayout.floorAt(c.x(), c.z()) == floor, "Address round trip");
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(c.x(), 0, c.z())) > 0, "Solid upper floor " + floor);
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(c.x(), -60, c.z())) < 0, "Void below");
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(c.x(), 290, c.z())) < 0, "Open sky");
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(c.x()+6000, 0, c.z())) < 0, "Gap outside floor");
+        }
         helper.succeed();
     }
 }
