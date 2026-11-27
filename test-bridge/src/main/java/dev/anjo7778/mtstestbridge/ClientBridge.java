@@ -176,6 +176,8 @@ public final class ClientBridge {
                     if(step==1) { x=req.world().equals("sao")?1800:spawnX+96; }
                     if(step==2) { x=req.world().equals("sao")?3850:spawnX-96; z=req.world().equals("sao")?0:spawnZ+96; }
                     var level=player.serverLevel();
+                    // Heightmaps for unloaded chunks can report the minimum build height.
+                    level.getChunk(x >> 4,z >> 4);
                     int y=level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z);
                     if(y<level.getMinBuildHeight()+2 || y>level.getMaxBuildHeight()-24)
                         throw new IllegalStateException("No valid terrain at survey point "+step);
@@ -189,6 +191,7 @@ public final class ClientBridge {
             var level=player.serverLevel();
             level.setDayTime(18000);
             actorX=spawnX;actorZ=spawnZ+5;
+            level.getChunk(actorX >> 4,actorZ >> 4);
             actorY=level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,actorX,actorZ);
             Zombie z=EntityType.ZOMBIE.create(level);
             if(z==null) throw new IllegalStateException("Cannot create animation fixture");

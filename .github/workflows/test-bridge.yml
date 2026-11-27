@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [terrain, animation, benchmark]
+        scenario: [terrain, animation, benchmark, sao-terrain]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

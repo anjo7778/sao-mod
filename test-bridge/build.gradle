@@ -19,3 +19,10 @@ neoForge {
     }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+configurations { runtimeClasspath.extendsFrom localRuntime }
+dependencies {
+    if (providers.gradleProperty('withSao').isPresent()) {
+        localRuntime files('../build/libs/sao-0.1.3.jar')
+    }
+}
