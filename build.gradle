@@ -226,3 +226,11 @@ tasks.register('verifyGeometry', JavaExec) {
 }
 
 tasks.named('check') { dependsOn tasks.named('verifyGeometry') }
+
+tasks.register('verifyFloorLayout', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.FloorLayoutChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyFloorLayout') }

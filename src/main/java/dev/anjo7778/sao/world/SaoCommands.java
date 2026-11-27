@@ -15,6 +15,9 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(() -> Component.literal("SAO: highest unlocked floor " + unlocked), false);
                 return 1;
             }))
+            .then(Commands.literal("travel")
+                .then(Commands.argument("number", LongArgumentType.longArg(1)).executes(ctx ->
+                    FloorTravel.request(ctx.getSource().getPlayerOrException(), LongArgumentType.getLong(ctx, "number")))))
             .then(Commands.literal("floor")
                 .then(Commands.argument("number", LongArgumentType.longArg(1)).executes(ctx -> {
                     long n = LongArgumentType.getLong(ctx, "number");
@@ -23,7 +26,7 @@ public final class SaoCommands {
                     boolean unlocked = SaoWorldData.get(ctx.getSource().getServer()).isUnlocked(n);
                     ctx.getSource().sendSuccess(() -> Component.literal("Floor " + n + " | " + floor.theme()
                         + " | radius " + floor.radiusBlocks() + " | " + (unlocked ? "unlocked" : "locked")
-                        + " (catalog description; not a travel command)"), false);
+                        + " (catalog description)"), false);
                     return 1;
                 }))));
     }
