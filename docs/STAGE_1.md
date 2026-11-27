@@ -11,17 +11,24 @@
 - Client CI 46076098874: guardian challenge, duplicate rejection, abandonment, actual player-attributed entity death unlocked Floor 2, real travel and return, actual generated taiga biome on Floor 2; the Floor 2 screenshot nevertheless appeared enclosed/dark.
 - Dedicated CI 46076176219: progression, modified upper-floor block and active encounter UUID survived restart. Eight separated floor centers generated including floors 1,000, 10,000 and 12,967,202. All eight unloaded with zero remaining upper-realm chunks and no forced tickets after 600 ticks. Sampled new chunk generation 574–1,142 ms, sampled peak heap 570 MiB on the empty cloud server; not a modpack benchmark.
 
-## v0.1.6 implementation (verification pending)
+## v0.1.6 foundation acceptance — verified on cloud CI
+
+- Release source commit `1e13fc26afd3ac9cbdcf16db59b93fb208860b93`, main build [46076471652](https://github.com/anjo7778/sao-mod/actions/runs/46076471652): compilation, JAR metadata, all 5 required GameTests, 441,000 biome samples, 200,000 addresses and 64 castle checks passed.
+- Client [46076500068](https://github.com/anjo7778/sao-mod/actions/runs/46076500068): real guardian challenge/death, locked-floor refusal, upper arrival and return with outdoor checks, actual taiga chunk, castle blocks, screenshots. Floor 2 daylight screenshot inspected; previous dark arrival corrected. Castle screenshot viewpoint was obscured by a tree; architectural blocks, not final artistic quality, verified.
+- Dedicated server [46076545243](https://github.com/anjo7778/sao-mod/actions/runs/46076545243): real save/restart, active guardian UUID persistence, upper block persistence, production safe arrivals on 8 distant centers, covered arrival rejection, 8 centers unloaded with 0 upper-realm chunks and no forced tickets after 600 ticks. Sampled generation plus arrival search 487–1,449 ms, sampled peak heap 601 MiB on empty cloud server.
+- Release JAR `sao-0.1.6.jar`, SHA-256 `0c978e8fb47a36a71e0eb667cc12be35d38654b9a9d8de1e171b88d21992956b`. Visual/persistence probe classes are excluded from the main release. No Windows modpack test yet.
+
+Stage 1 foundation acceptance passes; user gameplay feedback and visual polish remain. Unique authored floor content, NPCs, physical gate art, full world climate and large-scale populated runtime tests are not claimed complete.
 
 | ID | Feature | Status |
 |---|---|---|
-| A1–A4 | Build, Java, runtime, graphical test infrastructure | Verified on baseline; repeat for new changes |
+| A1–A4 | Build, Java, runtime, graphical test infrastructure | Verified v0.1.6 |
 | B1–B3 | Preset, floating terrain, castle skeleton | Verified on baseline |
 | B4 | Distinct floor environments | 441,000 samples passed; generated taiga verified in upper realm |
 | C1 | Persistent progression | v0.1.5 real restart verified saved active encounter UUID, block and progression |
-| C2 | Floor travel | Actual v0.1.5 travel passed but dark arrival screenshot exposed an unsafe surface check; v0.1.6 rejects covered ground, dangerous blocks and cliffs; visual rerun required |
+| C2 | Floor travel | v0.1.6 verified real daylight landing, return and covered landing rejection |
 | C3 | Boss unlocking | v0.1.5 client test verified real player-attributed death, duplicate prevention and abandon without unlock |
-| R1/R2 | On-demand chunks and region addressing | Eight real distant centers generated, all unloaded; no permanent tickets |
+| R1/R2 | On-demand chunks and region addressing | v0.1.6 eight real distant centers and safe arrivals verified; all unloaded; no permanent tickets |
 | R3 | Performance | Java and real empty-server generation/unload benchmark verified; long-duration populated modpack performance is later work |
 
 ## Architecture and limits
