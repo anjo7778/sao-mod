@@ -58,6 +58,13 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        visualProbe {
+            client()
+            gameDirectory = project.file('run-visual')
+            systemProperty 'sao.visualProbe', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
         server {
             server()
             programArgument '--nogui'
