@@ -58,6 +58,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        scoutProbe {
+            client()
+            gameDirectory = project.file('run-scout')
+            systemProperty 'sao.scoutProbe', 'true'
+        }
         server {
             server()
             programArgument '--nogui'
