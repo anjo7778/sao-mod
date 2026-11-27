@@ -188,3 +188,32 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// Pure Java simulation checks are deliberately separate from Minecraft runtime tests.
+sourceSets {
+    simulationCheck {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+tasks.register('verifySimulation', JavaExec) {
+    group = 'verification'
+    description = 'Runs deterministic floor and NPC simulation checks.'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.SimulationChecks'
+}
+
+tasks.register('verifyModJar', JavaExec) {
+    group = 'verification'
+    description = 'Checks the built JAR for metadata and required classes.'
+    dependsOn tasks.named('jar'), tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.JarChecks'
+    args tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath, mod_version, neo_version
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifySimulation'), tasks.named('verifyModJar')
+}
