@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb xauth libgl1-mesa-dri
-      - name: Verify social encounters and individualized nighttime routines
+      - name: Verify social routines and independent offscreen progression
         run: xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX" bash scripts/npc-probe.sh
       - name: Archive evidence
         if: always()

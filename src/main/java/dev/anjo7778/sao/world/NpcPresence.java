@@ -33,7 +33,7 @@ public final class NpcPresence {
         for(int i=0;i<roster.size()&&allowance>0;i++){
             State s=roster.get((start+i)%roster.size());
             if(level.getEntity(s.profile().id())!=null)continue;
-            var dest=NpcDailyPlan.at(s,time).destination();
+            var dest=AdventureSimulationData.plan(level,s).destination();
             double d=p.distanceToSqr(c.x()+dest.x()+.5,CityPlan.GROUND+1,c.z()+dest.z()+.5);
             if(d>RADIUS*RADIUS||d<10*10)continue;
             if(spawn(level,s,c,dest))allowance--;

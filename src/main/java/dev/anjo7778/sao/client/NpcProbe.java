@@ -32,6 +32,8 @@ public final class NpcProbe {
     private static int phase,ticks;
     private static CompletableFuture<Void> pending;
     private static UUID greeted;
+    private static long departureTick,offscreenBefore,practiceBefore;
+    private static boolean outsideVerified;
     private static UUID socialFirst,socialSecond,eventId;
     private static final Map<UUID,Vec3> before=new HashMap<>();
     private NpcProbe(){}
@@ -165,7 +167,7 @@ public final class NpcProbe {
                     var population=NpcPopulationData.get(p.serverLevel().getServer());
                     for(var npc:npcs(p)){
                         var state=population.state(1,npc.getUUID());
-                        if(state==null||!npc.activity().equals(NpcDailyPlan.at(state,p.serverLevel().getDayTime()).activity().name()))
+                        if(state==null||!npc.activity().equals(AdventureSimulationData.plan(p.serverLevel(),state).activity().name()))
                             throw new IllegalStateException("NPC did not follow its personal routine");
                         if(npc.activity().equals("REST"))rest++;else awake++;
                         Vec3 v=before.get(npc.getUUID());
@@ -180,22 +182,53 @@ public final class NpcProbe {
                     if(!p.teleportTo(p.serverLevel(),500.5,130,0.5,Set.of(),0,0))
                         throw new IllegalStateException("Cannot move away");
                     p.getAbilities().flying=true;p.onUpdateAbilities();
+                    p.serverLevel().setDayTime(6000);
+                    departureTick=p.serverLevel().getGameTime();
+                    var stats=totals(p);
+                    offscreenBefore=stats[0];practiceBefore=stats[1];
                 });
                 advance(7);
             }
             case 7 -> {
-                if(ticks<220)return;
+                if(outsideVerified){advance(8);return;}
+                if(ticks<220||ticks%40!=0)return;
+                if(ticks>3000)throw new IllegalStateException("Server did not advance enough for offscreen probe");
                 action(c,p->{
+                    if(p.serverLevel().getGameTime()-departureTick<1450)return;
                     if(!npcs(p).isEmpty())throw new IllegalStateException("NPC projections spawned outside city");
-                    var data=NpcPopulationData.get(p.serverLevel().getServer());
+                    var server=p.serverLevel().getServer();
+                    var data=NpcPopulationData.get(server);
                     if(data.state(1,greeted)==null||data.state(1,greeted).relationship(p.getUUID()).trust()!=51)
                         throw new IllegalStateException("Roster lost after travel");
+                    var total=totals(p);
+                    if(total[0]<=offscreenBefore||total[1]<=practiceBefore)
+                        throw new IllegalStateException("No offscreen routine/training advancement: "+Arrays.toString(total));
+                    var sim=AdventureSimulationData.get(server);
+                    var r=p.serverLevel().registryAccess();
+                    var restored=AdventureSimulationData.load(sim.save(new net.minecraft.nbt.CompoundTag(),r),r);
+                    for(var state:data.roster(1)){
+                        var id=state.profile().id();
+                        if(!Objects.equals(sim.ledger(1,id),restored.ledger(1,id)))
+                            throw new IllegalStateException("Offscreen ledger failed persistence roundtrip");
+                    }
+                    LOG.info("SAO_NPC_OFFSCREEN_OK updates={} practice={} elapsed={} no_nearby_projections=true",
+                        total[0]-offscreenBefore,total[1]-practiceBefore,p.serverLevel().getGameTime()-departureTick);
                     LOG.info("SAO_NPC_PROBE_PASS");
+                    outsideVerified=true;
                 });
-                advance(8);
             }
             default -> {}
         }
+    }
+    private static long[] totals(ServerPlayer p){
+        var server=p.serverLevel().getServer();
+        var sim=AdventureSimulationData.get(server);
+        long offscreen=0,practice=0;
+        for(var s:NpcPopulationData.get(server).roster(1)){
+            var l=sim.ledger(1,s.profile().id());
+            if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();}
+        }
+        return new long[]{offscreen,practice};
     }
     private static long greetings(NpcRoster.State s,UUID player){
         return s.memories().stream().filter(m->m.actor().equals(player)&&m.type()==AdventurerMind.EventType.GREETED).count();

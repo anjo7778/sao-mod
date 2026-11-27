@@ -27,6 +27,33 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(()->Component.literal("Capital "+floor+": "+roster.size()+" saved NPC profiles ("+adventurers+" adventurers; up to 32 nearby projected characters)"),false);
                 return 1;
             }))
+            .then(Commands.literal("adventurers")
+                .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                    var server=ctx.getSource().getServer();
+                    if(!CityRules.hasCities(server.overworld())){
+                        ctx.getSource().sendFailure(Component.literal("Aincrad city world required."));return 0;
+                    }
+                    long floor=LongArgumentType.getLong(ctx,"floor");
+                    var roster=NpcPopulationData.get(server).roster(floor).stream()
+                        .filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
+                    if(roster.isEmpty()){ctx.getSource().sendFailure(Component.literal("No discovered adventurers on this floor."));return 0;}
+                    var data=AdventureSimulationData.get(server);
+                    long offscreen=0,practice=0;
+                    for(var s:roster){
+                        var l=data.ledger(floor,s.profile().id());
+                        if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();}
+                    }
+                    final long total=offscreen,points=practice;
+                    ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+": "+roster.size()+" adventurers, "+total+" abstract activity updates, "+points+" practice points."),false);
+                    roster.stream().sorted(java.util.Comparator.comparingInt((dev.anjo7778.sao.simulation.NpcRoster.State s)->{
+                        var l=data.ledger(floor,s.profile().id());return l==null?0:l.practice();
+                    }).reversed()).limit(5).forEach(s->{
+                        var l=data.ledger(floor,s.profile().id());
+                        ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | practice rank "+(l==null?1:l.practiceRank())+
+                            " | fatigue "+(l==null?0:l.fatigue())+" | last "+(l==null?"IDLE":l.last().name())),false);
+                    });
+                    return 1;
+                })))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")

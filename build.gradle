@@ -287,3 +287,11 @@ tasks.register('verifyNpcSocial', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.NpcSocialChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyNpcSocial') }
+
+tasks.register('verifyAdventureProgress', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.AdventureProgressChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyAdventureProgress') }

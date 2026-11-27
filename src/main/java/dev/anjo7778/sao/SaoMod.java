@@ -8,6 +8,7 @@ import dev.anjo7778.sao.world.CapitalFeature;
 import dev.anjo7778.sao.world.CityRules;
 import dev.anjo7778.sao.world.NpcPopulationData;
 import dev.anjo7778.sao.world.NpcPresence;
+import dev.anjo7778.sao.world.AdventureSimulationData;
 import dev.anjo7778.sao.world.CitySocial;
 import dev.anjo7778.sao.entity.SaoEntities;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -54,6 +55,7 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(CityRules::damage);
         NeoForge.EVENT_BUS.addListener(NpcPopulationData::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(NpcPresence::tick);
+        NeoForge.EVENT_BUS.addListener(AdventureSimulationData::onTick);
         NeoForge.EVENT_BUS.addListener(CitySocial::tick);
         NeoForge.EVENT_BUS.addListener(SaoCommands::register);
         NeoForge.EVENT_BUS.addListener(FloorTravel::guard);
