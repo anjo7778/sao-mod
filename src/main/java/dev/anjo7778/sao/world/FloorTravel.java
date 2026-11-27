@@ -25,6 +25,8 @@ public final class FloorTravel {
     private static final ResourceKey<NoiseGeneratorSettings> UPPER_SETTINGS = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors"));
     private static final ResourceKey<NoiseGeneratorSettings> FIRST_CASTLE = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_castle"));
     private static final ResourceKey<NoiseGeneratorSettings> UPPER_CASTLE = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors_castle"));
+    private static final ResourceKey<NoiseGeneratorSettings> FIRST_LIVING = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_living"));
+    private static final ResourceKey<NoiseGeneratorSettings> UPPER_LIVING = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors_living"));
     private FloorTravel() {}
 
     public static boolean isAincrad(MinecraftServer server) { return isFirst(server.overworld()); }
@@ -33,8 +35,8 @@ public final class FloorTravel {
         return level != null && level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen && gen.generatorSettings().is(key);
     }
 
-    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE); }
-    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE); }
+    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE) || uses(level,FIRST_LIVING); }
+    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE) || uses(level,UPPER_LIVING); }
 
     public static long currentFloor(ServerLevel level, int x, int z) {
         if (level.dimension().equals(Level.OVERWORLD) && isFirst(level)) return 1;
@@ -71,7 +73,7 @@ public final class FloorTravel {
     }
 
     /** Bounded central search, intentionally refuses rather than overwriting terrain. */
-    private static BlockPos safeArrival(ServerLevel level, int cx, int cz) {
+    static BlockPos safeArrival(ServerLevel level, int cx, int cz) {
         // Search at most 9 columns to bound synchronous chunk work. Prefer the center.
         int[] offsets = {0, -8, 8};
         for (int dx : offsets) for (int dz : offsets) {

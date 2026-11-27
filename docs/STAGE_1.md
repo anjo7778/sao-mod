@@ -1,28 +1,26 @@
 # Stage 1 — A / B / C / R
 
-Source status is distinct from verified test results. v0.1.2 baseline CI: successful compile, metadata checks, 40,020 simulation assertions, 6.25 million geometry samples, 2 required Minecraft GameTests. v0.1.3 main CI passed 3 GameTests and 200,000 address cases. Cloud visual probe verified first-floor spawn, rejection of locked Floor 2, and failed after synthetic unlock because the upper destination heightmap was queried before generation. v0.1.4 explicitly loads destination chunks; new runtime verification required.
+## Confirmed v0.1.4 baseline
+- Main CI run 46074714712: successful compilation, JAR checks, 40,020 simulation assertions, 200,000 address cases, 64 castle checks and 4 required GameTests.
+- Graphical run 46074763323: fresh world, safe spawn, actual generated castle pillar/ceiling, locked travel refusal, synthetic victory, Floor 2 landing and Floor 1 return.
+- Dedicated-server restart run 46074892525: progression and a modified upper-floor block survived a real graceful shutdown and restart.
+- Test Bridge run 46074058019: 4 cloud scenarios passed including v0.1.3 SAO terrain. Cloud performance samples do not predict real GPU FPS.
+
+## v0.1.5 implementation (verification pending for new changes)
 
 | ID | Feature | Status |
 |---|---|---|
-| A1 | Automated builds and JAR checks | v0.1.2 CI verified |
-| A2 | Pure Java tests | v0.1.2 verified; v0.1.3 addressing tests added |
-| A3 | Headless Minecraft GameTests | 2 passed v0.1.2; new upper-floor density test added |
-| A4 | Graphical client tests | v0.1.2 spawn verified; Test Bridge 0.1.0 cloud terrain, animation, benchmark and SAO terrain runs passed; separate v0.1.4 travel test pending |
-| B1 | Selectable Aincrad preset | v0.1.2 and v0.1.3 client spawn verified; new castle settings pending |
-| B2 | Circular floating terrain | v0.1.2/v0.1.3 density tests passed; v0.1.3 Test Bridge surveyed rim |
-| B3 | Boundaries, ceiling, castle pillars | v0.1.4 open lattice ceiling, tapered support towers, outer ring implemented; new tests pending |
-| B4 | Higher-floor terrain | v0.1.3 shared realm/density GameTest passed; plains placeholder biome |
-| C1 | Saved world progression | v0.1.2 NBT round trip passed; full restart pending |
-| C2 | Teleportation and safe returns | Locked destination rejection verified in v0.1.3; explicit chunk load and bounded arrival scan added in v0.1.4; travel round trip pending |
-| C3 | Boss-gated unlocking | Saved policy, no live boss source yet |
-| R1 | On-demand floor generation | Catalog verified; address/density prototype for upper realm |
-| R2 | Chunk/dimension management | One shared realm; no per-floor dimensions; live chunk eviction tests pending |
-| R3 | Benchmarks | Geometry and addressing tests; runtime CPU/memory pending |
+| A1–A4 | Build, Java, runtime, graphical test infrastructure | Verified on baseline; repeat for new changes |
+| B1–B3 | Preset, floating terrain, castle skeleton | Verified on baseline |
+| B4 | Distinct floor environments | 13 vanilla biome entries with floor-specific stable palettes and local patches; new-world testing pending |
+| C1 | Persistent progression | Actual restart passed on baseline; active guardian identity added with schema 1 migration |
+| C2 | Floor travel | Actual travel/return passed on baseline; new biome settings supported |
+| C3 | Boss unlocking | Persistent named Ravager guardian, identity and floor verification, player-attributed death, cancellation/reset; actual encounter test pending |
+| R1/R2 | On-demand chunks and region addressing | Shared upper realm, real Floor 2 generation and persistence verified; multi-floor eviction still needs runtime tests |
+| R3 | Performance | Pure Java and preliminary runtime benchmarks; long-duration modpack benchmarks pending |
 
-## Upper realm architecture
+## Architecture and limits
 
-Floor 1 remains the Overworld. All upper floors use one additional dimension, `sao:upper_floors`. Fixed 16,384-block region stride and square-spiral coordinates keep large empty gaps between islands. Layout version 1 supports 12,967,202 floor numbers (including Floor 1) within Minecraft's current world border. This is an addressing capacity, not a claim that millions of unique playable floors have been tested or authored. Normal Minecraft chunk loading applies; no force-loading all floors or allocation of a dimension for each floor. More advanced biome generation, individual floor lighting, climate and dungeon identities remain future work. A shared realm also needs explicit isolation of floor events and effects. Do not change addressing constants for existing saves without migration.
+Floor 1 is the Overworld; all upper floors are islands in `sao:upper_floors`. Stable square-spiral addresses use 16,384-block strides and support up to 12,967,202 floor numbers within the world border. This is addressing capacity, not authored content. No per-floor dimension, registry entry or forced chunks. Retain layout version 1 and old terrain settings for existing worlds. New saves have a stable theme by floor number, 13 vanilla biome choices, local biome patches, clear plains in central courtyards, and sand/red sand/snow surface rules. Terrain noise remains seeded. Floor 4 has wetlands rather than custom lakes/oceans, and volcanic/celestial themes use terrestrial placeholder biomes; distinct bespoke climate, architecture, settlements, rivers and dungeons belong to later content work. Daylight lattice roof and pillars are structural primitives, not a finished castle recreation.
 
-## Prototype instructions
-
-Create a NEW world with Aincrad - Floor One (Prototype). The old v0.1.2 first-floor generator is preserved, but existing worlds might not gain the upper realm; do not attempt conversion on valued saves. Vanilla Nether and End remain. `/sao progress` and `/sao floor <number>` inspect state. `/sao travel <number>` allows only unlocked and supported floors from a SAO floor, searches central safe ground without overwriting blocks, and refuses unavailable destinations. A periodic server guard attempts to return a player who enters a locked upper region to Floor 1. This is an initial gameplay restriction, not security against administrators or arbitrary mod code. No live boss exists yet, so ordinary players start with only Floor 1 accessible; no debug victory command is added. Teleport cooldown, physical gates, robust emergency arrival, real save/restart and traversal tests are still pending. Upper-floor biomes are fixed plains while the terrain profiles vary. v0.1.4 new saves have open stone-brick roof ribs at y272–288, support towers on a 384-block grid and an outer ring; a central open courtyard prevents the roof obstructing spawn and travel. These are architectural primitives, not finished decorative builds. Old noise settings are unchanged. Full ceiling lighting, under-roof decoration, biome diversity, settlements, and visual inspection remain pending. Cloud-only CI, no personal-computer runner.
+Create a fresh Aincrad world for v0.1.5. On non-Peaceful difficulty near the central courtyard, `/sao challenge` starts the current frontier guardian. A real player-attributed death of the exact persisted UUID on the correct floor unlocks one additional floor; random mobs, duplicate deaths, abandoned encounters and environmental deaths cannot unlock. `/sao abandon` resets an encounter without victory. Stale guardians are discarded on tick. Use `/sao travel <number>` for unlocked floors. No physical gate or unique custom boss yet; no command directly grants victory. Singleplayer-first, no personal computer runner. Full modpack performance, detailed visuals and later NPC systems remain unverified.
