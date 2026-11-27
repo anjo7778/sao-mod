@@ -47,6 +47,16 @@ public final class NpcDailyPlan {
     public static List<Point> route(long floor,Point from,Point to){
         if(!CityPlan.inside(floor,from.x(),from.z())||!CityPlan.inside(floor,to.x(),to.z()))return List.of();
         List<Point> out=new ArrayList<>();
+        if(from.equals(to))return List.of();
+        // Main gates share the two broad axes. Avoid backtracking through the plaza.
+        if(Math.abs(from.z())<=5&&Math.abs(to.z())<=5){
+            Point a=new Point(from.x(),0),b=new Point(to.x(),0);
+            segment(out,from,a);segment(out,a,b);segment(out,b,to);return List.copyOf(out);
+        }
+        if(Math.abs(from.x())<=5&&Math.abs(to.x())<=5){
+            Point a=new Point(0,from.z()),b=new Point(0,to.z());
+            segment(out,from,a);segment(out,a,b);segment(out,b,to);return List.copyOf(out);
+        }
         var a=CityPlan.column(floor,from.x(),from.z());
         var b=CityPlan.column(floor,to.x(),to.z());
         if((a.plot()!=null && a.plot().equals(b.plot())) || a.zone()==CityPlan.Zone.PLAZA&&b.zone()==CityPlan.Zone.PLAZA){
