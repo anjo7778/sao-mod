@@ -58,6 +58,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        cityProbe {
+            client()
+            gameDirectory = project.file('run-city')
+            systemProperty 'sao.cityProbe', 'true'
+        }
         server {
             server()
             programArgument '--nogui'
