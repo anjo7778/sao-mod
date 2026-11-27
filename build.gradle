@@ -250,3 +250,11 @@ tasks.register('verifyFloorBiomes', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.BiomeChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyFloorBiomes') }
+
+tasks.register('verifyCityPlan', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.CityPlanChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyCityPlan') }

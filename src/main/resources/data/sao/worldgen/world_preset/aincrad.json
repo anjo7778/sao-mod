@@ -4,7 +4,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:floor_one_living",
+        "settings": "sao:floor_one_city",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": false,
@@ -22,7 +22,8 @@
             "minecraft:snowy_plains",
             "minecraft:badlands",
             "minecraft:meadow"
-          ]
+          ],
+          "capital": "sao:capital"
         }
       }
     },
@@ -51,7 +52,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:upper_floors_living",
+        "settings": "sao:upper_floors_city",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": true,
@@ -69,7 +70,8 @@
             "minecraft:snowy_plains",
             "minecraft:badlands",
             "minecraft:meadow"
-          ]
+          ],
+          "capital": "sao:capital"
         }
       }
     }

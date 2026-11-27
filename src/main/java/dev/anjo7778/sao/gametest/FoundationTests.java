@@ -94,4 +94,20 @@ public final class FoundationTests {
         helper.assertTrue(SaoWorldData.load(legacy,helper.getLevel().registryAccess()).highestUnlocked()==7,"Legacy progression preserved");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void capitalTerrain(GameTestHelper helper){
+        var access=helper.getLevel().registryAccess();
+        for(String name:new String[]{"floor_one_city","upper_floors_city"}){
+            var key=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao",name));
+            var settings=access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
+            var density=RandomState.create(settings,access.lookupOrThrow(Registries.NOISE),42L).router().finalDensity();
+            for(int x:new int[]{0,64,-64,128}){
+                helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(x,95,0))>0,"Solid city foundation");
+                helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(x,97,0))<0,"Flat city clearance");
+                helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(x,280,0))<0,"No overhead roof over city");
+            }
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(576,280,384))>0,"Castle outside capital preserved");
+        }
+        helper.succeed();
+    }
 }

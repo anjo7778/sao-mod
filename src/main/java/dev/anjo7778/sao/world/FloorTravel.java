@@ -28,6 +28,8 @@ public final class FloorTravel {
     private static final ResourceKey<NoiseGeneratorSettings> UPPER_CASTLE = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors_castle"));
     private static final ResourceKey<NoiseGeneratorSettings> FIRST_LIVING = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_living"));
     private static final ResourceKey<NoiseGeneratorSettings> UPPER_LIVING = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors_living"));
+    public static final ResourceKey<NoiseGeneratorSettings> FIRST_CITY=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","floor_one_city"));
+    public static final ResourceKey<NoiseGeneratorSettings> UPPER_CITY=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","upper_floors_city"));
     private FloorTravel() {}
 
     public static boolean isAincrad(MinecraftServer server) { return isFirst(server.overworld()); }
@@ -36,8 +38,8 @@ public final class FloorTravel {
         return level != null && level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen && gen.generatorSettings().is(key);
     }
 
-    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE) || uses(level,FIRST_LIVING); }
-    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE) || uses(level,UPPER_LIVING); }
+    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE) || uses(level,FIRST_LIVING)||uses(level,FIRST_CITY); }
+    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE) || uses(level,UPPER_LIVING)||uses(level,UPPER_CITY); }
 
     public static long currentFloor(ServerLevel level, int x, int z) {
         if (level.dimension().equals(Level.OVERWORLD) && isFirst(level)) return 1;

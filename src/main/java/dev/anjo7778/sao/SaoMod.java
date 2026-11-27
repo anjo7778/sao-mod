@@ -3,6 +3,10 @@ package dev.anjo7778.sao;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.MapCodec;
 import dev.anjo7778.sao.world.CastleDensity;
+import dev.anjo7778.sao.world.CityDensity;
+import dev.anjo7778.sao.world.CapitalFeature;
+import dev.anjo7778.sao.world.CityRules;
+import net.minecraft.world.level.levelgen.feature.Feature;
 import dev.anjo7778.sao.world.FloorBiomeSource;
 import dev.anjo7778.sao.world.FloorGuardian;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -26,16 +30,23 @@ public final class SaoMod {
     private static final DeferredRegister<MapCodec<? extends DensityFunction>> DENSITIES =
         DeferredRegister.create(Registries.DENSITY_FUNCTION_TYPE, MOD_ID);
     private static final DeferredRegister<MapCodec<? extends BiomeSource>> BIOMES = DeferredRegister.create(Registries.BIOME_SOURCE,MOD_ID);
+    private static final DeferredRegister<Feature<?>> FEATURES=DeferredRegister.create(Registries.FEATURE,MOD_ID);
     static {
         DENSITIES.register("floor_radial", () -> FloorRadialDensity.MAP_CODEC);
         DENSITIES.register("floor_region", () -> FloorRegionDensity.MAP_CODEC);
         DENSITIES.register("castle_architecture", () -> CastleDensity.MAP_CODEC);
         BIOMES.register("floor_biomes",()->FloorBiomeSource.CODEC);
+        DENSITIES.register("city_blend",()->CityDensity.MAP_CODEC);
+        FEATURES.register("capital",CapitalFeature::new);
     }
 
     public SaoMod(IEventBus modBus) {
         DENSITIES.register(modBus);
         BIOMES.register(modBus);
+        FEATURES.register(modBus);
+        NeoForge.EVENT_BUS.addListener(CityRules::spawn);
+        NeoForge.EVENT_BUS.addListener(CityRules::spawnCheck);
+        NeoForge.EVENT_BUS.addListener(CityRules::damage);
         NeoForge.EVENT_BUS.addListener(SaoCommands::register);
         NeoForge.EVENT_BUS.addListener(FloorTravel::guard);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,FloorGuardian::death);

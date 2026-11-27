@@ -1,6 +1,7 @@
 package dev.anjo7778.sao.world;
 
 import dev.anjo7778.sao.simulation.FloorLayout;
+import dev.anjo7778.sao.simulation.CityPlan;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -27,8 +28,11 @@ public final class FloorGuardian {
         if(floor!=data.highestUnlocked()||floor>=FloorLayout.MAX_FLOOR) return reply(p,"Challenge the guardian on your highest unlocked floor.");
         if(p.isSpectator()||!p.isAlive()||level.getDifficulty()==Difficulty.PEACEFUL) return reply(p,"Guardians require a living player and non-Peaceful difficulty.");
         var c=FloorLayout.center(floor);
-        if(Math.abs((long)p.getBlockX()-c.x())>96||Math.abs((long)p.getBlockZ()-c.z())>96)
-            return reply(p,"Return to the central courtyard (within 96 blocks of the floor center).");
+        long distance=Math.max(Math.abs((long)p.getBlockX()-c.x()),Math.abs((long)p.getBlockZ()-c.z()));
+        boolean city=CityRules.hasCities(level);
+        if(city&&(CityRules.isCity(level,p.getBlockX(),p.getBlockZ())||distance>CityPlan.half(floor)+192))
+            return reply(p,"Challenge outside the capital, within 192 blocks of its outer wall.");
+        if(!city&&distance>96)return reply(p,"Return to the central courtyard (within 96 blocks of the floor center).");
         UUID active=data.activeGuardian();
         if(active!=null) return reply(p,"A guardian is already active. Defeat it or use /sao abandon to reset the encounter.");
         Ravager boss=EntityType.RAVAGER.create(level);
@@ -37,7 +41,7 @@ public final class FloorGuardian {
         BlockPos home=null;
         for(int[] d:offsets){
             BlockPos candidate=FloorTravel.safeArrival(level,p.getBlockX()+d[0],p.getBlockZ()+d[1]);
-            if(candidate==null||candidate.distSqr(p.blockPosition())<64) continue;
+            if(candidate==null||candidate.distSqr(p.blockPosition())<64||CityRules.isCity(level,candidate.getX(),candidate.getZ())) continue;
             boss.moveTo(candidate.getX()+.5,candidate.getY(),candidate.getZ()+.5,0,0);
             if(level.noCollision(boss)){home=candidate;break;}
         }
@@ -97,7 +101,7 @@ public final class FloorGuardian {
         var data=SaoWorldData.get(level.getServer());
         if(!boss.getUUID().equals(data.activeGuardian())||floor!=data.highestUnlocked()){boss.discard();return;}
         BlockPos home=BlockPos.of(boss.getPersistentData().getLong(HOME));
-        if(boss.blockPosition().distSqr(home)>96*96 || boss.getY()<level.getMinBuildHeight()+4
+        if(CityRules.isCity(level,boss.getBlockX(),boss.getBlockZ())||boss.blockPosition().distSqr(home)>96*96 || boss.getY()<level.getMinBuildHeight()+4
             || FloorTravel.currentFloor(level,boss.getBlockX(),boss.getBlockZ())!=floor){
             // Cancel instead of teleporting a boss into a potentially changed/blocked arena.
             data.clearGuardian(boss.getUUID());boss.discard();

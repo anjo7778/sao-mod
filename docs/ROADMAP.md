@@ -19,3 +19,7 @@ No mandatory external mods initially. Cloud CI only; no personal computer runner
 The floor catalog describes floor themes, seeds, radius and difficulty. Stage 1 now prototypes a single shared upper realm with stable region addresses and on-demand chunk generation; see [Stage 1](STAGE_1.md). The initial policy permits only sequential boss-based unlocking; NPC unlocks are configurable at policy construction. NPC utility decisions and bounded memories operate in pure Java. The NPC engine remains a pure Java primitive; Minecraft terrain and save-backed floor policy are separate Stage 1 implementations. Values are provisional balancing defaults. A retained event ID is deduplicated; evicted memories can no longer contribute to relationship scores. Stage 1 adds a real guardian death event and a versioned encounter identity; v0.1.4 restart verification succeeded. NPC social event dispatch and custom bosses remain later tasks.
 
 Track results separately: implemented, Java verified, packaged/compiled, Minecraft runtime verified, visually verified. Never claim a playable feature from a unit test.
+
+## Stage 2 — Living world
+
+D: settlements (Town of Beginnings, floor capitals, safe zones, districts, roads, furnished plots, regional settlements). F: persistent NPC identity, utility decisions, needs and goals. G: contextual conversation, social memories and relationships. H: schedules, home/inn and work, training, exploration and rest. Start with D so NPC actions have real destinations. See [Stage 2 tracker](STAGE_2.md).
