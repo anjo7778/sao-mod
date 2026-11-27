@@ -2,6 +2,7 @@ package dev.anjo7778.sao;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.MapCodec;
+import dev.anjo7778.sao.world.CastleDensity;
 import dev.anjo7778.sao.world.FloorRadialDensity;
 import dev.anjo7778.sao.world.FloorRegionDensity;
 import dev.anjo7778.sao.world.FloorTravel;
@@ -23,6 +24,7 @@ public final class SaoMod {
     static {
         DENSITIES.register("floor_radial", () -> FloorRadialDensity.MAP_CODEC);
         DENSITIES.register("floor_region", () -> FloorRegionDensity.MAP_CODEC);
+        DENSITIES.register("castle_architecture", () -> CastleDensity.MAP_CODEC);
     }
 
     public SaoMod(IEventBus modBus) {

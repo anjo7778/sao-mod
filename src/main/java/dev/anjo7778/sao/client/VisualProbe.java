@@ -7,6 +7,7 @@ import dev.anjo7778.sao.world.FloorTravel;
 import dev.anjo7778.sao.world.SaoWorldData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -18,6 +19,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.block.Blocks;
+import java.util.Set;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -32,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 public final class VisualProbe {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final boolean ENABLED = Boolean.getBoolean("sao.visualProbe");
-    private enum Phase { START, FIRST_SETTLE, FIRST_CAPTURE, UPPER_SETTLE, UPPER_CAPTURE, RETURN_SETTLE, DONE }
+    private enum Phase { START, FIRST_SETTLE, FIRST_CAPTURE, CASTLE_SETTLE, CASTLE_CAPTURE, UPPER_SETTLE, UPPER_CAPTURE, RETURN_SETTLE, DONE }
     private static Phase phase = Phase.START;
     private static int settledTicks;
     private static String lastScreen = "uninitialized";
@@ -75,7 +79,7 @@ public final class VisualProbe {
         switch (phase) {
             case FIRST_SETTLE -> {
                 if (!settled(client, false)) return;
-                var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one"));
+                var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_castle"));
                 var generator = client.getSingleplayerServer().overworld().getChunkSource().getGenerator();
                 if (!(generator instanceof NoiseBasedChunkGenerator noise) || !noise.generatorSettings().is(key))
                     throw new IllegalStateException("Wrong first-floor generator");
@@ -84,6 +88,16 @@ public final class VisualProbe {
             }
             case FIRST_CAPTURE -> {
                 if (!Files.exists(client.gameDirectory.toPath().resolve("probe-first-captured"))) return;
+                surveyCastle(client);
+                advance(Phase.CASTLE_SETTLE);
+            }
+            case CASTLE_SETTLE -> {
+                if (!settled(client, false) || Math.abs(client.player.getX()-320)>3 || Math.abs(client.player.getZ()-320)>3) return;
+                LOGGER.info("SAO_VISUAL_PROBE_CASTLE_READY at {} {} {}", client.player.getX(), client.player.getY(), client.player.getZ());
+                advance(Phase.CASTLE_CAPTURE);
+            }
+            case CASTLE_CAPTURE -> {
+                if (!Files.exists(client.gameDirectory.toPath().resolve("probe-castle-captured"))) return;
                 startTravel(client, true);
                 advance(Phase.UPPER_SETTLE);
             }
@@ -122,6 +136,32 @@ public final class VisualProbe {
             return false;
         }
         return ++settledTicks >= 80;
+    }
+
+    private static void surveyCastle(Minecraft client) {
+        MinecraftServer server = client.getSingleplayerServer();
+        var uuid=client.player.getUUID();
+        pending=CompletableFuture.runAsync(()->{
+            var player=server.getPlayerList().getPlayer(uuid);
+            if(player==null) throw new IllegalStateException("Missing test player");
+            var level=server.overworld();
+            // Generate actual structure chunks and verify placed blocks, not just density.
+            level.getChunk(384>>4,384>>4);
+            level.getChunk(384>>4,192>>4);
+            level.getChunk(320>>4,320>>4);
+            if (!level.getBlockState(new BlockPos(384,220,384)).is(Blocks.STONE_BRICKS))
+                throw new IllegalStateException("Pillar block missing");
+            if (!level.getBlockState(new BlockPos(384,280,192)).is(Blocks.STONE_BRICKS))
+                throw new IllegalStateException("Ceiling block missing");
+            if (!level.getBlockState(new BlockPos(320,280,320)).isAir())
+                throw new IllegalStateException("Daylight opening obstructed");
+            LOGGER.info("SAO_VISUAL_PROBE_CASTLE_BLOCKS_VERIFIED");
+            int y=level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,320,320);
+            if(y<48 || y>205) throw new IllegalStateException("Unsafe castle viewpoint");
+            if(!player.teleportTo(level,320.5,y,320.5,Set.of(),-45,-32))
+                throw new IllegalStateException("Castle survey teleport failed");
+            player.setDeltaMovement(0,0,0);player.fallDistance=0;
+        },server::execute);
     }
 
     private static void startTravel(Minecraft client, boolean upper) {

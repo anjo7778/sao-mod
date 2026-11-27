@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:max",
+  "argument1": "sao:upper_floor_shape",
+  "argument2": {
+    "type": "sao:castle_architecture",
+    "upper": true
+  }
+}

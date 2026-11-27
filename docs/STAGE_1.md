@@ -1,19 +1,19 @@
 # Stage 1 — A / B / C / R
 
-Source status is distinct from verified test results. v0.1.2 baseline CI: successful compile, metadata checks, 40,020 simulation assertions, 6.25 million geometry samples, 2 required Minecraft GameTests. v0.1.3 changes require their own CI verification.
+Source status is distinct from verified test results. v0.1.2 baseline CI: successful compile, metadata checks, 40,020 simulation assertions, 6.25 million geometry samples, 2 required Minecraft GameTests. v0.1.3 main CI passed 3 GameTests and 200,000 address cases. Cloud visual probe verified first-floor spawn, rejection of locked Floor 2, and failed after synthetic unlock because the upper destination heightmap was queried before generation. v0.1.4 explicitly loads destination chunks; new runtime verification required.
 
 | ID | Feature | Status |
 |---|---|---|
 | A1 | Automated builds and JAR checks | v0.1.2 CI verified |
 | A2 | Pure Java tests | v0.1.2 verified; v0.1.3 addressing tests added |
 | A3 | Headless Minecraft GameTests | 2 passed v0.1.2; new upper-floor density test added |
-| A4 | Graphical client tests | v0.1.2 world creation and spawn screenshot succeeded in run 46070486020; v0.1.3 travel probe pending |
-| B1 | Selectable Aincrad preset | Source registered; actual new-world spawn unverified |
-| B2 | Circular floating terrain | Density test passed v0.1.2; chunk visuals unverified |
-| B3 | Boundaries, ceiling, castle pillars | Terrain edge only |
-| B4 | Higher-floor terrain | Shared upper realm implemented, pending CI; plains placeholder biome |
+| A4 | Graphical client tests | v0.1.2 spawn verified; Test Bridge 0.1.0 cloud terrain, animation, benchmark and SAO terrain runs passed; separate v0.1.4 travel test pending |
+| B1 | Selectable Aincrad preset | v0.1.2 and v0.1.3 client spawn verified; new castle settings pending |
+| B2 | Circular floating terrain | v0.1.2/v0.1.3 density tests passed; v0.1.3 Test Bridge surveyed rim |
+| B3 | Boundaries, ceiling, castle pillars | v0.1.4 open lattice ceiling, tapered support towers, outer ring implemented; new tests pending |
+| B4 | Higher-floor terrain | v0.1.3 shared realm/density GameTest passed; plains placeholder biome |
 | C1 | Saved world progression | v0.1.2 NBT round trip passed; full restart pending |
-| C2 | Teleportation and safe returns | Server command prototype, safe landing search, locked-floor guard; runtime travel unverified |
+| C2 | Teleportation and safe returns | Locked destination rejection verified in v0.1.3; explicit chunk load and bounded arrival scan added in v0.1.4; travel round trip pending |
 | C3 | Boss-gated unlocking | Saved policy, no live boss source yet |
 | R1 | On-demand floor generation | Catalog verified; address/density prototype for upper realm |
 | R2 | Chunk/dimension management | One shared realm; no per-floor dimensions; live chunk eviction tests pending |
@@ -25,7 +25,7 @@ Floor 1 remains the Overworld. All upper floors use one additional dimension, `s
 
 ## Prototype instructions
 
-Create a NEW world with Aincrad - Floor One (Prototype). The old v0.1.2 first-floor generator is preserved, but existing worlds might not gain the upper realm; do not attempt conversion on valued saves. Vanilla Nether and End remain. `/sao progress` and `/sao floor <number>` inspect state. `/sao travel <number>` allows only unlocked and supported floors from a SAO floor, searches central safe ground without overwriting blocks, and refuses unavailable destinations. A periodic server guard attempts to return a player who enters a locked upper region to Floor 1. This is an initial gameplay restriction, not security against administrators or arbitrary mod code. No live boss exists yet, so ordinary players start with only Floor 1 accessible; no debug victory command is added. Teleport cooldown, physical gates, robust emergency arrival, real save/restart and traversal tests are still pending. Upper-floor biomes are fixed plains while the terrain profiles vary. No castle roof, pillars or settlements yet. Cloud-only CI, no personal-computer runner.
+Create a NEW world with Aincrad - Floor One (Prototype). The old v0.1.2 first-floor generator is preserved, but existing worlds might not gain the upper realm; do not attempt conversion on valued saves. Vanilla Nether and End remain. `/sao progress` and `/sao floor <number>` inspect state. `/sao travel <number>` allows only unlocked and supported floors from a SAO floor, searches central safe ground without overwriting blocks, and refuses unavailable destinations. A periodic server guard attempts to return a player who enters a locked upper region to Floor 1. This is an initial gameplay restriction, not security against administrators or arbitrary mod code. No live boss exists yet, so ordinary players start with only Floor 1 accessible; no debug victory command is added. Teleport cooldown, physical gates, robust emergency arrival, real save/restart and traversal tests are still pending. Upper-floor biomes are fixed plains while the terrain profiles vary. v0.1.4 new saves have open stone-brick roof ribs at y272–288, support towers on a 384-block grid and an outer ring; a central open courtyard prevents the roof obstructing spawn and travel. These are architectural primitives, not finished decorative builds. Old noise settings are unchanged. Full ceiling lighting, under-roof decoration, biome diversity, settlements, and visual inspection remain pending. Cloud-only CI, no personal-computer runner.
 
-## Visual test branch
-The first cloud client timeout was resolved by setting the first-launch accessibility option. The v0.1.2 probe captured a real 1280×720 world screenshot. The v0.1.3 probe creates a new isolated world, asserts locked Floor 2 travel is denied, injects a synthetic floor-one victory on the integrated server exclusively in that test fixture, uses the production travel method to reach Floor 2, captures the upper realm, returns to Floor 1, and captures again. It does not use a real boss, grant unlocks during normal play or run commands received over a network. Full save/restart, castle visuals and runtime performance testing are still pending.
+## Cloud probe
+The isolated v0.1.4 graphical workflow checks the new preset, first-floor spawn, actual generated pillar and roof blocks, a castle viewpoint, locked travel rejection, synthetic victory, upper-floor arrival and return. These are test-world-only actions; no production unlock command is added.

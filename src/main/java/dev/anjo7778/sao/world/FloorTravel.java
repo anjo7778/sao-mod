@@ -11,6 +11,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -22,17 +23,22 @@ public final class FloorTravel {
     public static final ResourceKey<Level> UPPER = ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors"));
     private static final ResourceKey<NoiseGeneratorSettings> FIRST_SETTINGS = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one"));
     private static final ResourceKey<NoiseGeneratorSettings> UPPER_SETTINGS = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors"));
+    private static final ResourceKey<NoiseGeneratorSettings> FIRST_CASTLE = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_castle"));
+    private static final ResourceKey<NoiseGeneratorSettings> UPPER_CASTLE = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "upper_floors_castle"));
     private FloorTravel() {}
 
-    public static boolean isAincrad(MinecraftServer server) { return uses(server.overworld(), FIRST_SETTINGS); }
+    public static boolean isAincrad(MinecraftServer server) { return isFirst(server.overworld()); }
 
     private static boolean uses(ServerLevel level, ResourceKey<NoiseGeneratorSettings> key) {
         return level != null && level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen && gen.generatorSettings().is(key);
     }
 
+    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE); }
+    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE); }
+
     public static long currentFloor(ServerLevel level, int x, int z) {
-        if (level.dimension().equals(Level.OVERWORLD) && uses(level, FIRST_SETTINGS)) return 1;
-        if (level.dimension().equals(UPPER) && uses(level, UPPER_SETTINGS)) return FloorLayout.floorAt(x, z);
+        if (level.dimension().equals(Level.OVERWORLD) && isFirst(level)) return 1;
+        if (level.dimension().equals(UPPER) && isUpper(level)) return FloorLayout.floorAt(x, z);
         return 0;
     }
 
@@ -51,7 +57,7 @@ public final class FloorTravel {
     private static int teleport(ServerPlayer player, long floor) {
         MinecraftServer server = player.serverLevel().getServer();
         ServerLevel target = floor == 1 ? server.overworld() : server.getLevel(UPPER);
-        if (!uses(target, floor == 1 ? FIRST_SETTINGS : UPPER_SETTINGS))
+        if (!(floor == 1 ? isFirst(target) : isUpper(target)))
             return reject(player, "Destination unavailable. Older prototype saves do not contain the upper realm.");
         FloorLayout.Center c = FloorLayout.center(floor);
         BlockPos safe = safeArrival(target, c.x(), c.z());
@@ -70,12 +76,20 @@ public final class FloorTravel {
         int[] offsets = {0, -8, 8};
         for (int dx : offsets) for (int dz : offsets) {
             int x = cx + dx, z = cz + dz;
-            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-            if (y < 48 || y > 205) continue;
-            BlockPos p = new BlockPos(x, y, z);
-            if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()
-                && level.getBlockState(p.below()).isFaceSturdy(level, p.below(), Direction.UP)
-                && level.getFluidState(p.below()).isEmpty()) return p;
+            // Explicitly materialize the destination chunk before asking its heightmap.
+            // Prior v0.1.3 client test returned minimum height for an unloaded realm.
+            level.getChunk(x >> 4, z >> 4);
+            int top = Math.min(205, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z));
+            // Bounded scan also handles overhanging roofs and trees.
+            for(int y=top; y>=48; y--) {
+                BlockPos p = new BlockPos(x,y,z);
+                var ground=level.getBlockState(p.below());
+                if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()
+                    && ground.isFaceSturdy(level,p.below(),Direction.UP)
+                    && level.getFluidState(p.below()).isEmpty()
+                    && !ground.is(Blocks.MAGMA_BLOCK) && !ground.is(Blocks.CACTUS)
+                    && !ground.is(Blocks.CAMPFIRE) && !ground.is(Blocks.SOUL_CAMPFIRE)) return p;
+            }
         }
         return null;
     }
@@ -84,7 +98,7 @@ public final class FloorTravel {
     public static void guard(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.tickCount % 20 != 0 || !player.isAlive()) return;
         ServerLevel level = player.serverLevel();
-        if (!level.dimension().equals(UPPER) || !isAincrad(level.getServer()) || !uses(level, UPPER_SETTINGS)) return;
+        if (!level.dimension().equals(UPPER) || !isAincrad(level.getServer()) || !isUpper(level)) return;
         long floor = FloorLayout.floorAt(player.getBlockX(), player.getBlockZ());
         if (!FloorLayout.supported(floor) || !SaoWorldData.get(level.getServer()).isUnlocked(floor))
             teleport(player, 1);

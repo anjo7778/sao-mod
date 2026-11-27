@@ -16,7 +16,7 @@ if [[ -e run-visual/saves/sao-visual-test ]]; then
     echo 'Refusing to reuse a previous visual-test save.' >&2
     exit 1
 fi
-rm -f run-visual/probe-first-captured run-visual/probe-upper-captured
+rm -f run-visual/probe-first-captured run-visual/probe-upper-captured run-visual/probe-castle-captured
 
 # Capture only the isolated virtual display. Do not use a real desktop or user account.
 setsid bash ./gradlew --no-daemon --no-configuration-cache runVisualProbe >"$log" 2>&1 &
@@ -45,6 +45,10 @@ while (( SECONDS < deadline )); do
         capture floor-one-spawn
         touch run-visual/probe-first-captured
     fi
+    if [[ ! -e run-visual/probe-castle-captured ]] && grep -q 'SAO_VISUAL_PROBE_CASTLE_READY' "$log"; then
+        capture floor-one-castle
+        touch run-visual/probe-castle-captured
+    fi
     if [[ ! -e run-visual/probe-upper-captured ]] && grep -q 'SAO_VISUAL_PROBE_UPPER_READY' "$log"; then
         capture floor-two-arrival
         touch run-visual/probe-upper-captured
@@ -54,6 +58,8 @@ while (( SECONDS < deadline )); do
         grep -q 'SAO_VISUAL_PROBE_SYNTHETIC_VICTORY' "$log"
         test -s "$out/floor-one-spawn.png"
         test -s "$out/floor-two-arrival.png"
+        test -s "$out/floor-one-castle.png"
+        grep -q 'SAO_VISUAL_PROBE_CASTLE_BLOCKS_VERIFIED' "$log"
         capture floor-one-return
         grep 'SAO_VISUAL_PROBE_' "$log" | tee "$out/result.txt"
         exit 0
