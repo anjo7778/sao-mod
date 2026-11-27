@@ -15,6 +15,18 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(() -> Component.literal("SAO: highest unlocked floor " + unlocked), false);
                 return 1;
             }))
+            .then(Commands.literal("population").executes(ctx->{
+                var p=ctx.getSource().getPlayerOrException();
+                if(!CityRules.isCity(p.serverLevel(),p.getBlockX(),p.getBlockZ())){
+                    ctx.getSource().sendFailure(Component.literal("Enter a generated capital first."));return 0;
+                }
+                long floor=FloorTravel.currentFloor(p.serverLevel(),p.getBlockX(),p.getBlockZ());
+                var data=NpcPopulationData.get(p.serverLevel().getServer());
+                var roster=data.roster(floor);
+                long adventurers=roster.stream().filter(n->n.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).count();
+                ctx.getSource().sendSuccess(()->Component.literal("Capital "+floor+": "+roster.size()+" saved NPC profiles ("+adventurers+" adventurers; entities not yet implemented)"),false);
+                return 1;
+            }))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")

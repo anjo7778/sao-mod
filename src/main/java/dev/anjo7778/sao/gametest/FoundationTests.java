@@ -110,4 +110,23 @@ public final class FoundationTests {
         }
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void npcPopulationRoundTrip(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        helper.assertTrue(data.discover(1,42),"First discovered capital");
+        helper.assertFalse(data.discover(1,43),"No regeneration of existing identities");
+        helper.assertTrue(data.discoveredCapitals()==1&&data.roster(2).isEmpty(),"No future capital allocation");
+        var npc=data.roster(1).getFirst();var id=npc.profile().id();
+        var actor=new java.util.UUID(1,4);
+        var memory=new dev.anjo7778.sao.simulation.AdventurerMind.Memory(new java.util.UUID(4,5),actor,3,dev.anjo7778.sao.simulation.AdventurerMind.EventType.RESCUED);
+        helper.assertTrue(data.remember(1,id,memory),"Memory stored");
+        helper.assertFalse(data.remember(1,id,memory),"Duplicate refused");
+        helper.assertTrue(data.updateNeeds(1,id,new dev.anjo7778.sao.simulation.AdventurerMind.Needs(10,100,100,100,0)),"Needs updated");
+        var registries=helper.getLevel().registryAccess();
+        var loaded=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),registries),registries);
+        helper.assertTrue(loaded.roster(1).equals(data.roster(1)),"Full roster persisted");
+        helper.assertTrue(loaded.roster(1).getFirst().relationship(actor).trust()==75,"Social memory survived");
+        helper.assertTrue(loaded.roster(1).getFirst().choose()==dev.anjo7778.sao.simulation.AdventurerMind.Action.REST,"Needs survived");
+        helper.succeed();
+    }
 }

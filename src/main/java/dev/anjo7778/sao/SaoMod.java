@@ -6,6 +6,7 @@ import dev.anjo7778.sao.world.CastleDensity;
 import dev.anjo7778.sao.world.CityDensity;
 import dev.anjo7778.sao.world.CapitalFeature;
 import dev.anjo7778.sao.world.CityRules;
+import dev.anjo7778.sao.world.NpcPopulationData;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import dev.anjo7778.sao.world.FloorBiomeSource;
 import dev.anjo7778.sao.world.FloorGuardian;
@@ -47,6 +48,7 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(CityRules::spawn);
         NeoForge.EVENT_BUS.addListener(CityRules::spawnCheck);
         NeoForge.EVENT_BUS.addListener(CityRules::damage);
+        NeoForge.EVENT_BUS.addListener(NpcPopulationData::discover);
         NeoForge.EVENT_BUS.addListener(SaoCommands::register);
         NeoForge.EVENT_BUS.addListener(FloorTravel::guard);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,FloorGuardian::death);
