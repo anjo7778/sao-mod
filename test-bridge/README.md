@@ -1,0 +1,7 @@
+# Minecraft Test Bridge 0.1.0
+
+Standalone NeoForge 1.21.1 / 21.1.268 mod; no SAO or MineColonies required. This branch is isolated from the SAO main development branch. Build with the existing wrapper: `./gradlew -p test-bridge build`. GitHub workflow builds the independent JAR and runs isolated cloud-client scenarios. No personal computer runner.
+
+Local protocol: one explicitly approved request.json in the test instance's minecraft/mts-bridge directory. Protocol 1 only; fixed terrain, benchmark or vanilla-zombie animation scenarios. Requests expire after 30 minutes. Fresh unique creative test worlds only, no existing saves, no multiplayer, no arbitrary commands, URLs, shell access, uploads or listening ports. A stop file cancels the active scenario; six-minute runtime bound; 24 PNG maximum. Output is in mts-bridge/<session id>/ and includes result.json with metrics/captures, progress.json, and actual Minecraft framebuffer PNGs. Result status 'passed' means scenario steps and capture completed, not artistic/visual quality. The animation fixture triggers vanilla sword swings; mod-specific NPC job and Epic Fight adapters are not implemented. Data is local; Studio packages it with consent, not uploaded. Keep the generated disposable test worlds separate; manually remove them in Minecraft when no longer needed.
+
+Cloud smoke tests exercise standalone vanilla worlds; SAO terrain preset is available when SAO mod is separately installed and explicitly selected. This does not verify SAO floor travel, modded combat or Windows performance.

@@ -1,0 +1,77 @@
+name: Build Minecraft Test Bridge
+on:
+  push:
+    branches: ['test-studio/bridge']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mts-bridge-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - name: Build standalone bridge
+        run: bash ./gradlew --no-daemon -p test-bridge build
+      - name: Verify package metadata
+        run: |
+          python3 - <<'PY'
+          import pathlib,zipfile
+          jars=list(pathlib.Path('test-bridge/build/libs').glob('*.jar'))
+          assert len(jars)==1,jars
+          with zipfile.ZipFile(jars[0]) as z:
+              assert 'modId="mtstestbridge"' in z.read('META-INF/neoforge.mods.toml').decode()
+              assert 'dev/anjo7778/mtstestbridge/ClientBridge.class' in z.namelist()
+              assert not any(x.startswith('dev/anjo7778/sao/') for x in z.namelist())
+          PY
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: mts-bridge-minecraft-1.21.1-${{ github.run_number }}
+          path: test-bridge/build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 30
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [terrain, animation, benchmark]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - name: Prepare graphics
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth libgl1-mesa-dri
+      - name: Run isolated Minecraft scenario
+        run: xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX" bash test-bridge/scripts/cloud-smoke.sh "${{ matrix.scenario }}"
+      - name: Archive evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: mts-smoke-${{ matrix.scenario }}
+          path: |
+            test-bridge/build/smoke/
+            test-bridge/run-client/mts-bridge/
+            test-bridge/run-client/logs/
+            test-bridge/run-client/crash-reports/
+          if-no-files-found: warn
+          retention-days: 14
