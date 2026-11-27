@@ -28,5 +28,6 @@ test -s "$world/dimensions/sao/upper_floors/region/r.0.0.mca"
 bash ./gradlew --no-daemon --no-configuration-cache -PpersistencePhase=read runPersistenceProbe 2>&1 | tee "$out/read.log"
 grep -q 'SAO_PERSISTENCE_READ_OK floor=2' "$out/read.log"
 grep -q 'SAO_PERSISTENCE_EVICTION_OK centers=8' "$out/read.log"
+grep -q 'SAO_PERSISTENCE_COVERED_LANDING_REJECTED' "$out/read.log"
 test "$(grep -c 'SAO_PERSISTENCE_SURVEY floor=' "$out/read.log")" -eq 8
 grep -h 'SAO_PERSISTENCE_' "$out/write.log" "$out/read.log" | tee "$out/result.txt"

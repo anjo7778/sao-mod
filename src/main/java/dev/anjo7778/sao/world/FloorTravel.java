@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -72,28 +73,41 @@ public final class FloorTravel {
         return 1;
     }
 
-    /** Bounded central search, intentionally refuses rather than overwriting terrain. */
-    static BlockPos safeArrival(ServerLevel level, int cx, int cz) {
-        // Search at most 9 columns to bound synchronous chunk work. Prefer the center.
-        int[] offsets = {0, -8, 8};
-        for (int dx : offsets) for (int dz : offsets) {
-            int x = cx + dx, z = cz + dz;
-            // Explicitly materialize the destination chunk before asking its heightmap.
-            // Prior v0.1.3 client test returned minimum height for an unloaded realm.
-            level.getChunk(x >> 4, z >> 4);
-            int top = Math.min(205, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z));
-            // Bounded scan also handles overhanging roofs and trees.
-            for(int y=top; y>=48; y--) {
-                BlockPos p = new BlockPos(x,y,z);
-                var ground=level.getBlockState(p.below());
-                if (level.getBlockState(p).isAir() && level.getBlockState(p.above()).isAir()
-                    && ground.isFaceSturdy(level,p.below(),Direction.UP)
-                    && level.getFluidState(p.below()).isEmpty()
-                    && !ground.is(Blocks.MAGMA_BLOCK) && !ground.is(Blocks.CACTUS)
-                    && !ground.is(Blocks.CAMPFIRE) && !ground.is(Blocks.SOUL_CAMPFIRE)) return p;
-            }
+    /**
+     * Bounded search of the open surface. Never scan downward from the roof:
+     * that could select an underground air cavity, as the v0.1.5 screenshots showed.
+     */
+    static BlockPos safeArrival(ServerLevel level,int cx,int cz) {
+        int[] offsets={0,4,-4,8,-8,16,-16};
+        for(int dx:offsets) for(int dz:offsets) {
+            int x=cx+dx,z=cz+dz;
+            level.getChunk(x>>4,z>>4);
+            int y=level.getHeight(Heightmap.Types.WORLD_SURFACE,x,z);
+            if(y<48 || y>205)continue;
+            BlockPos p=new BlockPos(x,y,z);
+            if(isOutdoorArrival(level,p))return p;
         }
         return null;
+    }
+
+    /** A daylight column with firm, harmless support and a walkable neighborhood. */
+    public static boolean isOutdoorArrival(ServerLevel level,BlockPos p) {
+        int x=p.getX(),y=p.getY(),z=p.getZ();
+        if(y<48||y>205||!level.getWorldBorder().isWithinBounds(p))return false;
+        if(level.getHeight(Heightmap.Types.WORLD_SURFACE,x,z)!=y || !level.canSeeSky(p.above()))return false;
+        var ground=level.getBlockState(p.below());
+        if(!level.getBlockState(p).isAir()||!level.getBlockState(p.above()).isAir()
+            ||!ground.isFaceSturdy(level,p.below(),Direction.UP)||!level.getFluidState(p.below()).isEmpty()
+            ||ground.is(BlockTags.LEAVES)||ground.is(BlockTags.LOGS)||ground.is(Blocks.MAGMA_BLOCK)
+            ||ground.is(Blocks.CACTUS)||ground.is(Blocks.CAMPFIRE)||ground.is(Blocks.SOUL_CAMPFIRE)
+            ||ground.is(Blocks.POWDER_SNOW))return false;
+        // Adjacent heightmaps also need real chunks. Four corner loads bound this cost.
+        for(int dx:new int[]{-1,1})for(int dz:new int[]{-1,1})level.getChunk((x+dx)>>4,(z+dz)>>4);
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++){
+            int h=level.getHeight(Heightmap.Types.WORLD_SURFACE,x+dx,z+dz);
+            if(Math.abs(h-y)>2)return false;
+        }
+        return true;
     }
 
     /** Detect bypasses from elytra, portals, commands or other mods. Not a security sandbox. */

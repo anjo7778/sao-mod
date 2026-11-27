@@ -8,6 +8,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.biome.Biomes;
 import java.util.UUID;
 import dev.anjo7778.sao.world.FloorTravel;
+import dev.anjo7778.sao.world.ArrivalProbeAccess;
 import dev.anjo7778.sao.world.SaoWorldData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
@@ -88,8 +89,19 @@ public final class PersistenceProbe {
             int y=upper.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z);
             if(y<48||y>205||!upper.getBiome(new BlockPos(x,y,z)).is(Biomes.PLAINS))
                 throw new IllegalStateException("Unsafe or incorrect floor center: "+floor+" y="+y);
+            BlockPos arrival=ArrivalProbeAccess.find(upper,x,z);
+            if(arrival==null||!FloorTravel.isOutdoorArrival(upper,arrival))
+                throw new IllegalStateException("Production search found no outdoor landing for floor "+floor);
+            if(floor==2){
+                BlockPos roof=arrival.above(4);
+                if(!upper.getBlockState(roof).isAir())throw new IllegalStateException("Expected clear sky above landing");
+                upper.setBlockAndUpdate(roof,Blocks.STONE.defaultBlockState());
+                if(FloorTravel.isOutdoorArrival(upper,arrival))throw new IllegalStateException("Covered landing incorrectly accepted");
+                upper.setBlockAndUpdate(roof,Blocks.AIR.defaultBlockState());
+                LOG.info("SAO_PERSISTENCE_COVERED_LANDING_REJECTED");
+            }
             LOG.info("SAO_PERSISTENCE_SURVEY floor={} y={} generation_ms={} loaded_chunks={} heap_mib={}",
-                floor,y,(System.nanoTime()-start)/1_000_000,cache.getLoadedChunksCount(),
+                floor,arrival.getY(),(System.nanoTime()-start)/1_000_000,cache.getLoadedChunksCount(),
                 (Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory())/1048576);
         }
         if(index==SURVEY.length && elapsed>=600){
