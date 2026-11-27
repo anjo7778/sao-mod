@@ -9,6 +9,10 @@ export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_GL_VERSION_OVERRIDE=4.5
 export ALSOFT_DRIVERS=null
 
+# The first-run accessibility wizard otherwise blocks the title-screen trigger.
+mkdir -p run-visual
+printf '%s\n' 'version:3955' 'onboardAccessibility:false' 'pauseOnLostFocus:false' 'renderDistance:6' 'simulationDistance:5' 'maxFps:30' > run-visual/options.txt
+
 # Capture only the isolated virtual display. Do not use a real desktop or user account.
 setsid bash ./gradlew --no-daemon --no-configuration-cache runVisualProbe >"$log" 2>&1 &
 pid=$!

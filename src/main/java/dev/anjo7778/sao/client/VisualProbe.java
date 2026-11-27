@@ -27,6 +27,7 @@ public final class VisualProbe {
     private static boolean started;
     private static boolean ready;
     private static int settledTicks;
+    private static String lastScreen = "uninitialized";
 
     private VisualProbe() {}
 
@@ -34,6 +35,11 @@ public final class VisualProbe {
     public static void tick(ClientTickEvent.Post event) {
         if (!ENABLED || ready) return;
         Minecraft client = Minecraft.getInstance();
+        String screen = client.screen == null ? "none" : client.screen.getClass().getName();
+        if (!screen.equals(lastScreen)) {
+            LOGGER.info("SAO_VISUAL_PROBE_SCREEN {}", screen);
+            lastScreen = screen;
+        }
         if (!started && client.screen instanceof TitleScreen title) {
             started = true;
             LOGGER.info("SAO_VISUAL_PROBE_TITLE_READY");
