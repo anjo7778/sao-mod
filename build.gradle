@@ -58,6 +58,13 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        persistenceProbe {
+            server()
+            gameDirectory = project.file('run-persistence')
+            programArgument '--nogui'
+            systemProperty 'sao.persistenceProbe', providers.gradleProperty('persistencePhase').getOrElse('off')
+        }
+
         server {
             server()
             programArgument '--nogui'
