@@ -34,5 +34,5 @@ def line(name,marker):
 a=line('write.log','SAO_ADVENTURE_SAVE_OK')
 b=line('read.log','SAO_ADVENTURE_READ_OK')
 assert a==b,(a,b)
-print('PASS: independent two-floor scouting, supply costs and actual restart preserved identical progress:',a)
+print('PASS: autonomous scouting knowledge, peer reports and actual restart preserved identical progress:',a)
 PY

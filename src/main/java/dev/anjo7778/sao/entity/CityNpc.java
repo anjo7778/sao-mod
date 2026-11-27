@@ -189,7 +189,14 @@ public final class CityNpc extends PathfinderMob {
         lastGreeting=level().getGameTime();
         var data=NpcPopulationData.get(p.serverLevel().getServer());var state=data.state(floor,getUUID());
         if(state==null)return InteractionResult.PASS;
-        p.sendSystemMessage(Component.literal(profile.name()+": "+NpcDialogue.greetingText(state,p.getUUID(),plan.activity())));
+        String line=NpcDialogue.greetingText(state,p.getUUID(),plan.activity());
+        var ledger=AdventureSimulationData.get(p.serverLevel().getServer()).ledger(floor,getUUID());
+        if(ledger!=null&&plan.activity()==Activity.SOCIALIZE&&state.relationship(p.getUUID()).trust()>=50){
+            var journal=ledger.journal();
+            if(journal.surveyed()!=0)line+=" I've surveyed the "+SurveyJournal.directions(journal.surveyed())+" gate approaches.";
+            else if(journal.reported()!=0)line+=" I've heard reports about the "+SurveyJournal.directions(journal.reported())+" gate approaches.";
+        }
+        p.sendSystemMessage(Component.literal(profile.name()+": "+line));
         data.remember(floor,getUUID(),NpcDialogue.greeting(getUUID(),p.getUUID(),Math.max(0,level().getDayTime()/24000)));
         getLookControl().setLookAt(p,30,30);
         return InteractionResult.CONSUME;

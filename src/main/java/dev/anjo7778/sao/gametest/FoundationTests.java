@@ -218,4 +218,35 @@ public final class FoundationTests {
         helper.assertTrue(l.practice()==1&&l.abstractUpdates()==1&&!l.trip().active(),"Old ledger migrates without losing progress");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void surveyKnowledgePersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();
+        pop.discover(1,42);pop.discover(2,42);
+        var roster=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
+        var first=roster.get(0);var second=roster.stream().filter(s->dev.anjo7778.sao.simulation.NpcSocial.offer(first,s,7).map(e->e.friendly()).orElse(false)).findFirst().orElseThrow();
+        var a=first.profile().id();var b=second.profile().id();
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        var idle=dev.anjo7778.sao.simulation.AdventureProgress.Mode.IDLE;
+        data.update(1,a,10,idle,true);data.update(1,b,10,idle,true);
+        var r=helper.getLevel().registryAccess();var tag=data.save(new CompoundTag(),r);
+        var list=tag.getList("capitals",10).getCompound(0).getList("npcs",10);
+        for(int i=0;i<list.size();i++){
+            var entry=list.getCompound(i);
+            entry.putIntArray("journal",entry.getUUID("id").equals(a)?new int[]{1,1,0}:new int[]{2,0,0});
+        }
+        var loaded=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,r);
+        helper.assertTrue(loaded.converse(pop,1,a,b,7).isPresent(),"Accepted conversation");
+        var ja=loaded.ledger(1,a).journal();var jb=loaded.ledger(1,b).journal();
+        helper.assertTrue(ja.surveyed()==1&&ja.observed()==1&&ja.reported()==2,"First firsthand and peer report");
+        helper.assertTrue(jb.surveyed()==2&&jb.observed()==0&&jb.reported()==1,"Peer observation not promoted");
+        helper.assertTrue(loaded.converse(pop,1,a,b,7).isEmpty(),"No repeat contact");
+        helper.assertTrue(loaded.converse(pop,1,a,pop.roster(2).getFirst().profile().id(),7).isEmpty(),"No cross-floor exchange");
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(loaded.save(new CompoundTag(),r),r);
+        helper.assertTrue(ja.equals(restored.ledger(1,a).journal())&&jb.equals(restored.ledger(1,b).journal()),"Journals persist");
+        var schema2=loaded.save(new CompoundTag(),r);schema2.putInt("schema",2);
+        var legacy=dev.anjo7778.sao.world.AdventureSimulationData.load(schema2,r);
+        helper.assertTrue(legacy.ledger(1,a).journal().equals(dev.anjo7778.sao.simulation.SurveyJournal.EMPTY),"Old save does not invent directional knowledge");
+        helper.assertTrue(legacy.ledger(1,a).trip().equals(loaded.ledger(1,a).trip()),"Existing trips retained");
+        helper.succeed();
+    }
 }

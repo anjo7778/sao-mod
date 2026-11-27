@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.6.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.7.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.6 |
+| Mod version | 0.2.7 |
 
 ## Local builds (optional)
 
@@ -92,3 +92,7 @@ Visited capitals are processed in bounded round-robin batches (up to eight adven
 ## v0.2.6 independent scouting
 
 Prepared adventurers can start short reconnaissance trips outside a capital on their own. Four gate directions, outbound checkpoint, nearby survey point and return checkpoint. Visible actors use loaded terrain navigation and must arrive before advancing; absent actors can complete the same stages abstractly. Persistent trip counters distinguish fully observed from abstract/mixed returns. A trip costs eight abstract supply points, has fatigue/health early-return rules and cooldown; no real items, combat rewards, dungeon discovery, guilds or boss wins yet. Actor projections remain temporary and invulnerable. `/sao adventurers <floor>` includes scouting status. New runtime verification pending.
+
+## v0.2.7 exploration knowledge
+
+Adventurers retain compact journals of surveyed gate approaches, distinguishing actual observed routes, abstract personal trips and secondhand reports. Future trips prioritize previously unvisited directions; discovery-minded and cautious characters prefer unknown and reported approaches respectively. Friendly same-floor conversations exchange only firsthand accounts. Right-click social dialogue can mention actual journal entries; `/sao recon <floor>` summarizes known reports. Old saves preserve trip totals without invented location records. Low supplies/equipment now trigger preparation at the same thresholds as scouting eligibility. Resupply still requires the later economy system; no free goods. No actual mapped dungeon locations, monster combat or loot. Runtime verification pending.

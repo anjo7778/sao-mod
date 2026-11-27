@@ -51,7 +51,7 @@ public final class AdventurePersistenceProbe {
         if(!evening&&elapsed>=6500){
             server.overworld().setDayTime(12000);evening=true;
         }
-        if(elapsed>=10200){
+        if(elapsed>=14200){
             require(server.getLevel(FloorTravel.UPPER).getChunkSource().getLoadedChunksCount()==0,"Upper chunks loaded");
             require(server.getLevel(FloorTravel.UPPER).getForcedChunks().isEmpty(),"Forced chunk ticket");
             LOG.info("SAO_ADVENTURE_SAVE_OK {}",snapshot(server));
@@ -62,7 +62,7 @@ public final class AdventurePersistenceProbe {
         var pop=NpcPopulationData.get(server);var sim=AdventureSimulationData.get(server);
         StringBuilder out=new StringBuilder(),exact=new StringBuilder();int paired=0;
         for(long floor:new long[]{1,2}){
-            int count=0,updates=0,practice=0,rests=0,social=0,fatigue=0,completed=0,aborted=0,active=0,spent=0;
+            int count=0,updates=0,practice=0,rests=0,social=0,fatigue=0,completed=0,aborted=0,active=0,spent=0,known=0,reported=0,multidirectional=0;
             var initial=new java.util.HashMap<java.util.UUID,NpcRoster.State>();
             for(var s:NpcRoster.generate(42,floor))initial.put(s.profile().id(),s);
             for(var s:pop.roster(floor)){
@@ -78,6 +78,19 @@ public final class AdventurePersistenceProbe {
                 int cost=initial.get(s.profile().id()).needs().supplies()-s.needs().supplies();
                 require(cost==ScoutingTrip.SUPPLY_COST*(trip.completed()+trip.aborted()+(trip.active()?1:0)),"Incorrect abstract supply cost");
                 spent+=cost;
+                var journal=l.journal();
+                require(journal.observed()==0,"Abstract trip created physical observations");
+                require(Integer.bitCount(journal.surveyed())<=trip.completed(),"Knowledge without completed return");
+                known+=Integer.bitCount(journal.surveyed());
+                reported+=Integer.bitCount(journal.reported());
+                if(Integer.bitCount(journal.surveyed())>1)multidirectional++;
+                for(var gate:ScoutingTrip.Gate.values()){
+                    if((journal.reported()&SurveyJournal.bit(gate))==0)continue;
+                    require(pop.roster(floor).stream().anyMatch(peer->{
+                        var other=sim.ledger(floor,peer.profile().id());
+                        return other!=null&&other.journal().surveyed(gate);
+                    }),"Report without firsthand source");
+                }
                 exact.append(floor).append(':').append(s).append(':').append(l).append('\n');
                 for(var m:s.memories()){
                     if(!NpcSocial.socialMemory(m))continue;
@@ -89,11 +102,12 @@ public final class AdventurePersistenceProbe {
             }
             require(count==(floor==1?48:24)&&practice>0&&updates>=count,"No independent practice");
             require(social>0,"No offscreen social contacts on floor "+floor);
-            require(completed>0,"No autonomous scouting return on floor "+floor);
+            require(completed>0&&known>0,"No autonomous scouting knowledge on floor "+floor);
+            require(reported>0,"No autonomous sharing on floor "+floor);
             paired+=social;
             out.append("floor=").append(floor).append(",actors=").append(count).append(",updates=").append(updates)
                 .append(",practice=").append(practice).append(",rests=").append(rests).append(",fatigue=").append(fatigue)
-                .append(",memories=").append(social).append(",scouted=").append(completed).append(",aborted=").append(aborted).append(",active=").append(active).append(",suppliesSpent=").append(spent).append(';');
+                .append(",memories=").append(social).append(",scouted=").append(completed).append(",aborted=").append(aborted).append(",active=").append(active).append(",suppliesSpent=").append(spent).append(",surveyedDirections=").append(known).append(",reportedDirections=").append(reported).append(",multiDirectionScouts=").append(multidirectional).append(';');
         }
         require(paired%2==0,"Non-reciprocal total");
         require(SaoWorldData.get(server).highestUnlocked()==2,"Reconnaissance granted a floor unlock");

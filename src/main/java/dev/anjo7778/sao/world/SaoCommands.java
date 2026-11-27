@@ -54,6 +54,34 @@ public final class SaoCommands {
                     });
                     return 1;
                 })))
+            .then(Commands.literal("recon")
+                .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                    var server=ctx.getSource().getServer();
+                    long floor=LongArgumentType.getLong(ctx,"floor");
+                    if(!CityRules.hasCities(server.overworld())||!SaoWorldData.get(server).isUnlocked(floor)){
+                        ctx.getSource().sendFailure(Component.literal("Discovered, unlocked Aincrad capital required."));return 0;
+                    }
+                    var population=NpcPopulationData.get(server);
+                    var roster=population.roster(floor);
+                    if(roster.isEmpty()){ctx.getSource().sendFailure(Component.literal("No reports from this capital yet."));return 0;}
+                    var sim=AdventureSimulationData.get(server);
+                    for(var gate:dev.anjo7778.sao.simulation.ScoutingTrip.Gate.values()){
+                        int surveyed=0,observed=0,reports=0;
+                        int bit=dev.anjo7778.sao.simulation.SurveyJournal.bit(gate);
+                        for(var s:roster){
+                            var l=sim.ledger(floor,s.profile().id());
+                            if(l==null)continue;
+                            var journal=l.journal();
+                            if(journal.surveyed(gate))surveyed++;
+                            if(journal.observed(gate))observed++;
+                            if((journal.reported()&bit)!=0)reports++;
+                        }
+                        final int own=surveyed,physical=observed,heard=reports;
+                        ctx.getSource().sendSuccess(()->Component.literal(gate.name()+" gate | "+own+
+                            " personal surveys ("+physical+" physically observed), "+heard+" other adventurers informed"),false);
+                    }
+                    return 1;
+                })))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")

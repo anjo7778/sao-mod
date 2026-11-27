@@ -22,6 +22,7 @@ public final class ScoutingTripChecks {
                 check(!CityPlan.inside(floor,out.x(),out.z()),"Outside walls");
                 var path=route(floor,trip,start,out);
                 check(!path.isEmpty()&&path.getLast().equals(out),"Departure route");
+                check(path.size()<=3,"No plaza detour from the gate");
                 for(var p:path){
                     check(inRange(floor,p.x(),p.z()),"Bounded route");
                     if(!CityPlan.inside(floor,p.x(),p.z()))check(p.x()==0||p.z()==0,"Through gate axis");
