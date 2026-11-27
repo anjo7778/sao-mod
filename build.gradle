@@ -58,6 +58,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        npcProbe {
+            client()
+            gameDirectory = project.file('run-npc')
+            systemProperty 'sao.npcProbe', 'true'
+        }
         server {
             server()
             programArgument '--nogui'
