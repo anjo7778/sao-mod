@@ -19,27 +19,33 @@ public final class NpcPresence {
     }
     public static void reconcile(ServerPlayer p){
         var level=p.serverLevel();
-        if(!CityRules.isCity(level,p.getBlockX(),p.getBlockZ()))return;
+        if(!CityRules.hasCities(level))return;
+        boolean city=CityRules.isCity(level,p.getBlockX(),p.getBlockZ());
         long floor=FloorTravel.currentFloor(level,p.getBlockX(),p.getBlockZ());
         if(!FloorLayout.supported(floor)||!SaoWorldData.get(level.getServer()).isUnlocked(floor))return;
         var data=NpcPopulationData.get(level.getServer());
-        data.discover(floor,level.getServer().overworld().getSeed());
+        var c=FloorLayout.center(floor);
+        if(!ScoutingTrip.inRange(floor,p.getBlockX()-c.x(),p.getBlockZ()-c.z()))return;
+        if(city)data.discover(floor,level.getServer().overworld().getSeed());
+        var roster=data.roster(floor);
+        if(roster.isEmpty())return;
         var visible=level.getEntitiesOfClass(CityNpc.class,p.getBoundingBox().inflate(RADIUS+24),e->e.originFloor()==floor&&e.isAlive());
         int allowance=Math.min(BATCH,CAP-visible.size());if(allowance<=0)return;
-        var c=FloorLayout.center(floor);long time=level.getDayTime();
-        List<State> roster=data.roster(floor);
+        var simulation=AdventureSimulationData.get(level.getServer());
         // Stable but rotating scan avoids permanently favoring the first roles in the roster.
         int start=Math.floorMod((int)(level.getGameTime()/40)*BATCH,roster.size());
         for(int i=0;i<roster.size()&&allowance>0;i++){
             State s=roster.get((start+i)%roster.size());
             if(level.getEntity(s.profile().id())!=null)continue;
+            var trip=simulation.trip(floor,s.profile().id());
+            if(!city&&(trip==null||!trip.active()))continue;
             var dest=AdventureSimulationData.plan(level,s).destination();
             double d=p.distanceToSqr(c.x()+dest.x()+.5,CityPlan.GROUND+1,c.z()+dest.z()+.5);
             if(d>RADIUS*RADIUS||d<10*10)continue;
-            if(spawn(level,s,c,dest))allowance--;
+            if(spawn(level,s,c,dest,trip!=null&&trip.active()))allowance--;
         }
     }
-    private static boolean spawn(ServerLevel level,State s,FloorLayout.Center center,NpcDailyPlan.Point dest){
+    private static boolean spawn(ServerLevel level,State s,FloorLayout.Center center,NpcDailyPlan.Point dest,boolean expedition){
         int[] offsets={0,2,-2,4,-4,6,-6};
         var base=CityPlan.column(s.profile().originFloor(),dest.x(),dest.z());
         for(int dx:offsets)for(int dz:offsets){
@@ -47,8 +53,11 @@ public final class NpcPresence {
             var col=CityPlan.column(s.profile().originFloor(),lx,lz);
             if(base.zone()==CityPlan.Zone.LOT&&!Objects.equals(base.plot(),col.plot())
                 ||base.zone()==CityPlan.Zone.PLAZA&&col.zone()!=CityPlan.Zone.PLAZA)continue;
-            var pos=new BlockPos(center.x()+lx,CityPlan.GROUND+1,center.z()+lz);
-            if(!level.hasChunkAt(pos)||!CityRules.isCity(level,pos.getX(),pos.getZ()))continue;
+            boolean outside=!CityPlan.inside(s.profile().originFloor(),lx,lz);
+            if(outside&&(!expedition||!ScoutingTrip.inRange(s.profile().originFloor(),lx,lz)))continue;
+            if(base.zone()==CityPlan.Zone.OUTSIDE&&!outside)continue;
+            var pos=ExpeditionGround.walkable(level,s.profile().originFloor(),center.x()+lx,center.z()+lz);
+            if(pos==null)continue;
             if(!level.getBlockState(pos).getCollisionShape(level,pos).isEmpty()
                 ||!level.getBlockState(pos.above()).getCollisionShape(level,pos.above()).isEmpty()
                 ||level.getBlockState(pos.below()).getCollisionShape(level,pos.below()).isEmpty())continue;

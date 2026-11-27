@@ -38,19 +38,19 @@ public final class SaoCommands {
                         .filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
                     if(roster.isEmpty()){ctx.getSource().sendFailure(Component.literal("No discovered adventurers on this floor."));return 0;}
                     var data=AdventureSimulationData.get(server);
-                    long offscreen=0,practice=0;
+                    long offscreen=0,practice=0,completed=0;int active=0;
                     for(var s:roster){
                         var l=data.ledger(floor,s.profile().id());
-                        if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();}
+                        if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();completed+=l.trip().completed();if(l.trip().active())active++;}
                     }
-                    final long total=offscreen,points=practice;
-                    ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+": "+roster.size()+" adventurers, "+total+" abstract activity updates, "+points+" practice points."),false);
+                    final long total=offscreen,points=practice,trips=completed;final int travelling=active;
+                    ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+": "+roster.size()+" adventurers, "+total+" abstract activity updates, "+points+" practice points; "+travelling+" scouting, "+trips+" completed scouting trips."),false);
                     roster.stream().sorted(java.util.Comparator.comparingInt((dev.anjo7778.sao.simulation.NpcRoster.State s)->{
                         var l=data.ledger(floor,s.profile().id());return l==null?0:l.practice();
                     }).reversed()).limit(5).forEach(s->{
                         var l=data.ledger(floor,s.profile().id());
                         ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | practice rank "+(l==null?1:l.practiceRank())+
-                            " | fatigue "+(l==null?0:l.fatigue())+" | last "+(l==null?"IDLE":l.last().name())),false);
+                            " | fatigue "+(l==null?0:l.fatigue())+" | trip "+(l==null?"IDLE":l.trip().phase().name())+" | last "+(l==null?"IDLE":l.last().name())),false);
                     });
                     return 1;
                 })))

@@ -19,6 +19,8 @@ public final class NpcDialogue {
             case REST -> "I'm taking some time to recover at the inn or at home.";
             case TRAIN -> "I'm practising for the next expedition.";
             case PREPARE -> "I'm getting ready for the day's adventure.";
+            case EXPLORE -> "I am scouting the land outside the capital.";
+            case RETURN -> "I am heading back to the city after my trip.";
             case SOCIALIZE -> "I'm enjoying some time in the capital.";
             case WORK -> switch(p.occupation()){
                 case BLACKSMITH -> "The forge is my workplace.";

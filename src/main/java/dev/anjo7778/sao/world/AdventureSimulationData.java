@@ -28,6 +28,12 @@ public final class AdventureSimulationData extends SavedData {
     public Ledger ledger(long floor,UUID id){
         var r=floors.get(floor);return r==null?null:r.get(id);
     }
+    public ScoutingTrip.Trip trip(long floor,UUID id){
+        var l=ledger(floor,id);return l==null?null:l.trip();
+    }
+    public static boolean activeTrip(ServerLevel level,long floor,UUID id){
+        var t=get(level.getServer()).trip(floor,id);return t!=null&&t.active();
+    }
     public static NpcDailyPlan.Plan plan(ServerLevel level,State state){
         if(state.profile().occupation()!=Occupation.ADVENTURER||!CityRules.hasCities(level))
             return NpcDailyPlan.at(state,level.getDayTime());
@@ -76,8 +82,22 @@ public final class AdventureSimulationData extends SavedData {
             if(actor instanceof CityNpc npc&&npc.isAlive()&&npc.originFloor()==cursorFloor){
                 mode=npc.atScheduledDestination()?AdventureProgress.mode(NpcDailyPlan.Activity.valueOf(npc.activity())):Mode.TRAVEL;
             }
-            if(update(cursorFloor,id,epoch,mode,offscreen)&&offscreen&&mode==Mode.SOCIALIZE)
+            if(previous==null){update(cursorFloor,id,epoch,mode,offscreen);continue;}
+            boolean reached=actor instanceof CityNpc npc&&npc.isAlive()
+                &&npc.originFloor()==cursorFloor&&npc.matchesPlan(desired)&&npc.atScheduledDestination();
+            if(previous.trip().active()){
+                mode=previous.trip().phase()==ScoutingTrip.Phase.SURVEY&&(offscreen||reached)?Mode.SCOUT:Mode.TRAVEL;
+            }
+            var transition=ScoutingTrip.advance(s,previous,epoch,level.getDayTime(),offscreen,reached);
+            Ledger next=AdventureProgress.advance(previous,epoch,mode,offscreen).withTrip(transition.trip());
+            floors.get(cursorFloor).put(id,next);setDirty();
+            if(transition.began()){
+                var n=s.needs();
+                population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-ScoutingTrip.SUPPLY_COST,
+                    n.equipment(),n.partyReadiness(),n.danger()));
+            }else if(offscreen&&mode==Mode.SOCIALIZE&&!next.trip().active()){
                 socialize(population,level,roster,s,desired,day,epoch);
+            }
         }
         if(cursorIndex>=roster.size()){cursorFloor=population.nextDiscoveredFloor(cursorFloor);cursorIndex=0;}
     }
@@ -97,20 +117,27 @@ public final class AdventureSimulationData extends SavedData {
         }
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",1);ListTag all=new ListTag();
+        root.putInt("schema",2);ListTag all=new ListTag();
         floors.forEach((floor,records)->{
             CompoundTag group=new CompoundTag();group.putLong("floor",floor);ListTag npcs=new ListTag();
             records.forEach((id,l)->{
                 CompoundTag n=new CompoundTag();n.putUUID("id",id);n.putLong("epoch",l.epoch());n.putIntArray("stats",
                     new int[]{l.practice(),l.fatigue(),l.preparations(),l.restSessions(),l.updates(),l.abstractUpdates()});
-                n.putString("last",l.last().name());npcs.add(n);
+                n.putString("last",l.last().name());
+                var trip=l.trip();CompoundTag q=new CompoundTag();
+                q.putString("phase",trip.phase().name());q.putString("gate",trip.gate().name());
+                q.putLong("since",trip.since());q.putLong("next",trip.nextStart());
+                q.putIntArray("counts",new int[]{trip.completed(),trip.observed(),trip.aborted()});
+                q.putBoolean("abstract",trip.abstractLeg());q.putBoolean("surveyed",trip.surveyed());
+                n.put("trip",q);npcs.add(n);
             });
             group.put("npcs",npcs);all.add(group);
         });
         root.put("capitals",all);return root;
     }
     public static AdventureSimulationData load(CompoundTag root,HolderLookup.Provider registries){
-        if(root.getInt("schema")!=1||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
+        int schema=root.getInt("schema");
+        if((schema!=1&&schema!=2)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
         var data=new AdventureSimulationData();ListTag all=root.getList("capitals",Tag.TAG_COMPOUND);
         for(int i=0;i<all.size();i++){
             var group=all.getCompound(i);long floor=group.getLong("floor");
@@ -121,6 +148,13 @@ public final class AdventureSimulationData extends SavedData {
                 var n=list.getCompound(k);int[] a=n.getIntArray("stats");
                 if(a.length!=6)throw new IllegalArgumentException("Invalid progress vector");
                 var l=new Ledger(n.getLong("epoch"),a[0],a[1],a[2],a[3],a[4],a[5],Mode.valueOf(n.getString("last")));
+                if(schema==2){
+                    var q=n.getCompound("trip");int[] counts=q.getIntArray("counts");
+                    if(counts.length!=3)throw new IllegalArgumentException("Invalid trip counts");
+                    l=l.withTrip(new ScoutingTrip.Trip(ScoutingTrip.Phase.valueOf(q.getString("phase")),
+                        ScoutingTrip.Gate.valueOf(q.getString("gate")),q.getLong("since"),q.getLong("next"),
+                        counts[0],counts[1],counts[2],q.getBoolean("abstract"),q.getBoolean("surveyed")));
+                }
                 if(records.put(n.getUUID("id"),l)!=null)throw new IllegalArgumentException("Duplicate adventurer ledger");
             }
             data.floors.put(floor,records);
