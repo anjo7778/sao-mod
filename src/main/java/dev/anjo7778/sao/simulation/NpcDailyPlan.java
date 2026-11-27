@@ -5,7 +5,7 @@ import static dev.anjo7778.sao.simulation.NpcRoster.*;
 
 /** Initial city schedule and road waypoints. No free inventory/economic transactions. */
 public final class NpcDailyPlan {
-    public enum Activity { REST, WORK, PREPARE, TRAIN, SOCIALIZE }
+    public enum Activity { REST, WORK, PREPARE, TRAIN, SOCIALIZE, EXPLORE, RETURN }
     public record Point(int x,int z) {}
     public record Plan(Activity activity,Point destination) {}
     private NpcDailyPlan(){}

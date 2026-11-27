@@ -203,4 +203,19 @@ public final class FoundationTests {
         helper.assertTrue(restored.ledger(2,id)==null,"No unrelated floor allocation");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void legacyAdventureLedger(GameTestHelper helper){
+        var id=new java.util.UUID(12,13);
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        data.update(1,id,1,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE,true);
+        data.update(1,id,2,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE,true);
+        var r=helper.getLevel().registryAccess();
+        var n=data.save(new CompoundTag(),r);
+        n.putInt("schema",1);
+        n.getList("capitals",10).getCompound(0).getList("npcs",10).getCompound(0).remove("trip");
+        var loaded=dev.anjo7778.sao.world.AdventureSimulationData.load(n,r);
+        var l=loaded.ledger(1,id);
+        helper.assertTrue(l.practice()==1&&l.abstractUpdates()==1&&!l.trip().active(),"Old ledger migrates without losing progress");
+        helper.succeed();
+    }
 }

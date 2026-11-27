@@ -53,10 +53,16 @@ public final class CityNpc extends PathfinderMob {
         updateDisplayItem();
     }
     public long originFloor(){return floor;}
+    public boolean matchesPlan(Plan other){return plan!=null&&plan.equals(other);}
     public boolean atScheduledDestination(){
         if(plan==null)return false;
         var c=FloorLayout.center(floor);
-        return distanceToSqr(c.x()+plan.destination().x()+.5,CityPlan.GROUND+1,c.z()+plan.destination().z()+.5)<=16;
+        double x=c.x()+plan.destination().x()+.5,z=c.z()+plan.destination().z()+.5;
+        if(level() instanceof ServerLevel level&&(plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN)){
+            BlockPos target=ExpeditionGround.walkable(level,floor,(int)Math.floor(x),(int)Math.floor(z));
+            return target!=null&&distanceToSqr(x,target.getY(),z)<=9;
+        }
+        return distanceToSqr(x,CityPlan.GROUND+1,z)<=16;
     }
     public String activity(){return plan==null?"unassigned":plan.activity().name();}
     public boolean canConverse(){
@@ -76,7 +82,7 @@ public final class CityNpc extends PathfinderMob {
     public void updateDisplayItem(){
         if(profile==null)return;
         Item item=null;
-        if(plan.activity()==Activity.TRAIN){
+        if(plan.activity()==Activity.TRAIN||plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN){
             item=switch(profile.combatClass()){
                 case ARCHER -> Items.BOW;
                 case MAGE,HEALER -> Items.BOOK;
@@ -96,7 +102,13 @@ public final class CityNpc extends PathfinderMob {
     @Override public void tick(){
         super.tick();
         if(!(level() instanceof ServerLevel level)||!isAlive())return;
-        if(profile==null||!CityRules.isCity(level,getBlockX(),getBlockZ())||FloorTravel.currentFloor(level,getBlockX(),getBlockZ())!=floor){
+        if(profile==null||!CityRules.hasCities(level)||FloorTravel.currentFloor(level,getBlockX(),getBlockZ())!=floor){
+            discard();return;
+        }
+        var centerCheck=FloorLayout.center(floor);
+        var trip=AdventureSimulationData.get(level.getServer()).trip(floor,getUUID());
+        if(!CityRules.isCity(level,getBlockX(),getBlockZ())&&
+            (trip==null||!trip.active()||!ScoutingTrip.inRange(floor,getBlockX()-centerCheck.x(),getBlockZ()-centerCheck.z()))){
             discard();return;
         }
         if(tickCount%20==0){
@@ -141,7 +153,7 @@ public final class CityNpc extends PathfinderMob {
         if(route.isEmpty()||waypoint>=route.size()){
             double d=Math.hypot(here.x()-plan.destination().x(),here.z()-plan.destination().z());
             if(d<=2){
-                if(!getNavigation().isDone()||plan.activity()==Activity.REST)return;
+                if(!getNavigation().isDone()||plan.activity()==Activity.REST||plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN)return;
                 // Small local strolls at the current workplace/plaza, not fake long-distance movement.
                 int x=plan.destination().x()+getRandom().nextInt(9)-4,z=plan.destination().z()+getRandom().nextInt(9)-4;
                 Point dest=new Point(x,z);
@@ -151,13 +163,14 @@ public final class CityNpc extends PathfinderMob {
                 }
                 return;
             }
-            route=NpcDailyPlan.route(floor,here,plan.destination());waypoint=0;failedAttempts=0;
+            route=trip!=null&&trip.active()?ScoutingTrip.route(floor,trip,here,plan.destination()):NpcDailyPlan.route(floor,here,plan.destination());waypoint=0;failedAttempts=0;
         }
         if(waypoint>=route.size())return;
         Point p=route.get(waypoint);
         if(Math.hypot(here.x()-p.x(),here.z()-p.z())<2){waypoint++;failedAttempts=0;return;}
         if(!getNavigation().isDone())return;
-        if(!canWalk(level,center,p)||!getNavigation().moveTo(center.x()+p.x()+.5,CityPlan.GROUND+1,center.z()+p.z()+.5,.9)){
+        BlockPos step=ExpeditionGround.walkable(level,floor,center.x()+p.x(),center.z()+p.z());
+        if(step==null||!getNavigation().moveTo(step.getX()+.5,step.getY(),step.getZ()+.5,.9)){
             if(++failedAttempts>=3){route=List.of();waypoint=0;nextPath+=120;}
         }else failedAttempts=0;
     }
