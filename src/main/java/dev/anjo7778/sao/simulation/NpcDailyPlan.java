@@ -23,8 +23,8 @@ public final class NpcDailyPlan {
                 return new Plan(Activity.WORK,new Point(p.workX()+3,p.workZ()-3));
             return new Plan(Activity.SOCIALIZE,plaza);
         }
-        if(state.needs().supplies()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.MARKET,plaza));
-        if(state.needs().equipment()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.FORGE,plaza));
+        if(state.needs().supplies()<35)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.MARKET,plaza));
+        if(state.needs().equipment()<40)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.FORGE,plaza));
         if(NpcRoutine.night(time)){
             return new Plan(NpcRoutine.nightTraining(p,time)?Activity.TRAIN:Activity.SOCIALIZE,plaza);
         }

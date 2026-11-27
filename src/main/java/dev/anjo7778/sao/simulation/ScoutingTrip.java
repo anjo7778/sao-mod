@@ -37,7 +37,9 @@ public final class ScoutingTrip {
         if(epoch<=l.epoch())return new Result(t,false);
         if(!t.active()){
             if(!ready(s,l,epoch,time))return new Result(t,false);
-            Gate gate=Gate.values()[Math.floorMod(mix(s.profile().id().getLeastSignificantBits()+epoch),4)];
+            int rotation=Math.floorMod(mix(s.profile().id().getLeastSignificantBits()+epoch),4);
+            boolean explorer=s.profile().ambition()==Ambition.DISCOVERY||s.profile().personality().courage()>=65;
+            Gate gate=l.journal().choose(rotation,explorer);
             return new Result(new Trip(Phase.OUTBOUND,gate,epoch,t.nextStart(),t.completed(),t.observed(),t.aborted(),absent,false),true);
         }
         if(epoch<=t.since())return new Result(t,false);
