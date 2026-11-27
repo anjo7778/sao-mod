@@ -11,17 +11,23 @@ public final class NpcDailyPlan {
     private NpcDailyPlan(){}
     public static Plan at(State state,long time){
         var p=state.profile();
-        int key=p.id().hashCode(),shift=Math.floorMod(key,1200)-600;
-        long day=Math.floorMod(time+shift,24000);
+        int key=p.id().hashCode();
+        long day=Math.floorMod(time,24000L);
         Point home=new Point(p.homeX()+3,p.homeZ()-3);
         Point plaza=new Point(Math.floorMod(key,43)-21,Math.floorMod((int)(p.id().getMostSignificantBits()>>>16),43)-21);
-        if(state.needs().health()<35 || day>=13500 || day<1000) return new Plan(Activity.REST,home);
+        if(state.needs().health()<35 || NpcRoutine.resting(p,time)) return new Plan(Activity.REST,home);
         if(p.occupation()!=Occupation.ADVENTURER){
-            if(day<11000) return new Plan(Activity.WORK,new Point(p.workX()+3,p.workZ()-3));
+            boolean nightService=(p.occupation()==Occupation.INNKEEPER||p.occupation()==Occupation.HEALER)
+                &&NpcRoutine.habit(p)==NpcRoutine.Habit.NOCTURNAL;
+            if(nightService?NpcRoutine.night(time):(day>=1000&&day<11000))
+                return new Plan(Activity.WORK,new Point(p.workX()+3,p.workZ()-3));
             return new Plan(Activity.SOCIALIZE,plaza);
         }
         if(state.needs().supplies()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.MARKET,plaza));
         if(state.needs().equipment()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.FORGE,plaza));
+        if(NpcRoutine.night(time)){
+            return new Plan(NpcRoutine.nightTraining(p,time)?Activity.TRAIN:Activity.SOCIALIZE,plaza);
+        }
         if(day<3500)return new Plan(Activity.PREPARE,plaza);
         if(day<8500 && p.personality().ambition()>=45) return new Plan(Activity.TRAIN,plaza);
         return new Plan(Activity.SOCIALIZE,plaza);

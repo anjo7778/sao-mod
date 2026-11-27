@@ -32,7 +32,13 @@ Custom humanoid entity and client renderer using built-in player textures; indep
 
 Build 46079042677 passed all eight GameTests and 8,462 schedule waypoints. Client run 46079113692 verified 32 visible NPCs, 148 profiles, actual player greeting memory, 12 daytime movements, 32 rest activity transitions, 29 movements after schedule change and preserved profile after leaving. Screenshot confirms player-style rendering; buildings and clothes still provisional.
 
-## v0.2.3 social slice (pending verification)
+## v0.2.3 social slice (verified)
 - Reciprocal NPC-to-NPC conversations in loaded city space, physical pause/look, same-floor checks, line of sight, personality and trust, local chat only. Three contacts per actor/day, one per pair/day, at most 64 eligible pair checks and one exchange per five-second pass. Uses elapsed game time for NPC social days. Atomically records both memories, bounded to existing 128-event window, with NBT persistence.
 - Friendly encounters and disagreements affect trust/friendship. Topic depends on job/ambition, not fake world events. Player dialogue can reference stored rescues and ambitions. Low-supply/poor-equipment adventurers seek real market/forge plots; no free items or trade implementation.
-- Still no actual beds, meals, inventory transactions, off-screen routine simulation, unique skins or finished architecture. Runtime social probe pending.
+- Still no actual beds, meals, inventory transactions, off-screen routine simulation, unique skins or finished architecture. Client run 46082483181 passed actual autonomous reciprocal conversation, saved social state replay rejection, greetings, movement and schedule transitions.
+
+## Scope decision and v0.2.4 flexible routines
+
+The user agreed that the project must feel like a singleplayer MMORPG, not a colony simulator. Keep generated cities, characters, social memories and relationships. Prioritize autonomous adventurer goals, progression, independent expeditions, gear, companions, quests and competition. Simple service NPCs support the player and other adventurers; do not expand into complex worker production chains or colony management.
+
+Replace universal nighttime rest with stable early, regular, late, nocturnal and flexible preferences derived from existing NPC identities. Rest windows vary by day; unhealthy NPCs prioritize recovery. Awake adventurers can train, socialize or seek needed equipment/supplies at night. Some innkeepers and healers can operate at night. No new identity fields or save migration. Rest means a routine/destination, not a verified sleep pose or fatigue model; outdoor adventuring, emergency exceptions, meals, commerce, actual beds, persistent fatigue and off-screen progression remain future slices. New tests require both awake and resting characters at midnight, daytime rest, deterministic schedules and existing need/route invariants. New build and client results pending.
