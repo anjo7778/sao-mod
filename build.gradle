@@ -58,6 +58,12 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        adventureProbe {
+            server()
+            gameDirectory = project.file('run-adventure')
+            programArgument '--nogui'
+            systemProperty 'sao.adventureProbe', providers.gradleProperty('adventurePhase').getOrElse('off')
+        }
         server {
             server()
             programArgument '--nogui'
