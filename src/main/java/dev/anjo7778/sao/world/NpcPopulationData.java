@@ -46,6 +46,19 @@ public final class NpcPopulationData extends SavedData {
         if(after==before)return false;
         r.put(npc,after);setDirty();return true;
     }
+    /** Commit both perspectives together on the server thread. No one-sided social event. */
+    public Optional<NpcSocial.Encounter> converse(long floor,UUID first,UUID second,long day){
+        var r=floors.get(floor);
+        if(r==null)return Optional.empty();
+        var a=r.get(first);var b=r.get(second);
+        var result=NpcSocial.offer(a,b,day);
+        if(result.isEmpty())return result;
+        var e=result.get();
+        State na=a.remember(e.first()),nb=b.remember(e.second());
+        if(na==a||nb==b)return Optional.empty();
+        r.put(first,na);r.put(second,nb);setDirty();
+        return result;
+    }
     public boolean updateNeeds(long floor,UUID npc,Needs needs){
         var r=floors.get(floor);if(r==null||!r.containsKey(npc))return false;
         var before=r.get(npc);

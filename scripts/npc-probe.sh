@@ -14,7 +14,10 @@ while ((SECONDS<deadline)); do
         grep -q 'SAO_NPC_PRESENCE_OK' "$log"
         grep -q 'SAO_NPC_GREETING_OK' "$log"
         grep -q 'SAO_NPC_NIGHT_SCHEDULE_OK' "$log"
+        grep -q 'SAO_NPC_SOCIAL_OK' "$log"
+        grep -q 'SAO_NPC_SOCIAL_RELOAD_OK' "$log"
         test -s run-npc/npc-probe/01-plaza-npcs.png
+        test -s run-npc/npc-probe/02-social-encounter.png
         grep 'SAO_NPC_' "$log"
         exit 0
     fi

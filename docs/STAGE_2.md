@@ -27,5 +27,12 @@ Build 46077361153 passed compilation, layout checks (100 starting plots; 36 samp
 ## v0.2.1 roster verification
 Run 46077737385 passed 60,088 generated NPC records across 1,000 capitals and all 7 Minecraft GameTests, including the population/memory NBT round trip.
 
-## v0.2.2 entity slice (pending CI)
+## v0.2.2 entity slice — verified initial client behavior
 Custom humanoid entity and client renderer using built-in player textures; independent UUID/name binds to roster. Nearby-only projection budget (4 per reconciliation, 32 around an active player), loaded chunks only, no permanent entity save or forced chunks. Basic schedules and road waypoints, initial work/training item poses, right-click contextual greeting, persistent once-per-day relationship change, rest recovery. No real job output, sleep pose, equipment economy, death, independent guilds, parties, distant simulation or complete city navigation yet. No custom skins yet. User-visible results need actual client probe before acceptance.
+
+Build 46079042677 passed all eight GameTests and 8,462 schedule waypoints. Client run 46079113692 verified 32 visible NPCs, 148 profiles, actual player greeting memory, 12 daytime movements, 32 rest activity transitions, 29 movements after schedule change and preserved profile after leaving. Screenshot confirms player-style rendering; buildings and clothes still provisional.
+
+## v0.2.3 social slice (pending verification)
+- Reciprocal NPC-to-NPC conversations in loaded city space, physical pause/look, same-floor checks, line of sight, personality and trust, local chat only. Three contacts per actor/day, one per pair/day, at most 64 eligible pair checks and one exchange per five-second pass. Uses elapsed game time for NPC social days. Atomically records both memories, bounded to existing 128-event window, with NBT persistence.
+- Friendly encounters and disagreements affect trust/friendship. Topic depends on job/ambition, not fake world events. Player dialogue can reference stored rescues and ambitions. Low-supply/poor-equipment adventurers seek real market/forge plots; no free items or trade implementation.
+- Still no actual beds, meals, inventory transactions, off-screen routine simulation, unique skins or finished architecture. Runtime social probe pending.

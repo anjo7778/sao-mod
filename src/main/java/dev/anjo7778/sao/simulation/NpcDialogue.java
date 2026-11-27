@@ -30,6 +30,8 @@ public final class NpcDialogue {
                 default -> "I'm attending to my daily routine.";
             };
         };
-        return opening+detail;
+        boolean rescued=s.memories().stream().anyMatch(m->m.actor().equals(player)&&m.type()==EventType.RESCUED);
+        if(rescued&&relation.trust()>=65)opening="I still remember when you helped me. ";
+        return opening+detail+(activity==NpcDailyPlan.Activity.SOCIALIZE?" "+NpcSocial.aspiration(p.ambition()):"");
     }
 }

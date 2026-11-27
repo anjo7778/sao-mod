@@ -20,10 +20,22 @@ public final class NpcDailyPlan {
             if(day<11000) return new Plan(Activity.WORK,new Point(p.workX()+3,p.workZ()-3));
             return new Plan(Activity.SOCIALIZE,plaza);
         }
-        if(day<3500||state.needs().supplies()<20||state.needs().equipment()<20)
-            return new Plan(Activity.PREPARE,plaza);
+        if(state.needs().supplies()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.MARKET,plaza));
+        if(state.needs().equipment()<20)return new Plan(Activity.PREPARE,service(p,CityPlan.Role.FORGE,plaza));
+        if(day<3500)return new Plan(Activity.PREPARE,plaza);
         if(day<8500 && p.personality().ambition()>=45) return new Plan(Activity.TRAIN,plaza);
         return new Plan(Activity.SOCIALIZE,plaza);
+    }
+    private static Point service(Profile p,CityPlan.Role role,Point fallback){
+        int bound=CityPlan.half(p.originFloor())/CityPlan.LOT;
+        CityPlan.Plot best=null;long bestDistance=Long.MAX_VALUE;
+        for(int x=-bound;x<=bound;x++)for(int z=-bound;z<=bound;z++){
+            var lot=CityPlan.plot(p.originFloor(),x,z);
+            if(lot==null||lot.role()!=role)continue;
+            long dx=lot.x()-p.homeX(),dz=lot.z()-p.homeZ(),dist=dx*dx+dz*dz;
+            if(dist<bestDistance){bestDistance=dist;best=lot;}
+        }
+        return best==null?fallback:new Point(best.x()+3,best.z()-3);
     }
     /** Routes use the central axes and horizontal streets; every segment is at most 24 blocks. */
     public static List<Point> route(long floor,Point from,Point to){

@@ -32,10 +32,11 @@ public final class NpcProbe {
     private static int phase,ticks;
     private static CompletableFuture<Void> pending;
     private static UUID greeted;
+    private static UUID socialFirst,socialSecond,eventId;
     private static final Map<UUID,Vec3> before=new HashMap<>();
     private NpcProbe(){}
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
-        if(!ENABLED||phase==6)return;
+        if(!ENABLED||phase==8)return;
         Minecraft c=Minecraft.getInstance();
         if(phase==0&&c.screen instanceof TitleScreen title){
             if(Files.exists(c.gameDirectory.toPath().resolve("saves/sao-npc-test")))throw new IllegalStateException("Disposable save already exists");
@@ -83,10 +84,10 @@ public final class NpcProbe {
                         throw new IllegalStateException("Cannot approach NPC");
                     closest.interact(p,InteractionHand.MAIN_HAND);
                     var state=d.state(1,greeted);
-                    if(state.relationship(p.getUUID()).trust()!=51||state.memories().size()!=1)
+                    if(state.relationship(p.getUUID()).trust()!=51||greetings(state,p.getUUID())!=1)
                         throw new IllegalStateException("Greeting did not change saved relationship");
                     closest.interact(p,InteractionHand.MAIN_HAND);
-                    if(d.state(1,greeted).memories().size()!=1)throw new IllegalStateException("Repeated greeting inflated memory");
+                    if(greetings(d.state(1,greeted),p.getUUID())!=1)throw new IllegalStateException("Repeated greeting inflated memory");
                     LOG.info("SAO_NPC_PRESENCE_OK count={} profiles={}",list.size(),d.roster(1).size());
                     LOG.info("SAO_NPC_GREETING_OK id={}",greeted);
                 });
@@ -102,11 +103,61 @@ public final class NpcProbe {
                         if(v!=null&&v.distanceTo(npc.position())>1.5)moved++;
                     }
                     LOG.info("SAO_NPC_DAY_MOVEMENT count={}",moved);
-                    p.serverLevel().setDayTime(18000);
+                    p.serverLevel().setDayTime(12000);
                 });
                 advance(4);
             }
             case 4 -> {
+                if(socialFirst!=null){advance(5);return;}
+                // Observe an autonomously selected pair; never invoke converse/beginConversation in the fixture.
+                if(ticks<180||ticks%10!=0)return;
+                if(ticks>1200)throw new IllegalStateException("No autonomous reciprocal conversation observed");
+                action(c,p->{
+                    var data=NpcPopulationData.get(p.serverLevel().getServer());
+                    for(var a:npcs(p)){
+                        var partner=a.conversationPartner();
+                        if(partner==null||!(p.serverLevel().getEntity(partner) instanceof CityNpc b)
+                            ||!a.getUUID().equals(b.conversationPartner()))continue;
+                        var as=data.state(1,a.getUUID());var bs=data.state(1,b.getUUID());
+                        if(as==null||bs==null)throw new IllegalStateException("Conversation identity missing");
+                        var m=as.memories().stream().filter(x->NpcSocial.socialMemory(x)&&x.actor().equals(b.getUUID())).findFirst().orElseThrow();
+                        if(bs.memories().stream().noneMatch(x->x.eventId().equals(m.eventId())&&x.actor().equals(a.getUUID())&&x.type()==m.type()))
+                            throw new IllegalStateException("Unpaired encounter");
+                        if(NpcSocial.dailyCount(as,m.day())>NpcSocial.DAILY_LIMIT||NpcSocial.dailyCount(bs,m.day())>NpcSocial.DAILY_LIMIT)
+                            throw new IllegalStateException("Exceeded daily social budget");
+                        socialFirst=a.getUUID();socialSecond=b.getUUID();eventId=m.eventId();
+                        var midpoint=a.position().add(b.position()).scale(.5);
+                        var delta=b.position().subtract(a.position());
+                        double len=Math.hypot(delta.x,delta.z);
+                        if(len<.1)continue;
+                        double cx=midpoint.x-delta.z/len*5,cz=midpoint.z+delta.x/len*5;
+                        float yaw=(float)-Math.toDegrees(Math.atan2(midpoint.x-cx,midpoint.z-cz));
+                        if(!p.teleportTo(p.serverLevel(),cx,midpoint.y+.1,cz,Set.of(),yaw,4))
+                            throw new IllegalStateException("Social camera teleport failed");
+                        LOG.info("SAO_NPC_SOCIAL_OK first={} second={} event={} type={}",socialFirst,socialSecond,eventId,m.type());
+                        break;
+                    }
+                });
+            }
+            case 5 -> {
+                if(ticks<10)return;
+                capture(c,"02-social-encounter");
+                action(c,p->{
+                    var data=NpcPopulationData.get(p.serverLevel().getServer());
+                    var a=data.state(1,socialFirst);
+                    var b=data.state(1,socialSecond);
+                    var restored=NpcPopulationData.load(data.save(new net.minecraft.nbt.CompoundTag(),p.serverLevel().registryAccess()),p.serverLevel().registryAccess());
+                    if(!a.equals(restored.state(1,socialFirst))||!b.equals(restored.state(1,socialSecond)))
+                        throw new IllegalStateException("Social snapshots not restored");
+                    var m=a.memories().stream().filter(x->x.eventId().equals(eventId)).findFirst().orElseThrow();
+                    if(restored.converse(1,socialFirst,socialSecond,m.day()).isPresent())
+                        throw new IllegalStateException("Saved conversation replayed");
+                    LOG.info("SAO_NPC_SOCIAL_RELOAD_OK");
+                    p.serverLevel().setDayTime(18000);
+                });
+                advance(6);
+            }
+            case 6 -> {
                 if(ticks<240)return;
                 action(c,p->{
                     int rest=0,moved=0;
@@ -125,9 +176,9 @@ public final class NpcProbe {
                         throw new IllegalStateException("Cannot move away");
                     p.getAbilities().flying=true;p.onUpdateAbilities();
                 });
-                advance(5);
+                advance(7);
             }
-            case 5 -> {
+            case 7 -> {
                 if(ticks<220)return;
                 action(c,p->{
                     if(!npcs(p).isEmpty())throw new IllegalStateException("NPC projections spawned outside city");
@@ -136,10 +187,13 @@ public final class NpcProbe {
                         throw new IllegalStateException("Roster lost after travel");
                     LOG.info("SAO_NPC_PROBE_PASS");
                 });
-                advance(6);
+                advance(8);
             }
             default -> {}
         }
+    }
+    private static long greetings(NpcRoster.State s,UUID player){
+        return s.memories().stream().filter(m->m.actor().equals(player)&&m.type()==AdventurerMind.EventType.GREETED).count();
     }
     private static List<CityNpc> npcs(ServerPlayer p){
         return p.serverLevel().getEntitiesOfClass(CityNpc.class,p.getBoundingBox().inflate(104),x->x.isAlive());
