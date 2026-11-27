@@ -29,7 +29,8 @@ public final class CityNpc extends PathfinderMob {
     private Plan plan;
     private List<Point> route=List.of();
     private int waypoint,failedAttempts,awayTicks;
-    private long nextPath,lastGreeting=-1000;
+    private long nextPath,lastGreeting=-1000,conversationUntil;
+    private UUID conversationPeer;
     public CityNpc(EntityType<? extends CityNpc> type,Level level){super(type,level);}
     public static AttributeSupplier.Builder attributes(){return Mob.createMobAttributes()
         .add(Attributes.MAX_HEALTH,20).add(Attributes.MOVEMENT_SPEED,.27).add(Attributes.FOLLOW_RANGE,40);}
@@ -53,6 +54,20 @@ public final class CityNpc extends PathfinderMob {
     }
     public long originFloor(){return floor;}
     public String activity(){return plan==null?"unassigned":plan.activity().name();}
+    public boolean canConverse(){
+        return profile!=null&&isAlive()&&plan!=null&&
+            (plan.activity()==Activity.SOCIALIZE||plan.activity()==Activity.PREPARE)
+            &&level().getGameTime()>=conversationUntil;
+    }
+    public UUID conversationPartner(){return level().getGameTime()<conversationUntil?conversationPeer:null;}
+    public void beginConversation(CityNpc other){
+        if(other==null||other==this||other.originFloor()!=floor||!canConverse())return;
+        conversationPeer=other.getUUID();conversationUntil=level().getGameTime()+65;
+        getNavigation().stop();getLookControl().setLookAt(other,30,30);
+    }
+    private void endConversation(){
+        conversationPeer=null;conversationUntil=0;
+    }
     public void updateDisplayItem(){
         if(profile==null)return;
         Item item=null;
@@ -90,7 +105,7 @@ public final class CityNpc extends PathfinderMob {
             if(state==null){discard();return;}
             Plan next=NpcDailyPlan.at(state,level.getDayTime());
             if(!next.equals(plan)){
-                plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
+                endConversation();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
             }
             var c=FloorLayout.center(floor);
             if(plan.activity()==Activity.REST&&distanceToSqr(c.x()+plan.destination().x()+.5,CityPlan.GROUND+1,c.z()+plan.destination().z()+.5)<16){
@@ -103,6 +118,16 @@ public final class CityNpc extends PathfinderMob {
             }
             if(plan.activity()==Activity.TRAIN&&getNavigation().isDone()&&getRandom().nextInt(3)==0&&!getMainHandItem().isEmpty())
                 swing(InteractionHand.MAIN_HAND);
+        }
+        if(conversationPeer!=null){
+            if(level.getGameTime()<conversationUntil&&level.getEntity(conversationPeer) instanceof CityNpc peer
+                &&peer.isAlive()&&distanceToSqr(peer)<=49&&hasLineOfSight(peer)
+                &&getUUID().equals(peer.conversationPartner())){
+                getNavigation().stop();
+                getLookControl().setLookAt(peer,30,30);
+                return;
+            }
+            endConversation();
         }
         if(level.getGameTime()<nextPath)return;
         nextPath=level.getGameTime()+20;

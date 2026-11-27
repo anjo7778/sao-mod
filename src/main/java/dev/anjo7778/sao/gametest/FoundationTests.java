@@ -143,4 +143,26 @@ public final class FoundationTests {
         npc.discard();
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void reciprocalSocialMemory(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        data.discover(1,42);data.discover(2,42);
+        var roster=data.roster(1);
+        java.util.UUID first=null,second=null;
+        dev.anjo7778.sao.simulation.NpcSocial.Encounter encounter=null;
+        outer:for(var a:roster)for(var b:roster){
+            var e=data.converse(1,a.profile().id(),b.profile().id(),5);
+            if(e.isPresent()){first=a.profile().id();second=b.profile().id();encounter=e.get();break outer;}
+        }
+        helper.assertTrue(encounter!=null,"A social pair accepted");
+        helper.assertTrue(data.state(1,first).memories().contains(encounter.first()),"First memory");
+        helper.assertTrue(data.state(1,second).memories().contains(encounter.second()),"Second memory");
+        helper.assertTrue(data.converse(1,first,second,5).isEmpty(),"Duplicate rejected");
+        helper.assertTrue(data.converse(1,first,data.roster(2).getFirst().profile().id(),5).isEmpty(),"Cross-floor rejected");
+        var registries=helper.getLevel().registryAccess();
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),registries),registries);
+        helper.assertTrue(restored.roster(1).equals(data.roster(1)),"Both perspectives persist");
+        helper.assertTrue(restored.converse(1,second,first,5).isEmpty(),"Reload prevents replay");
+        helper.succeed();
+    }
 }

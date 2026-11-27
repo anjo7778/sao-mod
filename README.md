@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.2.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.3.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.2 |
+| Mod version | 0.2.3 |
 
 ## Local builds (optional)
 
@@ -76,3 +76,7 @@ The first visit to each unlocked capital creates persistent resident/adventurer 
 ## v0.2.2 NPC prototype
 
 In a generated capital, wait a few seconds: up to 32 nearby profiles materialize as humanoid mobs using local vanilla player skins. They follow initial day/night schedules and bounded local navigation, and can greet a player who right-clicks with an empty hand. Greetings persist once per NPC/player/day and influence relationships. No arbitrary language model or network skin calls. The roster is authoritative; projections are unsaved, invulnerable and carry display-only items (no drops). Unloaded/distant NPCs are not yet simulated over time. No real job output, combat, sleep animation, trade or independent expeditions; no claim of final NPC AI. New build needs runtime verification.
+
+## v0.2.3 local social life
+
+Nearby idle or preparing NPCs can hold short reciprocal conversations, stop and look at each other, and remember friendly exchanges or occasional disagreements. Each pair can meet once per elapsed in-game day, each NPC at most three such encounters per day, and at most one pair per local interaction pass. Memories persist in the existing roster schema. Only nearby players hear the short exchange; no global chat spam. Adventurers with low supplies/equipment seek a market/forge rather than receiving free goods. No actual buying, crafting or repair yet. Initial player dialogue can also reflect stored rescue memories and ambitions. All features require runtime verification.
