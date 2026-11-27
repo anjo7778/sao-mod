@@ -35,6 +35,21 @@ jobs:
       - name: Build mod
         run: bash ./gradlew --no-daemon build
 
+      - name: Run Minecraft foundation GameTests
+        timeout-minutes: 15
+        run: bash ./gradlew --no-daemon --no-configuration-cache runGameTestServer
+
+      - name: Upload runtime logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: minecraft-runtime-logs-${{ github.run_number }}
+          path: |
+            run/logs/
+            run/crash-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload mod JAR
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
