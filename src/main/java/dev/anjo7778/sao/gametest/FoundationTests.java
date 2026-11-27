@@ -62,4 +62,19 @@ public final class FoundationTests {
         }
         helper.succeed();
     }
+    @GameTest(template = "empty")
+    public static void castleArchitecture(GameTestHelper helper) {
+        var access=helper.getLevel().registryAccess();
+        for(String name:new String[]{"floor_one_castle","upper_floors_castle"}) {
+            var key=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao",name));
+            var settings=access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
+            var density=RandomState.create(settings,access.lookupOrThrow(Registries.NOISE),42L).router().finalDensity();
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(384,180,384))>0,"Solid support pillar: "+name);
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(384,280,192))>0,"Solid roof rib: "+name);
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(0,280,0))<0,"Clear spawn above: "+name);
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(576,280,576))<0,"Open daylight court: "+name);
+            helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(384,-60,384))<0,"Void preserved: "+name);
+        }
+        helper.succeed();
+    }
 }

@@ -4,7 +4,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:floor_one",
+        "settings": "sao:floor_one_castle",
         "biome_source": {
           "type": "minecraft:fixed",
           "biome": "minecraft:plains"
@@ -36,7 +36,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:upper_floors",
+        "settings": "sao:upper_floors_castle",
         "biome_source": {
           "type": "minecraft:fixed",
           "biome": "minecraft:plains"
