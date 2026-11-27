@@ -11,7 +11,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.*;
 
-/** Persistent profiles of visited capitals only. Records are not living entities yet. */
+/** Persistent authoritative profiles of visited capitals; nearby entities are temporary projections. */
 public final class NpcPopulationData extends SavedData {
     private static final Factory<NpcPopulationData> FACTORY=new Factory<>(NpcPopulationData::new,NpcPopulationData::load,null);
     private final Map<Long,LinkedHashMap<UUID,State>> floors=new TreeMap<>();
@@ -38,6 +38,7 @@ public final class NpcPopulationData extends SavedData {
         var r=floors.get(floor);
         return r==null?List.of():List.copyOf(r.values());
     }
+    public State state(long floor,UUID id){var r=floors.get(floor);return r==null?null:r.get(id);}
     public int discoveredCapitals(){return floors.size();}
     public boolean remember(long floor,UUID npc,Memory event){
         var r=floors.get(floor);if(r==null||!r.containsKey(npc))return false;

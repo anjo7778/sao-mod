@@ -5,7 +5,7 @@ import java.util.*;
 /** A bounded, deterministic social memory and utility policy, independent of Minecraft entities. */
 public final class AdventurerMind {
     public enum Action { REST, RESUPPLY, REPAIR, RECRUIT, TRAIN, EXPLORE, SOCIALIZE }
-    public enum EventType { RESCUED, SHARED_LOOT, FOUGHT_TOGETHER, ABANDONED }
+    public enum EventType { RESCUED, SHARED_LOOT, FOUGHT_TOGETHER, ABANDONED, GREETED }
     public record Personality(int courage, int loyalty, int sociability, int ambition) {
         public Personality { check(courage); check(loyalty); check(sociability); check(ambition); }
     }
@@ -42,6 +42,7 @@ public final class AdventurerMind {
         for (Memory memory : memories) {
             if (!actor.equals(memory.actor())) continue;
             switch (memory.type()) {
+                case GREETED -> { trust += 1; friendship += 2; }
                 case RESCUED -> { trust += 25; friendship += 20; respect += 20; }
                 case SHARED_LOOT -> { trust += 10; friendship += 12; }
                 case FOUGHT_TOGETHER -> { trust += 8; friendship += 8; respect += 10; }

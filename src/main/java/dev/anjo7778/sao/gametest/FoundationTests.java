@@ -129,4 +129,18 @@ public final class FoundationTests {
         helper.assertTrue(loaded.roster(1).getFirst().choose()==dev.anjo7778.sao.simulation.AdventurerMind.Action.REST,"Needs survived");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void cityNpcEntity(GameTestHelper helper){
+        var level=helper.getLevel();
+        var state=dev.anjo7778.sao.simulation.NpcRoster.generate(42,1).getFirst();
+        var npc=dev.anjo7778.sao.entity.SaoEntities.CITY_NPC.get().create(level);
+        helper.assertTrue(npc!=null,"Entity type registered");
+        npc.bind(state);
+        helper.assertTrue(npc.getUUID().equals(state.profile().id()),"Entity uses profile identity");
+        helper.assertTrue(npc.getCustomName().getString().equals(state.profile().name()),"Entity has persistent profile name");
+        helper.assertTrue(npc.getMaxHealth()==20,"Attributes registered");
+        helper.assertTrue(!npc.getType().canSerialize(),"Projection does not persist separately");
+        npc.discard();
+        helper.succeed();
+    }
 }

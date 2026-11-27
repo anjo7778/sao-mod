@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.1.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.2.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.1 |
+| Mod version | 0.2.2 |
 
 ## Local builds (optional)
 
@@ -67,8 +67,12 @@ Travel now accepts only open-sky, solid-surface arrival points with a walkable n
 
 ## Stage 2 city prototype
 
-New worlds only: a 608×608-block Town of Beginnings and 384×384 upper-floor capitals, generated per decorated chunk. The central plaza is the initial spawn and unlocked-floor arrival target. Four districts, walled gates, role-based building shells and basic furnishings are initial templates, not working merchants or residents. The city biome has no natural spawns; hostile spawn placement and player/enemy damage across city boundaries are restricted. Start guardian challenges outside the walls within 192 blocks of the perimeter. See [Stage 2](docs/STAGE_2.md). No NPC entities yet. v0.1.6 saves retain their original noise settings and biome source. New test world recommended.
+New worlds only: a 608×608-block Town of Beginnings and 384×384 upper-floor capitals, generated per decorated chunk. The central plaza is the initial spawn and unlocked-floor arrival target. Four districts, walled gates, role-based building shells and basic furnishings are initial templates, not working merchants or residents. The city biome has no natural spawns; hostile spawn placement and player/enemy damage across city boundaries are restricted. Start guardian challenges outside the walls within 192 blocks of the perimeter. See [Stage 2](docs/STAGE_2.md). See the NPC prototype below. v0.1.6 saves retain their original noise settings and biome source. New test world recommended.
 
 ## NPC population foundation (experimental)
 
-The first visit to each unlocked capital creates persistent resident/adventurer profiles only for that capital. `/sao population` reports saved profiles. These have deterministic identities, names, occupations, assigned locations, personalities, ambitions, needs and bounded social memories. They are not yet physical entities; daily schedules, interactions, combat AI, migration and abstract progression remain pending. Identity generator version 1 must not change for already-discovered capitals.
+The first visit to each unlocked capital creates persistent resident/adventurer profiles only for that capital. `/sao population` reports saved profiles. These have deterministic identities, names, occupations, assigned locations, personalities, ambitions, needs and bounded social memories. v0.2.2 adds temporary physical projections, initial schedules and greetings; actual combat, commerce, migration and abstract progression remain pending. Identity generator version 1 must not change for already-discovered capitals.
+
+## v0.2.2 NPC prototype
+
+In a generated capital, wait a few seconds: up to 32 nearby profiles materialize as humanoid mobs using local vanilla player skins. They follow initial day/night schedules and bounded local navigation, and can greet a player who right-clicks with an empty hand. Greetings persist once per NPC/player/day and influence relationships. No arbitrary language model or network skin calls. The roster is authoritative; projections are unsaved, invulnerable and carry display-only items (no drops). Unloaded/distant NPCs are not yet simulated over time. No real job output, combat, sleep animation, trade or independent expeditions; no claim of final NPC AI. New build needs runtime verification.

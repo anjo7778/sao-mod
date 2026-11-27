@@ -24,7 +24,7 @@ public final class SaoCommands {
                 var data=NpcPopulationData.get(p.serverLevel().getServer());
                 var roster=data.roster(floor);
                 long adventurers=roster.stream().filter(n->n.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).count();
-                ctx.getSource().sendSuccess(()->Component.literal("Capital "+floor+": "+roster.size()+" saved NPC profiles ("+adventurers+" adventurers; entities not yet implemented)"),false);
+                ctx.getSource().sendSuccess(()->Component.literal("Capital "+floor+": "+roster.size()+" saved NPC profiles ("+adventurers+" adventurers; up to 32 nearby projected characters)"),false);
                 return 1;
             }))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))

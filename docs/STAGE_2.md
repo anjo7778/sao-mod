@@ -23,3 +23,9 @@ Capital generation uses stable floor addressing, a city biome, a blended flat de
 
 ## v0.2.0 settlement verification
 Build 46077361153 passed compilation, layout checks (100 starting plots; 36 sampled upper plots; seven roles) and 6 GameTests. Actual graphical run 46077450200 passed city spawn, floor 1 and floor 2 generated plaza, roads, wall/gate, doorway, furnishing, hostile-spawn event rejection, player-attributed damage cancellation, guardian challenge outside safe zone, real death unlock and upper capital arrival. Screenshots show a plain repetitive building prototype; architectural detail and organic city plans still need work. Not yet verified on the new NPC branch.
+
+## v0.2.1 roster verification
+Run 46077737385 passed 60,088 generated NPC records across 1,000 capitals and all 7 Minecraft GameTests, including the population/memory NBT round trip.
+
+## v0.2.2 entity slice (pending CI)
+Custom humanoid entity and client renderer using built-in player textures; independent UUID/name binds to roster. Nearby-only projection budget (4 per reconciliation, 32 around an active player), loaded chunks only, no permanent entity save or forced chunks. Basic schedules and road waypoints, initial work/training item poses, right-click contextual greeting, persistent once-per-day relationship change, rest recovery. No real job output, sleep pose, equipment economy, death, independent guilds, parties, distant simulation or complete city navigation yet. No custom skins yet. User-visible results need actual client probe before acceptance.
