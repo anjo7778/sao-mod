@@ -15,6 +15,8 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(() -> Component.literal("SAO: highest unlocked floor " + unlocked), false);
                 return 1;
             }))
+            .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
+            .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")
                 .then(Commands.argument("number", LongArgumentType.longArg(1)).executes(ctx ->
                     FloorTravel.request(ctx.getSource().getPlayerOrException(), LongArgumentType.getLong(ctx, "number")))))
