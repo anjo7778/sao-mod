@@ -35,7 +35,8 @@ public final class FoundationTests {
     public static void floorShape(GameTestHelper helper) {
         var access = helper.getLevel().registryAccess();
         var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one"));
-        var random = RandomState.create(access, key, 42L);
+        var settings = access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
+        var random = RandomState.create(settings, access.lookupOrThrow(Registries.NOISE), 42L);
         var density = random.router().initialDensityWithoutJaggedness();
         helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(0, 0, 0)) > 0, "Solid center");
         helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(0, -60, 0)) < 0, "Void below");
