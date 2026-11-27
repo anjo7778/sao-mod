@@ -217,3 +217,12 @@ tasks.register('verifyModJar', JavaExec) {
 tasks.named('check') {
     dependsOn tasks.named('verifySimulation'), tasks.named('verifyModJar')
 }
+
+tasks.register('verifyGeometry', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.GeometryChecks'
+}
+
+tasks.named('check') { dependsOn tasks.named('verifyGeometry') }

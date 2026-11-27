@@ -9,7 +9,7 @@ displayName="${mod_name}"
 authors="anjo7778"
 description='''
 A Sword Art Online inspired mod for Minecraft 1.21.1.
-Development foundation with standalone floor and NPC simulation primitives; not yet connected to gameplay.
+Experimental first-floor world preset, save-backed progression and standalone NPC simulation primitives.
 '''
 
 [[dependencies.${mod_id}]]
