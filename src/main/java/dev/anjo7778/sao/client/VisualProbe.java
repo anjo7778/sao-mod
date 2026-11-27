@@ -2,7 +2,10 @@ package dev.anjo7778.sao.client;
 
 import com.mojang.logging.LogUtils;
 import dev.anjo7778.sao.simulation.FloorLayout;
-import dev.anjo7778.sao.simulation.FloorProgress;
+import dev.anjo7778.sao.world.FloorGuardian;
+import dev.anjo7778.sao.world.FloorBiomeSource;
+import net.minecraft.world.entity.monster.Ravager;
+import net.minecraft.world.level.biome.Biomes;
 import dev.anjo7778.sao.world.FloorTravel;
 import dev.anjo7778.sao.world.SaoWorldData;
 import net.minecraft.client.Minecraft;
@@ -36,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 public final class VisualProbe {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final boolean ENABLED = Boolean.getBoolean("sao.visualProbe");
-    private enum Phase { START, FIRST_SETTLE, FIRST_CAPTURE, CASTLE_SETTLE, CASTLE_CAPTURE, UPPER_SETTLE, UPPER_CAPTURE, RETURN_SETTLE, DONE }
+    private enum Phase { START, FIRST_SETTLE, FIRST_CAPTURE, CASTLE_SETTLE, CASTLE_CAPTURE, GUARDIAN_SETTLE, GUARDIAN_CAPTURE, UPPER_SETTLE, UPPER_CAPTURE, RETURN_SETTLE, DONE }
     private static Phase phase = Phase.START;
     private static int settledTicks;
     private static String lastScreen = "uninitialized";
@@ -60,8 +63,10 @@ public final class VisualProbe {
             client.options.renderDistance().set(6);
             client.options.simulationDistance().set(5);
             var preset = ResourceKey.create(Registries.WORLD_PRESET, ResourceLocation.fromNamespaceAndPath("sao", "aincrad"));
+            var rules=new GameRules();
+            rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false,null);
             var settings = new LevelSettings("SAO visual test", GameType.CREATIVE, false,
-                Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                Difficulty.NORMAL, true, rules, WorldDataConfiguration.DEFAULT);
             client.createWorldOpenFlows().createFreshLevel("sao-visual-test", settings,
                 new WorldOptions(42L, true, false),
                 access -> access.registryOrThrow(Registries.WORLD_PRESET).getOrThrow(preset).createWorldDimensions(), title);
@@ -79,9 +84,9 @@ public final class VisualProbe {
         switch (phase) {
             case FIRST_SETTLE -> {
                 if (!settled(client, false)) return;
-                var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_castle"));
+                var key = ResourceKey.create(Registries.NOISE_SETTINGS, ResourceLocation.fromNamespaceAndPath("sao", "floor_one_living"));
                 var generator = client.getSingleplayerServer().overworld().getChunkSource().getGenerator();
-                if (!(generator instanceof NoiseBasedChunkGenerator noise) || !noise.generatorSettings().is(key))
+                if (!(generator instanceof NoiseBasedChunkGenerator noise) || !noise.generatorSettings().is(key) || !(noise.getBiomeSource() instanceof FloorBiomeSource))
                     throw new IllegalStateException("Wrong first-floor generator");
                 LOGGER.info("SAO_VISUAL_PROBE_FIRST_READY at {} {} {}", client.player.getX(), client.player.getY(), client.player.getZ());
                 advance(Phase.FIRST_CAPTURE);
@@ -98,7 +103,17 @@ public final class VisualProbe {
             }
             case CASTLE_CAPTURE -> {
                 if (!Files.exists(client.gameDirectory.toPath().resolve("probe-castle-captured"))) return;
-                startTravel(client, true);
+                startGuardian(client);
+                advance(Phase.GUARDIAN_SETTLE);
+            }
+            case GUARDIAN_SETTLE -> {
+                if(!settled(client,false))return;
+                LOGGER.info("SAO_VISUAL_PROBE_GUARDIAN_READY");
+                advance(Phase.GUARDIAN_CAPTURE);
+            }
+            case GUARDIAN_CAPTURE -> {
+                if(!Files.exists(client.gameDirectory.toPath().resolve("probe-guardian-captured")))return;
+                startTravel(client,true);
                 advance(Phase.UPPER_SETTLE);
             }
             case UPPER_SETTLE -> {
@@ -108,7 +123,7 @@ public final class VisualProbe {
             }
             case UPPER_CAPTURE -> {
                 if (!Files.exists(client.gameDirectory.toPath().resolve("probe-upper-captured"))) return;
-                startTravel(client, false);
+                verifyUpperAndReturn(client);
                 advance(Phase.RETURN_SETTLE);
             }
             case RETURN_SETTLE -> {
@@ -164,6 +179,55 @@ public final class VisualProbe {
         },server::execute);
     }
 
+    private static void startGuardian(Minecraft client) {
+        MinecraftServer server=client.getSingleplayerServer();
+        var uuid=client.player.getUUID();
+        pending=CompletableFuture.runAsync(()->{
+            var player=server.getPlayerList().getPlayer(uuid);
+            if(player==null)throw new IllegalStateException("Missing test player");
+            var data=SaoWorldData.get(server);
+            if(data.highestUnlocked()!=1 || FloorTravel.request(player,2)!=0)
+                throw new IllegalStateException("Locked travel was not rejected");
+            LOGGER.info("SAO_VISUAL_PROBE_LOCKED_REJECTED");
+            if(FloorTravel.request(player,1)!=1)throw new IllegalStateException("Cannot return to courtyard");
+            if(FloorGuardian.challenge(player)!=1 || FloorGuardian.challenge(player)!=0)
+                throw new IllegalStateException("Guardian spawn or duplicate prevention failed");
+            var first=data.activeGuardian();
+            if(!(player.serverLevel().getEntity(first) instanceof Ravager discarded))throw new IllegalStateException("Missing first guardian");
+            if(FloorGuardian.abandon(player)!=1 || data.activeGuardian()!=null || data.highestUnlocked()!=1 || !discarded.isRemoved())
+                throw new IllegalStateException("Abandonment must not unlock");
+            if(FloorGuardian.challenge(player)!=1)throw new IllegalStateException("Challenge restart failed");
+            if(!(player.serverLevel().getEntity(data.activeGuardian()) instanceof Ravager boss))
+                throw new IllegalStateException("Missing active guardian");
+            // Keep the fixture in view for screenshot; production AI stays enabled.
+            double dx=boss.getX()-player.getX(),dz=boss.getZ()-player.getZ();
+            float yaw=(float)(-Math.toDegrees(Math.atan2(dx,dz)));
+            if(!player.teleportTo(player.serverLevel(),player.getX(),player.getY(),player.getZ(),Set.of(),yaw,0))
+                throw new IllegalStateException("Unable to aim test camera");
+            LOGGER.info("SAO_VISUAL_PROBE_GUARDIAN_SPAWNED id={} hp={}",boss.getUUID(),boss.getHealth());
+        },server::execute);
+    }
+
+    private static void verifyUpperAndReturn(Minecraft client){
+        MinecraftServer server=client.getSingleplayerServer();
+        var uuid=client.player.getUUID();
+        pending=CompletableFuture.runAsync(()->{
+            var player=server.getPlayerList().getPlayer(uuid);
+            if(player==null)throw new IllegalStateException("Missing test player");
+            var level=player.serverLevel();
+            if(!level.dimension().equals(FloorTravel.UPPER))throw new IllegalStateException("Wrong upper dimension");
+            var key=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","upper_floors_living"));
+            if(!(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen) || !gen.generatorSettings().is(key) || !(gen.getBiomeSource() instanceof FloorBiomeSource))
+                throw new IllegalStateException("Wrong upper generator");
+            level.getChunk(640>>4,640>>4);
+            var biome=level.getBiome(new BlockPos(640,120,640));
+            if(biome.is(Biomes.PLAINS))throw new IllegalStateException("Mountain floor remained plains outside courtyard");
+            LOGGER.info("SAO_VISUAL_PROBE_UPPER_BIOME {}",biome.unwrapKey().orElseThrow().location());
+            if(FloorTravel.request(player,3)!=0)throw new IllegalStateException("Floor 3 was unlocked prematurely");
+            if(FloorTravel.request(player,1)!=1)throw new IllegalStateException("Return failed");
+        },server::execute);
+    }
+
     private static void startTravel(Minecraft client, boolean upper) {
         MinecraftServer server = client.getSingleplayerServer();
         var uuid = client.player.getUUID();
@@ -172,12 +236,13 @@ public final class VisualProbe {
             if (player == null) throw new IllegalStateException("Missing server player");
             if (upper) {
                 var data = SaoWorldData.get(server);
-                if (data.highestUnlocked() != 1 || FloorTravel.request(player, 2) != 0)
-                    throw new IllegalStateException("Locked floor was not rejected");
-                LOGGER.info("SAO_VISUAL_PROBE_LOCKED_REJECTED");
-                if (!data.recordVictory(1, FloorProgress.Victor.PLAYER))
-                    throw new IllegalStateException("Synthetic test victory rejected");
-                LOGGER.info("SAO_VISUAL_PROBE_SYNTHETIC_VICTORY");
+                if(data.highestUnlocked()!=1 || !(player.serverLevel().getEntity(data.activeGuardian()) instanceof Ravager boss))
+                    throw new IllegalStateException("No active guardian before death test");
+                // Actual entity damage + LivingDeathEvent, not a direct progression API call.
+                if(!boss.hurt(player.damageSources().playerAttack(player),10000.0F) || !boss.isDeadOrDying()
+                    || data.highestUnlocked()!=2 || data.activeGuardian()!=null)
+                    throw new IllegalStateException("Player-attributed guardian death did not unlock exactly one floor");
+                LOGGER.info("SAO_VISUAL_PROBE_REAL_GUARDIAN_DEATH_UNLOCKED floor={}",data.highestUnlocked());
             }
             int result = FloorTravel.request(player, upper ? 2 : 1);
             if (result != 1) throw new IllegalStateException("Travel request failed");

@@ -36,7 +36,7 @@ jobs:
         run: |
           bash -n scripts/cloud-visual-probe.sh
           bash ./gradlew --no-daemon --no-configuration-cache classes
-      - name: Verify castle blocks, Floor Two travel and return
+      - name: Verify real guardian death, castle and biome generation, travel and return
         timeout-minutes: 12
         run: xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX" bash scripts/cloud-visual-probe.sh
       - name: Upload visual probe evidence

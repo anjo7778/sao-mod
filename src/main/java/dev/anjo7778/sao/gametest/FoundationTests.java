@@ -77,4 +77,21 @@ public final class FoundationTests {
         }
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void guardianIdentity(GameTestHelper helper){
+        var data=new SaoWorldData();
+        var a=new java.util.UUID(1,2);var b=new java.util.UUID(1,3);
+        helper.assertTrue(data.beginGuardian(1,a),"Reserve real guardian identity");
+        helper.assertFalse(data.beginGuardian(1,b),"Duplicate encounter rejected");
+        helper.assertFalse(data.completeGuardian(1,b),"Unrelated mob cannot unlock");
+        var restored=SaoWorldData.load(data.save(new CompoundTag(),helper.getLevel().registryAccess()),helper.getLevel().registryAccess());
+        helper.assertTrue(a.equals(restored.activeGuardian()),"Active guardian identity saved");
+        helper.assertFalse(restored.completeGuardian(2,a),"Wrong floor rejected");
+        helper.assertTrue(restored.completeGuardian(1,a),"Guardian victory unlocks exactly one");
+        helper.assertFalse(restored.completeGuardian(1,a),"Replay rejected");
+        helper.assertTrue(restored.highestUnlocked()==2 && restored.activeGuardian()==null,"Encounter cleared");
+        var legacy=new CompoundTag();legacy.putInt("schema",1);legacy.putLong("highest_unlocked",7);legacy.putBoolean("npc_unlocks",true);
+        helper.assertTrue(SaoWorldData.load(legacy,helper.getLevel().registryAccess()).highestUnlocked()==7,"Legacy progression preserved");
+        helper.succeed();
+    }
 }

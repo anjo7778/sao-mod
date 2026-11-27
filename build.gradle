@@ -249,3 +249,11 @@ tasks.register('verifyCastleGeometry', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.CastleGeometryChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyCastleGeometry') }
+
+tasks.register('verifyFloorBiomes', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.BiomeChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyFloorBiomes') }
