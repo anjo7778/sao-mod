@@ -65,6 +65,8 @@ while (( SECONDS < deadline )); do
         test -s "$out/floor-one-castle.png"
         test -s "$out/floor-one-guardian.png"
         grep -q 'SAO_VISUAL_PROBE_UPPER_BIOME' "$log"
+        grep -q 'SAO_VISUAL_PROBE_ARRIVAL_DAYLIGHT_VERIFIED floor=2' "$log"
+        grep -q 'SAO_VISUAL_PROBE_RETURN_DAYLIGHT_VERIFIED' "$log"
         grep -q 'SAO_VISUAL_PROBE_CASTLE_BLOCKS_VERIFIED' "$log"
         capture floor-one-return
         grep 'SAO_VISUAL_PROBE_' "$log" | tee "$out/result.txt"

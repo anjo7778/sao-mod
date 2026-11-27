@@ -145,7 +145,11 @@ public final class VisualProbe {
         boolean correct = upper ? client.level.dimension().equals(FloorTravel.UPPER)
             && FloorLayout.floorAt(player.getBlockX(), player.getBlockZ()) == 2
             : client.level.dimension().equals(Level.OVERWORLD);
-        if (!correct || !player.onGround() || player.getY() < 48 || player.getY() > 205
+        // Check the actual client chunk and lighting too, not merely coordinates.
+        boolean skyRequired=phase!=Phase.CASTLE_SETTLE;
+        boolean sky=!skyRequired || client.level.canSeeSky(player.blockPosition().above())
+            && client.level.getHeight(Heightmap.Types.WORLD_SURFACE,player.getBlockX(),player.getBlockZ())<=player.getBlockY();
+        if (!correct || !sky || !player.onGround() || player.getY() < 48 || player.getY() > 205
                 || Math.abs(player.getX()) > 3000 || Math.abs(player.getZ()) > 3000) {
             settledTicks = 0;
             return false;
@@ -189,7 +193,7 @@ public final class VisualProbe {
             if(data.highestUnlocked()!=1 || FloorTravel.request(player,2)!=0)
                 throw new IllegalStateException("Locked travel was not rejected");
             LOGGER.info("SAO_VISUAL_PROBE_LOCKED_REJECTED");
-            if(FloorTravel.request(player,1)!=1)throw new IllegalStateException("Cannot return to courtyard");
+            if(FloorTravel.request(player,1)!=1 || !FloorTravel.isOutdoorArrival(player.serverLevel(),player.blockPosition()))throw new IllegalStateException("Cannot return to daylight courtyard");
             if(FloorGuardian.challenge(player)!=1 || FloorGuardian.challenge(player)!=0)
                 throw new IllegalStateException("Guardian spawn or duplicate prevention failed");
             var first=data.activeGuardian();
@@ -224,7 +228,8 @@ public final class VisualProbe {
             if(biome.is(Biomes.PLAINS))throw new IllegalStateException("Mountain floor remained plains outside courtyard");
             LOGGER.info("SAO_VISUAL_PROBE_UPPER_BIOME {}",biome.unwrapKey().orElseThrow().location());
             if(FloorTravel.request(player,3)!=0)throw new IllegalStateException("Floor 3 was unlocked prematurely");
-            if(FloorTravel.request(player,1)!=1)throw new IllegalStateException("Return failed");
+            if(FloorTravel.request(player,1)!=1 || !FloorTravel.isOutdoorArrival(player.serverLevel(),player.blockPosition()))throw new IllegalStateException("Outdoor return failed");
+            LOGGER.info("SAO_VISUAL_PROBE_RETURN_DAYLIGHT_VERIFIED");
         },server::execute);
     }
 
@@ -245,7 +250,8 @@ public final class VisualProbe {
                 LOGGER.info("SAO_VISUAL_PROBE_REAL_GUARDIAN_DEATH_UNLOCKED floor={}",data.highestUnlocked());
             }
             int result = FloorTravel.request(player, upper ? 2 : 1);
-            if (result != 1) throw new IllegalStateException("Travel request failed");
+            if (result != 1 || !FloorTravel.isOutdoorArrival(player.serverLevel(),player.blockPosition())) throw new IllegalStateException("Outdoor travel request failed");
+            LOGGER.info("SAO_VISUAL_PROBE_ARRIVAL_DAYLIGHT_VERIFIED floor={}",upper?2:1);
         }, server::execute);
     }
 }
