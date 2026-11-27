@@ -48,7 +48,7 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(CityRules::spawn);
         NeoForge.EVENT_BUS.addListener(CityRules::spawnCheck);
         NeoForge.EVENT_BUS.addListener(CityRules::damage);
-        NeoForge.EVENT_BUS.addListener(NpcPopulationData::discover);
+        NeoForge.EVENT_BUS.addListener(NpcPopulationData::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(SaoCommands::register);
         NeoForge.EVENT_BUS.addListener(FloorTravel::guard);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,FloorGuardian::death);

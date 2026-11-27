@@ -18,7 +18,7 @@ public final class NpcPopulationData extends SavedData {
     public static NpcPopulationData get(MinecraftServer server){
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY,"sao_population");
     }
-    public static void discover(PlayerTickEvent.Post event){
+    public static void onPlayerTick(PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer p)||p.tickCount%100!=0)return;
         var level=p.serverLevel();
         if(!CityRules.isCity(level,p.getBlockX(),p.getBlockZ()))return;

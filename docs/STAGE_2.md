@@ -20,3 +20,6 @@ Capital generation uses stable floor addressing, a city biome, a blended flat de
 ## NPC roster prototype
 
 100 residents + 48 adventurers for Floor 1; 36 + 24 for a typical upper capital. Counts are tuning defaults, not loaded entity counts. Generate only when the player visits an unlocked capital; no global preallocation or automatic distant AI tick. Versioned separate SavedData stores all visited profiles and mutable state snapshots. Test deterministic generation, identities, memory idempotency, needs and NBT round trip. No automatic conversation, real NPC rendering or actual job actions yet. Cloud test results required before merging.
+
+## v0.2.0 settlement verification
+Build 46077361153 passed compilation, layout checks (100 starting plots; 36 sampled upper plots; seven roles) and 6 GameTests. Actual graphical run 46077450200 passed city spawn, floor 1 and floor 2 generated plaza, roads, wall/gate, doorway, furnishing, hostile-spawn event rejection, player-attributed damage cancellation, guardian challenge outside safe zone, real death unlock and upper capital arrival. Screenshots show a plain repetitive building prototype; architectural detail and organic city plans still need work. Not yet verified on the new NPC branch.
