@@ -71,9 +71,9 @@ public final class AincradHud {
         if(combat!=null&&combat.available()&&combat.owner().equals(p.getUUID())){
             small(g,x,info,w,"STA",combat.stamina()+"/100",ratio(combat.stamina(),100),combat.stamina()<24?RED:BLUE);info+=16;
             var phase=dev.anjo7778.sao.simulation.SwordActions.Phase.values()[combat.phase()];
-            var move=dev.anjo7778.sao.simulation.SwordActions.Move.values()[combat.move()];
+            var pose=dev.anjo7778.sao.simulation.SwordPose.kind(combat.pose());
             if(phase==dev.anjo7778.sao.simulation.SwordActions.Phase.WINDUP||phase==dev.anjo7778.sao.simulation.SwordActions.Phase.RECOVERY){
-                text(g,move.name().replace('_',' ')+" / "+phase.name(),x+4,info+1,WHITE,w-8);info+=12;
+                text(g,(pose==null?"":pose.name().replace('_',' ')+" / ")+phase.name(),x+4,info+1,WHITE,w-8);info+=12;
             }else if(phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
                 text(g,phase.name(),x+4,info+1,WHITE,w-8);info+=12;
             }
