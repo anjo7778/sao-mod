@@ -6,6 +6,8 @@ import dev.anjo7778.sao.network.CombatNetwork;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.chat.Component;
+import dev.anjo7778.sao.simulation.SwordActions;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -35,6 +37,15 @@ public final class AincradMenuControls {
     private static boolean allowed(Minecraft c){
         var s=ProfileNetwork.clientSnapshot();
         return c.player!=null&&c.level!=null&&s!=null&&s.available()&&s.owner().equals(c.player.getUUID());
+    }
+    private static void notice(Minecraft c,String key,Object... args){
+        if(c.player!=null)c.player.displayClientMessage(Component.translatable("message.sao.control."+key,args),true);
+    }
+    private static void unavailable(Minecraft c){
+        var s=ProfileNetwork.clientSnapshot();
+        if(s==null||!s.owner().equals(c.player.getUUID())){
+            notice(c,"connecting");ProfileNetwork.request();
+        }else notice(c,"world");
     }
     private static boolean chord(Minecraft c){
         long window=c.getWindow().getWindow();
@@ -67,25 +78,37 @@ public final class AincradMenuControls {
         while(SKILL.consumeClick())skill=true;
         while(CYCLE_SKILL.consumeClick())cycle=true;
         if(c.player==null||c.level==null||c.getConnection()==null)return;
+        if(c.player.hurtTime>0)lastCombat=ticks;
+        if(ticks%80==0||ticks==1||ProfileNetwork.clientSnapshot()==null&&ticks%20==0)ProfileNetwork.request();
+        boolean pressed=MENU.consumeClick();while(MENU.consumeClick())pressed=true;
+        if(c.screen==null&&pressed){
+            if(!allowed(c))unavailable(c);
+            else if(!MenuPreferences.mode.key())notice(c,"gesture_only");
+            else if(combatBlocked(c))notice(c,"menu_locked");
+            else {open(c);return;}
+        }
         var combat=CombatNetwork.snapshot();
-        if(c.screen==null&&allowed(c)&&combat!=null&&combat.available()&&combat.owner().equals(c.player.getUUID())){
-            if(cycle)CombatNetwork.intent(3,0);
+        if(c.screen==null&&(cycle||guard||dodge||skill)){
+            if(!allowed(c))unavailable(c);
+            else if(c.player.isCreative()||c.player.isSpectator()||c.player.isPassenger())notice(c,"survival");
+            else if(combat==null||!combat.available()||!combat.owner().equals(c.player.getUUID()))notice(c,"equip");
+            else if(combat.phase()!=SwordActions.Phase.IDLE.ordinal())notice(c,"recovering");
+            else if(cycle)CombatNetwork.intent(3,0);
             else if(guard){CombatNetwork.intent(0,0);lastCombat=ticks;}
             else if(dodge){
                 int direction=c.options.keyLeft.isDown()?1:c.options.keyRight.isDown()?2:c.options.keyUp.isDown()?3:0;
                 CombatNetwork.intent(1,direction);lastCombat=ticks;
-            }else if(skill&&combat.skillUnlocked()&&combat.skillCooldown()==0){
-                CombatNetwork.intent(4,0);lastCombat=ticks;
+            }else{
+                var selected=SwordActions.Skill.fromIndex(combat.selectedSkill());
+                if(!combat.skillUnlocked())notice(c,"mastery",selected.mastery);
+                else if(combat.skillCooldown()>0)notice(c,"cooldown",String.format(java.util.Locale.ROOT,"%.1f",combat.skillCooldown()/20.0));
+                else{CombatNetwork.intent(4,0);lastCombat=ticks;}
             }
         }
-        if(c.player.hurtTime>0)lastCombat=ticks;
-        if(ticks%80==0||ticks==1||ProfileNetwork.clientSnapshot()==null&&ticks%20==0)ProfileNetwork.request();
-        boolean pressed=MENU.consumeClick();while(MENU.consumeClick())pressed=true;
         boolean both=chord(c);
         if(!both){armed=false;latched=false;}
         if(c.screen!=null){armed=false;if(both)latched=true;return;}
         if(!allowed(c)||combatBlocked(c)){armed=false;return;}
-        if(pressed&&MenuPreferences.mode.key()){open(c);return;}
         if(!MenuPreferences.mode.gesture()||!both||latched){armed=false;return;}
         if(!armed){
             armed=true;armedAt=ticks;startX=c.mouseHandler.xpos();startY=c.mouseHandler.ypos();startPitch=c.player.getXRot();return;
