@@ -77,7 +77,7 @@ public final class SwordComboProbe {
     }
     private static void setup(ServerPlayer p){
         var level=p.serverLevel();level.setDayTime(4000);
-        int x=CityPlan.half(1)+36,z=0;
+        int x=CityPlan.half(1)+58,z=0; // outside the NPC quarry arena
         for(int cx=(x-16)>>4;cx<=(x+16)>>4;cx++)for(int cz=-1;cz<=1;cz++)level.getChunk(cx,cz);
         var from=ExpeditionGround.walkable(level,1,x,z);
         var to=ExpeditionGround.walkable(level,1,x,z+2);
