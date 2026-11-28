@@ -5,6 +5,9 @@ import dev.anjo7778.sao.network.CombatNetwork;
 import dev.anjo7778.sao.simulation.*;
 import dev.anjo7778.sao.simulation.SwordActions.Phase;
 import dev.anjo7778.sao.simulation.SwordActions.Move;
+import dev.anjo7778.sao.simulation.SwordActions.Skill;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -31,6 +34,8 @@ public final class SwordCombat {
         ItemStack main=ItemStack.EMPTY,off=ItemStack.EMPTY;
         UUID target,comboTarget,resolvingTarget;
         Move resolvingMove=Move.BASIC;
+        Skill selected=Skill.HORIZONTAL;
+        Vec3 leapStart;
         Vec3 dodgeStart;
         boolean resolving,shown;
         long lastIntent=-100;
@@ -66,7 +71,7 @@ public final class SwordCombat {
             else s.clock.breakCombo();
             s.capture(actor,level);
         }
-        if(s.clock.phase()!=Phase.WINDUP)s.target=null;
+        if(s.clock.phase()!=Phase.WINDUP){s.target=null;s.leapStart=null;}
         if(s.clock.phase()!=Phase.DODGE)s.dodgeStart=null;
         if(s.clock.combo()==0)s.comboTarget=null;
     }
@@ -77,22 +82,56 @@ public final class SwordCombat {
         return b>.001&&(-Math.sin(yaw)*delta.x+Math.cos(yaw)*delta.z)/b>=threshold;
     }
     private static boolean target(LivingEntity actor,LivingEntity victim,ServerLevel level){
+        return target(actor,victim,level,REACH);
+    }
+    private static boolean target(LivingEntity actor,LivingEntity victim,ServerLevel level,double reach){
         return actor!=victim&&victim instanceof Enemy&&victim.level()==level&&outside(actor,level)&&outside(victim,level)
             &&FloorTravel.currentFloor(level,actor.getBlockX(),actor.getBlockZ())==FloorTravel.currentFloor(level,victim.getBlockX(),victim.getBlockZ())
-            &&actor.distanceToSqr(victim)<=REACH*REACH&&actor.hasLineOfSight(victim)&&facing(actor,victim,.20);
+            &&actor.distanceToSqr(victim)<=reach*reach&&actor.hasLineOfSight(victim)&&facing(actor,victim,.20);
     }
     private static long mastery(LivingEntity actor,ServerLevel level){
         var kind=actor instanceof ServerPlayer?CharacterProgressData.Kind.PLAYER:CharacterProgressData.Kind.NPC;
         var owner=new CharacterProgressData.Owner(kind,actor.getUUID());
         return CharacterProgressData.get(level.getServer()).state(owner).mastery(CharacterProgress.Mastery.SWORD);
     }
-    private static boolean begin(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level,boolean skill){
-        if(!target(actor,victim,level)||!supports(actor))return false;
-        if(s.clock.phase()!=Phase.IDLE)return false;
+    /** Small ground-level advancing thrust, never a teleport or automatic hit at extended reach. */
+    private static Vec3 leapMotion(LivingEntity actor,LivingEntity victim,ServerLevel level){
+        if(!actor.onGround()||actor.isInWater()||actor.isPassenger()
+            ||Math.abs(actor.getY()-victim.getY())>.6)return null;
+        Vec3 delta=victim.position().subtract(actor.position());
+        double length=Math.hypot(delta.x,delta.z);
+        if(length<2.4||length>4.1)return null;
+        double travel=Math.min(1.55,Math.max(.6,length-2.15));
+        Vec3 dir=new Vec3(delta.x/length,0,delta.z/length);
+        long floor=FloorTravel.currentFloor(level,actor.getBlockX(),actor.getBlockZ());
+        for(int i=1;i<=6;i++){
+            Vec3 step=dir.scale(travel*i/6);
+            BlockPos p=BlockPos.containing(actor.position().add(step));
+            if(!level.hasChunkAt(p)||!level.noCollision(actor,actor.getBoundingBox().move(step))
+                ||!level.getFluidState(p).isEmpty()||!level.getBlockState(p.below()).isFaceSturdy(level,p.below(),Direction.UP)
+                ||CityRules.isSafeZone(level,p.getX(),p.getZ())||FloorTravel.currentFloor(level,p.getX(),p.getZ())!=floor)return null;
+        }
+        return dir.scale(Math.min(.62,travel*.40));
+    }
+    private static boolean begin(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level,Skill skill){
+        boolean leap=skill==Skill.SONIC_LEAP;
+        if(!target(actor,victim,level,leap?4.1:REACH)||!supports(actor)||s.clock.phase()!=Phase.IDLE)return false;
+        Vec3 motion=leap?leapMotion(actor,victim,level):null;
+        if(leap&&motion==null)return false;
         if(!victim.getUUID().equals(s.comboTarget))s.clock.breakCombo();
-        boolean accepted=skill?s.clock.horizontal(now(level),mastery(actor,level)):s.clock.attack(now(level));
+        boolean accepted=skill==null?s.clock.attack(now(level)):s.clock.skill(now(level),mastery(actor,level),skill);
         if(!accepted)return false;
-        s.capture(actor,level);s.target=victim.getUUID();return true;
+        s.capture(actor,level);s.target=victim.getUUID();s.leapStart=leap?actor.position():null;
+        if(leap){
+            if(actor instanceof CityNpc npc)npc.getNavigation().stop();
+            actor.setDeltaMovement(motion);actor.hurtMarked=true;
+        }
+        return true;
+    }
+    private static boolean impact(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level){
+        if(!target(actor,victim,level))return false;
+        return s.clock.move()!=Move.SONIC_LEAP||s.leapStart!=null
+            &&actor.position().distanceToSqr(s.leapStart)>=.30*.30;
     }
     private static float remainingHealth(LivingEntity victim){
         return victim.getHealth()+victim.getAbsorptionAmount();
@@ -110,7 +149,7 @@ public final class SwordCombat {
     private static void sync(ServerPlayer p,Session s,boolean available){
         int pose=available?s.clock.visualCode(now(p.serverLevel()),p.serverLevel().getGameTime()):0;
         CombatNetwork.send(p,available,s.clock.stamina(),s.clock.phase(),s.clock.move(),
-            s.clock.combo(),s.clock.skillCooldown(now(p.serverLevel())),available&&mastery(p,p.serverLevel())>=SwordActions.HORIZONTAL_MASTERY,pose);
+            s.clock.combo(),s.clock.skillCooldown(s.selected,now(p.serverLevel())),available&&s.selected.unlocked(mastery(p,p.serverLevel())),pose,s.selected.ordinal());
         s.shown=available;s.lastPose=pose;
     }
     public static void attack(AttackEntityEvent event){
@@ -124,7 +163,7 @@ public final class SwordCombat {
         if(!supports(p)||!(event.getTarget() instanceof LivingEntity victim)||!(victim instanceof Enemy))return;
         if(s==null)s=session(p);
         event.setCanceled(true);
-        if(!p.isUsingItem())begin(s,p,victim,p.serverLevel(),false);
+        if(!p.isUsingItem())begin(s,p,victim,p.serverLevel(),null);
         sync(p,s,true);
     }
     public static void playerTick(PlayerTickEvent.Post event){
@@ -139,7 +178,7 @@ public final class SwordCombat {
         }
         if(available&&s.target!=null&&s.clock.claimHit(now(level))){
             var id=s.target;s.target=null;
-            if(s.same(p,level)&&level.getEntity(id) instanceof LivingEntity victim&&target(p,victim,level)&&!p.isUsingItem()){
+            if(s.same(p,level)&&level.getEntity(id) instanceof LivingEntity victim&&impact(s,p,victim,level)&&!p.isUsingItem()){
                 float before=remainingHealth(victim);
                 startResolve(s,victim);
                 try{p.swing(InteractionHand.MAIN_HAND);p.attack(victim);}finally{endResolve(s);}
@@ -156,13 +195,23 @@ public final class SwordCombat {
      * Skill intent uses a target entity id. No client positions, stamina or hit claims are accepted. */
     public static void intent(ServerPlayer p,int action,int direction){
         var level=p.serverLevel();
-        if(!eligible(p)||!supports(p)||!outside(p,level)||p.isUsingItem())return;
+        if(!eligible(p)||!supports(p)||p.isUsingItem())return;
+        if(action!=3&&!outside(p,level))return;
         var s=session(p);advance(s,p,level);
         long time=now(level);if(time-s.lastIntent<2)return;s.lastIntent=time;
-        if(action==0){
+        if(action==3){
+            // One selectable active slot. Changing selection cannot reset any cooldown.
+            if(s.clock.phase()==Phase.IDLE){
+                long skillLevel=mastery(p,level);
+                for(int i=1;i<=Skill.values().length;i++){
+                    var next=Skill.values()[(s.selected.ordinal()+i)%Skill.values().length];
+                    if(next.unlocked(skillLevel)){s.selected=next;break;}
+                }
+            }
+        }else if(action==0){
             if(s.clock.guard(now(level))){s.capture(p,level);s.target=null;}
         }else if(action==2){
-            if(direction>=0&&level.getEntity(direction) instanceof LivingEntity victim)begin(s,p,victim,level,true);
+            if(direction>=0&&level.getEntity(direction) instanceof LivingEntity victim)begin(s,p,victim,level,s.selected);
         }else if(action==1&&direction>=0&&direction<=3&&p.onGround()&&!p.isInWater()){
             double yaw=Math.toRadians(p.getYRot()),x=-Math.sin(yaw),z=Math.cos(yaw);
             double dx=direction==0?-x:direction==1?z:direction==2?-z:x;
@@ -185,7 +234,7 @@ public final class SwordCombat {
         long time=now(level);
         if(s.target!=null&&s.clock.claimHit(time)){
             var id=s.target;s.target=null;
-            if(id.equals(victim.getUUID())&&s.same(npc,level)&&target(npc,victim,level)){
+            if(id.equals(victim.getUUID())&&s.same(npc,level)&&impact(s,npc,victim,level)){
                 npc.getNavigation().stop();npc.swing(InteractionHand.MAIN_HAND);
                 var attack=npc.getAttribute(Attributes.ATTACK_DAMAGE);
                 var held=npc.getMainHandItem().copy();
@@ -206,6 +255,8 @@ public final class SwordCombat {
             npc.getNavigation().stop();return;
         }
         if(!target(npc,victim,level)){
+            if(s.clock.phase()==Phase.IDLE&&npc.tickCount%12==0&&s.clock.stamina()>=45
+                &&Skill.SONIC_LEAP.unlocked(mastery(npc,level))&&begin(s,npc,victim,level,Skill.SONIC_LEAP))return;
             if(npc.tickCount%10==0)npc.getNavigation().moveTo(victim,style.speed);
             return;
         }
@@ -216,7 +267,8 @@ public final class SwordCombat {
         if(s.clock.phase()==Phase.IDLE&&npc.tickCount%4==0){
             // Prefer to finish an earned chain; trained adventurers sometimes choose Horizontal.
             boolean skill=s.clock.combo()==0&&s.clock.stamina()>=40&&npc.tickCount%12==0;
-            if(!skill||!begin(s,npc,victim,level,true))begin(s,npc,victim,level,false);
+            Skill chosen=Skill.values()[Math.floorMod(npc.getUUID().hashCode()+npc.tickCount/12,3)];
+            if(!skill||!begin(s,npc,victim,level,chosen))begin(s,npc,victim,level,null);
         }
     }
     /** Restore stamina during ordinary represented NPC rest, not only while in combat. */
