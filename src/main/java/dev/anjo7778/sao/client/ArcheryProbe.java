@@ -154,7 +154,7 @@ public final class ArcheryProbe {
     }
     @SubscribeEvent(priority=EventPriority.LOWEST)
     public static void death(LivingDeathEvent event){
-        if(!ENABLED||quarryId==null||!event.getEntity().getUUID().equals(quarryId)||event.isCanceled())return;
+        if(!ENABLED||!(event.getEntity().level() instanceof net.minecraft.server.level.ServerLevel)||quarryId==null||!event.getEntity().getUUID().equals(quarryId)||event.isCanceled())return;
         require(event.getSource().getEntity() instanceof CityNpc npc&&npc.getUUID().equals(actorId),"Wrong killer");
         require(event.getSource().getDirectEntity() instanceof Arrow arrow&&arrow.pickup==AbstractArrow.Pickup.DISALLOWED,"Not a real noncollectible arrow");
         arrowDeath=true;
