@@ -27,7 +27,10 @@ public final class AdventurerMarket {
         }
     }
     /** Starting capital plus explicitly earned guild commissions, keyed by lifetime scouting count. */
-    public record Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough,int huntKills,int paidHunts,int goodsOrders,int goodsSpent){
+    public record Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough,int huntKills,int paidHunts,int goodsOrders,int goodsSpent,int materialEarned){
+        public Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough,int huntKills,int paidHunts,int goodsOrders,int goodsSpent){
+            this(supplyOrders,repairOrders,lastEpoch,observedOrders,earned,claimedThrough,huntKills,paidHunts,goodsOrders,goodsSpent,0);
+        }
         public Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough,int huntKills,int paidHunts){
             this(supplyOrders,repairOrders,lastEpoch,observedOrders,earned,claimedThrough,huntKills,paidHunts,0,0);
         }
@@ -39,14 +42,14 @@ public final class AdventurerMarket {
         }
         public Wallet {
             long spent=(long)supplyOrders*Service.SUPPLIES.price()+(long)repairOrders*Service.REPAIR.price()+goodsSpent;
-            if(supplyOrders<0||repairOrders<0||goodsOrders<0||goodsSpent<0||goodsSpent>MAX||(goodsOrders==0)!=(goodsSpent==0)||goodsSpent<goodsOrders||earned<0||earned>MAX||claimedThrough<0
+            if(supplyOrders<0||repairOrders<0||goodsOrders<0||goodsSpent<0||goodsSpent>MAX||(goodsOrders==0)!=(goodsSpent==0)||goodsSpent<goodsOrders||earned<0||earned>MAX||materialEarned<0||materialEarned>MAX||claimedThrough<0
                 ||huntKills<0||paidHunts<0||paidHunts>huntKills
                 ||earned%SCOUT_COMMISSION!=0||earned/SCOUT_COMMISSION<paidHunts||earned/SCOUT_COMMISSION-paidHunts>claimedThrough
-                ||spent>(long)STARTING_COL+earned||lastEpoch< -1||observedOrders<0
+                ||spent>(long)STARTING_COL+earned+materialEarned||lastEpoch< -1||observedOrders<0
                 ||observedOrders>(long)supplyOrders+repairOrders+goodsOrders||(((long)supplyOrders+repairOrders+goodsOrders==0)!=(lastEpoch==-1)))
                 throw new IllegalArgumentException("Invalid wallet");
         }
-        public int col(){return STARTING_COL+earned-supplyOrders*Service.SUPPLIES.price()-repairOrders*Service.REPAIR.price()-goodsSpent;}
+        public int col(){return STARTING_COL+earned+materialEarned-supplyOrders*Service.SUPPLIES.price()-repairOrders*Service.REPAIR.price()-goodsSpent;}
         public int orders(){return supplyOrders+repairOrders+goodsOrders;}
     }
     public static final Wallet NEW_WALLET=new Wallet(0,0,-1,0);
@@ -82,7 +85,7 @@ public final class AdventurerMarket {
         // Never credit historical completions or replay a paid/unfunded completion.
         if(before<0||after!=(long)before+1||after<=w.claimedThrough())return null;
         int paid=treasury.col()>=SCOUT_COMMISSION&&w.earned()<=MAX-SCOUT_COMMISSION?SCOUT_COMMISSION:0;
-        var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,after,w.huntKills(),w.paidHunts(),w.goodsOrders(),w.goodsSpent());
+        var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,after,w.huntKills(),w.paidHunts(),w.goodsOrders(),w.goodsSpent(),w.materialEarned());
         return new Commission(next,paid==0?treasury:new Treasury(treasury.supplyReleased(),treasury.repairReleased(),treasury.commissions()+1),paid);
     }
     /** The caller must atomically close an exact quarry contract; this never grants a free payout. */
@@ -90,7 +93,7 @@ public final class AdventurerMarket {
         if(w.huntKills()==Integer.MAX_VALUE)throw new IllegalStateException("Hunt counter exhausted");
         int paid=treasury.col()>=HuntContract.REWARD&&w.earned()<=MAX-HuntContract.REWARD?HuntContract.REWARD:0;
         var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,w.claimedThrough(),
-            w.huntKills()+1,w.paidHunts()+(paid>0?1:0),w.goodsOrders(),w.goodsSpent());
+            w.huntKills()+1,w.paidHunts()+(paid>0?1:0),w.goodsOrders(),w.goodsSpent(),w.materialEarned());
         return new Commission(next,paid==0?treasury:new Treasury(treasury.supplyReleased(),treasury.repairReleased(),treasury.commissions()+1),paid);
     }
     public static Restock restock(Shop shop,Treasury treasury){
@@ -118,13 +121,30 @@ public final class AdventurerMarket {
         if(epoch<=w.lastEpoch()||!canBuy(n,w,shop))return null;
         var service=shop.service();
         var next=new Wallet(w.supplyOrders()+(service==Service.SUPPLIES?1:0),w.repairOrders()+(service==Service.REPAIR?1:0),
-            epoch,w.observedOrders()+(observed?1:0),w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts(),w.goodsOrders(),w.goodsSpent());
+            epoch,w.observedOrders()+(observed?1:0),w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts(),w.goodsOrders(),w.goodsSpent(),w.materialEarned());
         return new Sale(next,new Shop(service,shop.sold()+1,shop.restocked()),service.apply(n));
     }
     /** A real item transaction uses this same wallet, not a second source of currency. */
     public static Wallet buyGoods(Wallet w,int price,long epoch){
         if(price<=0||price>MAX||epoch<=w.lastEpoch()||w.col()<price||w.goodsSpent()>MAX-price||w.goodsOrders()==Integer.MAX_VALUE)return null;
-        return new Wallet(w.supplyOrders(),w.repairOrders(),epoch,w.observedOrders()+1,w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts(),w.goodsOrders()+1,w.goodsSpent()+price);
+        return new Wallet(w.supplyOrders(),w.repairOrders(),epoch,w.observedOrders()+1,w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts(),w.goodsOrders()+1,w.goodsSpent()+price,w.materialEarned());
+    }
+    /** Provisional wholesale rates: 2 Col per raw iron, 1 per coal or log.
+     * Quote is for actual transferred units, never for an attempted delivery. */
+    public static int materialQuote(int iron,int coal,int logs){
+        long units=(long)iron+coal+logs;
+        if(iron<0||coal<0||logs<0||units<=0||units>12)throw new IllegalArgumentException("Invalid material shipment");
+        return 2*iron+coal+logs;
+    }
+    public record MaterialPayment(Wallet wallet,int paid){}
+    /** Transfer at most the available actual smith receipts; an unfunded shipment
+     * remains an unpaid bootstrap contribution, not minted Col or debt. */
+    public static MaterialPayment payMaterials(Wallet w,int quote,int available){
+        if(quote<=0||quote>24||available<0||available>MAX)throw new IllegalArgumentException("Invalid material payment");
+        int paid=Math.min(quote,Math.min(available,MAX-w.materialEarned()));
+        if(paid==0)return new MaterialPayment(w,0);
+        return new MaterialPayment(new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),
+            w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts(),w.goodsOrders(),w.goodsSpent(),w.materialEarned()+paid),paid);
     }
     public static Needs wear(Needs n,int amount){
         if(amount<0)throw new IllegalArgumentException("Negative wear");
