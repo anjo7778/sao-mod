@@ -180,3 +180,7 @@ V2 client test passed input and profile but screenshot review found invisible wo
 ## v0.2.30 exact-reference health gauge candidate
 
 [v0.2.29 build](https://github.com/anjo7778/sao-mod/actions/runs/46099212169) and [corrected client test](https://github.com/anjo7778/sao-mod/actions/runs/46099639755) passed; visible world menu amber pixels and green/red HUD verified in controlled client. User supplied specific health gauge design; replace health panel with faithful charcoal/stepped bar geometry, clipped gradient and fitted white numeric labels. Preserve existing input, menu, XP and hunger. New screenshot test pending.
+
+## v0.2.31 world entity indicator and equipment panel candidate
+
+Add synced NPC role/level projection, depth-tested nearby NPC/targeted enemy diamonds, contextual HUD, and real equipped item summary with a vanilla inventory fallback. v0.2.30 compile error corrected; its separate client verification is ongoing. Archery probe client-side death-event assertion restricted to server events and rerun; no production combat change. Tests pending.

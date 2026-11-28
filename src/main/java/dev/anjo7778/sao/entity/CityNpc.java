@@ -6,6 +6,9 @@ import dev.anjo7778.sao.world.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -25,6 +28,9 @@ import static dev.anjo7778.sao.simulation.NpcDailyPlan.*;
  * No item drops, permanent death, inventory economy or adventurer combat in this initial slice.
  */
 public final class CityNpc extends PathfinderMob {
+    private static final EntityDataAccessor<Integer> DISPLAY_ROLE=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DISPLAY_LEVEL=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
+    private static final Occupation[] ROLES=Occupation.values();
     private long floor;
     private Profile profile;
     private Plan plan;
@@ -35,6 +41,23 @@ public final class CityNpc extends PathfinderMob {
     public CityNpc(EntityType<? extends CityNpc> type,Level level){super(type,level);}
     public static AttributeSupplier.Builder attributes(){return Mob.createMobAttributes()
         .add(Attributes.MAX_HEALTH,20).add(Attributes.ATTACK_DAMAGE,4).add(Attributes.MOVEMENT_SPEED,.27).add(Attributes.FOLLOW_RANGE,40);}
+    @Override protected void defineSynchedData(SynchedEntityData.Builder builder){
+        super.defineSynchedData(builder);
+        builder.define(DISPLAY_ROLE,-1);
+        builder.define(DISPLAY_LEVEL,0);
+    }
+    /** Read-only projection of authoritative role and RPG progression, including after migration. */
+    public Occupation displayOccupation(){
+        int i=entityData.get(DISPLAY_ROLE);return i>=0&&i<ROLES.length?ROLES[i]:null;
+    }
+    public int displayLevel(){return entityData.get(DISPLAY_LEVEL);}
+    private void refreshDisplayProgress(ServerLevel server){
+        if(profile==null)return;
+        var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.NPC,profile.id());
+        long level=CharacterProgressData.get(server.getServer()).state(owner).level();
+        entityData.set(DISPLAY_ROLE,profile.occupation().ordinal());
+        entityData.set(DISPLAY_LEVEL,(int)Math.min(Integer.MAX_VALUE,level));
+    }
     @Override protected void registerGoals(){
         goalSelector.addGoal(0,new FloatGoal(this));
         goalSelector.addGoal(5,new LookAtPlayerGoal(this,Player.class,8));
@@ -46,6 +69,7 @@ public final class CityNpc extends PathfinderMob {
         setUUID(profile.id());
         setCustomName(Component.literal(profile.name()));
         setCustomNameVisible(false);
+        if(level() instanceof ServerLevel server)refreshDisplayProgress(server);
         setPersistenceRequired();
         setInvulnerable(true);
         setCanPickUpLoot(false);
@@ -137,6 +161,7 @@ public final class CityNpc extends PathfinderMob {
             if(awayTicks>=100){discard();return;}
         }
         if(tickCount%100==Math.floorMod(profile.id().hashCode(),100)){
+            refreshDisplayProgress(level);
             var data=NpcPopulationData.get(level.getServer());
             State state=data.state(floor,getUUID());
             if(state==null){discard();return;}

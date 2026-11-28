@@ -1,6 +1,8 @@
 package dev.anjo7778.sao.client;
 
 import dev.anjo7778.sao.network.ProfileNetwork;
+import dev.anjo7778.sao.entity.CityNpc;
+import dev.anjo7778.sao.simulation.NpcRoster;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.gui.GuiGraphics;
@@ -77,12 +79,25 @@ public final class AincradHud {
         if(!(c.screen instanceof AincradMenu)){
             hotbar(g,width,height,p);
             if(c.hitResult instanceof EntityHitResult hit&&hit.getEntity() instanceof LivingEntity target
-                &&target instanceof Enemy&&target.isAlive()){
-                int tw=Math.min(135,Math.max(75,width/3)),tx=width-tw-9,ty=36;
-                chamfer(g,tx,ty,tw,24,5,PALE);
-                text(g,target.getDisplayName().getString(),tx+5,ty+2,INK,tw-10);
+                &&(target instanceof Enemy||target instanceof CityNpc)&&target.isAlive()){
+                int tw=Math.min(150,Math.max(78,width/3)),tx=width-tw-9,ty=36;
+                boolean resident=target instanceof CityNpc npc&&npc.displayOccupation()!=null;
+                int ph=resident?34:25;
+                chamfer(g,tx,ty,tw,ph,5,PALE);
+                String name=target.getDisplayName().getString();
+                if(target instanceof CityNpc npc&&npc.displayLevel()>0){
+                    String lv="Lv. "+npc.displayLevel();
+                    int available=Math.min(55,AincradType.width(c.font,lv)+6);
+                    text(g,name,tx+5,ty+2,INK,tw-12-available);
+                    right(g,lv,tx+tw-7,ty+2,INK,available);
+                }else text(g,name,tx+5,ty+2,INK,tw-10);
+                if(resident){
+                    var occupation=((CityNpc)target).displayOccupation();
+                    String role=occupation.name().toLowerCase(Locale.ROOT).replace('_',' ');
+                    text(g,role,tx+5,ty+12,occupation==NpcRoster.Occupation.ADVENTURER?0xff386c36:0xff916016,tw-10);
+                }
                 float th=ratio(target.getHealth(),target.getMaxHealth());
-                gauge(g,tx+4,ty+13,tw-9,7,th,th,healthColor(th));
+                gauge(g,tx+4,ty+ph-10,tw-9,7,th,th,healthColor(th));
             }
             long time=c.level.getDayTime()%24000;
             int minutes=(int)((time+6000)%24000*1440/24000);

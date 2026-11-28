@@ -113,6 +113,7 @@ public final class AincradMenu extends Screen {
         if(group==4){settings(p,x,y,w,mx,my);return;}
         if(!real){p.text("Awaiting profile...",x+7,y+32,FAINT,w-14);return;}
         if(group==0&&page==0)character(p,s,x,y,w,mx,my);
+        else if(group==0&&page==1)equipment(p,x,y,w,mx,my);
         else if(group==0&&(page==2||page==3))mastery(p,s,x,y,w,page==3);
         else{p.text("Not available yet",x+7,y+35,INK,w-14);p.text("In development",x+7,y+49,FAINT,w-14);}
     }
@@ -126,6 +127,27 @@ public final class AincradMenu extends Screen {
         }
         p.rect(x+6,y+152,w-12,1,EDGE);p.text(s.unspent()+" pts",x+7,y+159,INK,45);
         String vanilla="Enchant Lv "+minecraft.player.experienceLevel;p.text(vanilla,x+w-7-p.width(vanilla),y+159,FAINT,w-53);
+    }
+    private void equipment(Painter p,int x,int y,int w,double mx,double my){
+        var player=minecraft.player;
+        if(player==null)return;
+        var slots=new net.minecraft.world.entity.EquipmentSlot[]{
+            net.minecraft.world.entity.EquipmentSlot.MAINHAND,net.minecraft.world.entity.EquipmentSlot.OFFHAND,
+            net.minecraft.world.entity.EquipmentSlot.HEAD,net.minecraft.world.entity.EquipmentSlot.CHEST,
+            net.minecraft.world.entity.EquipmentSlot.LEGS,net.minecraft.world.entity.EquipmentSlot.FEET
+        };
+        String[] names={"Main hand","Off hand","Head","Chest","Legs","Feet"};
+        p.text("EQUIPPED ITEMS",x+7,y+25,FAINT,w-14);
+        for(int i=0;i<slots.length;i++){
+            int ry=y+39+i*17;
+            var stack=player.getItemBySlot(slots[i]);
+            p.text(names[i],x+7,ry,FAINT,51);
+            p.text(stack.isEmpty()?"Empty":stack.getHoverName().getString(),x+59,ry,INK,w-66);
+            p.rect(x+7,ry+11,w-14,1,EDGE);
+        }
+        p.text("Armor "+player.getArmorValue(),x+7,y+142,INK,w-14);
+        p.rect(x+7,y+154,w-14,14,inside(mx,my,x+7,y+154,w-14,14)?ORANGE:0xffdce6e7);
+        center(p,"Manage inventory",x+7,y+156,w-14,INK);
     }
     private void mastery(Painter p,ProfileNetwork.Snapshot s,int x,int y,int w,boolean profession){
         var list=Arrays.stream(Mastery.values()).filter(m->(m.ordinal()>=Mastery.BLACKSMITHING.ordinal())==profession).toList();
@@ -149,6 +171,9 @@ public final class AincradMenu extends Screen {
         for(int i=0;i<GROUP_ICON.length;i++){double dx=mx-92,dy=my-(23+36*i);if(dx*dx+dy*dy<=17*17){if(group!=i){group=i;page=scroll=slide=0;sound(1.2f);}return true;}}
         for(int i=0;i<PAGES[group].length;i++)if(inside(mx,my,115,subTop()+i*19,99,17)){if(page!=i){page=i;scroll=slide=0;sound(1.2f);}return true;}
         if(slide<5)return false;
+        if(group==0&&page==1&&inside(mx,my,228,164,133,14)&&minecraft!=null&&minecraft.player!=null){
+            sound(1.2f);minecraft.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(minecraft.player));return true;
+        }
         if(group==4)for(int i=0;i<5;i++)if(inside(mx,my,228,46+i*25,133,16)){MenuPreferences.cycle(i);resetWorld();sound(1.2f);return true;}
         var s=ProfileNetwork.clientSnapshot();
         if(group==0&&page==0&&s!=null&&s.available()&&s.unspent()>0)for(var a:Attribute.values())if(inside(mx,my,351,76+a.ordinal()*12,12,11)){ProfileNetwork.allocate(a);return true;}
