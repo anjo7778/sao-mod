@@ -54,7 +54,11 @@ public final class CityVenueRoutine {
         boolean active=trip!=null&&trip.active();
         if(!landmarks)return active?ScoutingTrip.route(floor,trip,from,to):NpcDailyPlan.route(floor,from,to);
         Site a=at(floor,from.x(),from.z()),b=at(floor,to.x(),to.z());
-        if(a==null&&b==null)return active?ScoutingTrip.route(floor,trip,from,to):NpcDailyPlan.route(floor,from,to);
+        if(a==null&&b==null){
+            if(active)return ScoutingTrip.route(floor,trip,from,to);
+            var ordinary=NpcDailyPlan.route(floor,from,to);
+            return localBuildingApproach(floor,from,to,ordinary);
+        }
         List<Point> out=new ArrayList<>();Point cursor=from;
         if(a!=null&&a.equals(b)){segment(out,from,to);return List.copyOf(out);}
         if(a!=null){
@@ -80,6 +84,62 @@ public final class CityVenueRoutine {
         }
         segment(out,entry(b),to);
         return List.copyOf(out);
+    }
+    /** Use clear local streets instead of returning through the plaza unnecessarily.
+     * Geometry checks are conservative; the live navigator still validates real blocks.
+     * Only landmark capitals and existing primary building destinations are eligible. */
+    private static List<Point> localBuildingApproach(long floor,Point from,Point to,List<Point> ordinary){
+        if(ordinary.isEmpty()||!CityPlan.inside(floor,from.x(),from.z())||!CityPlan.inside(floor,to.x(),to.z()))return ordinary;
+        var plot=CityPlan.column(floor,to.x(),to.z()).plot();
+        if(plot==null)return ordinary;
+        // Start on a main east/west avenue or an existing cross street.
+        int startZ;
+        if(Math.abs(from.z())<=5)startZ=0;
+        else{
+            int offset=Math.floorMod(from.z(),CityPlan.LOT)-CityPlan.LOT/2;
+            if(Math.abs(offset)>2)return ordinary;
+            startZ=from.z()-offset;
+        }
+        int endZ=plot.z()-CityPlan.LOT/2;
+        Point start=new Point(from.x(),startZ),end=new Point(plot.x(),endZ);
+        Point door=new Point(plot.x(),plot.z()-plot.depth()-1);
+        List<Point> best=ordinary;
+        double bestLength=distance(from,ordinary);
+        // The primary approach and both side alleys are merely candidates.
+        // Reject any occupied cell in the planned two-block-high corridor.
+        for(int x:new int[]{plot.x(),plot.x()-12,plot.x()+12}){
+            Point entry=new Point(x,startZ),exit=new Point(x,endZ);
+            List<Point> corners=List.of(start,entry,exit,end,door);
+            Point cursor=from;
+            boolean clear=true;
+            for(Point next:corners){
+                if(!clearStreet(floor,cursor,next)){clear=false;break;}
+                cursor=next;
+            }
+            if(!clear)continue;
+            List<Point> candidate=new ArrayList<>();cursor=from;
+            for(Point next:corners){segment(candidate,cursor,next);cursor=next;}
+            segment(candidate,door,to);
+            if(candidate.stream().anyMatch(p->!clearAt(floor,p.x(),p.z(),1)||!clearAt(floor,p.x(),p.z(),2)))continue;
+            double length=distance(from,candidate);
+            if(length+4<bestLength){bestLength=length;best=List.copyOf(candidate);}
+        }
+        return best;
+    }
+    private static double distance(Point from,List<Point> route){
+        double n=0;
+        for(Point p:route){n+=Math.hypot(p.x()-from.x(),p.z()-from.z());from=p;}
+        return n;
+    }
+    private static boolean clearStreet(long floor,Point a,Point b){
+        if(a.x()!=b.x()&&a.z()!=b.z())return false;
+        int dx=Integer.compare(b.x(),a.x()),dz=Integer.compare(b.z(),a.z());
+        int n=Math.abs(b.x()-a.x())+Math.abs(b.z()-a.z());
+        for(int i=0;i<=n;i++){
+            int x=a.x()+i*dx,z=a.z()+i*dz;
+            if(!clearAt(floor,x,z,1)||!clearAt(floor,x,z,2))return false;
+        }
+        return true;
     }
     private static void segment(List<Point> out,Point a,Point b){
         int dx=b.x()-a.x(),dz=b.z()-a.z(),n=(int)Math.ceil(Math.hypot(dx,dz)/12.0);
