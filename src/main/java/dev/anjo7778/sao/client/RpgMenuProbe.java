@@ -69,15 +69,15 @@ public final class RpgMenuProbe {
             if(s!=null&&s.available()&&s.xp()==100&&s.level()==2&&s.unspent()==3){
                 require(MenuPreferences.mode==MenuPreferences.Mode.KEY_ONLY,"Dedicated key is not default");
                 require(AincradHud.active(),"Aincrad HUD not active");
-                if(hudPhase==0){capture(c,"08-hud-full");requireColor(c,"08-hud-full",9,20,135,23,AincradHud.GREEN,12,45);action(c,p->{p.setHealth(5);p.getFoodData().setFoodLevel(6);p.getFoodData().setSaturation(0);});hudPhase=1;return;}
+                if(hudPhase==0){if(ticks<12)return;capture(c,"08-hud-full");requireColor(c,"08-hud-full",14,23,135,28,AincradHud.GREEN,12,45);action(c,p->{p.setHealth(5);p.getFoodData().setFoodLevel(6);p.getFoodData().setSaturation(0);});hudPhase=1;return;}
                 if(hudPhase==1){
                     if(c.player.getHealth()>5.5f||c.player.getFoodData().getFoodLevel()>6)return;
                     hudPhase=2;ticks=0;return;
                 }
                 if(hudPhase==2){
                     if(ticks<30)return;
-                    capture(c,"09-hud-low");requireColor(c,"09-hud-low",9,20,135,24,AincradHud.RED,12,25);
-                    requireColor(c,"09-hud-low",9,44,140,58,AincradHud.RED,12,10);
+                    capture(c,"09-hud-low");requireColor(c,"09-hud-low",14,23,135,28,AincradHud.RED,12,25);
+                    requireColor(c,"09-hud-low",45,44,114,57,AincradHud.RED,12,10);
                     LOG.info("SAO_MENU_HUD_OK green/red health and low food rendered");
                     action(c,p->{p.setHealth(p.getMaxHealth());p.getFoodData().setFoodLevel(20);});hudPhase=3;return;
                 }
