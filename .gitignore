@@ -38,3 +38,9 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+/run-hunt/
+
+/run-supply/
+
+/run-deep-mine/
