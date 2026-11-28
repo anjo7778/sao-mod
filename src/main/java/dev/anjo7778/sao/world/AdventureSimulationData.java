@@ -143,6 +143,15 @@ public final class AdventureSimulationData extends SavedData {
                     floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,offscreen?Mode.IDLE:mode,offscreen));
                     setDirty();continue;
                 }
+                // A visible adventurer with a real equipment offer is walking to the shop
+                // or awaiting its physical transaction. Do not spend the same wallet/epoch
+                // on an abstract repair or interrupt the visit with a new expedition.
+                // The offer disappears when stock, funds or opening hours cease to qualify.
+                if(!previous.trip().active()&&!current.active()&&actor instanceof CityNpc
+                    &&NpcEquipmentService.plan(level,s)!=null){
+                    floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,mode==Mode.PREPARE?Mode.IDLE:mode,false));
+                    setDirty();continue;
+                }
                 if(!previous.trip().active()&&MarketService.transact(level,s,current,desired,epoch)){
                     floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,Mode.PREPARE,offscreen));
                     setDirty();continue;
