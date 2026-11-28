@@ -31,7 +31,7 @@ public final class SwordCombatData extends SavedData {
         if(!next.equals(previous)){states.put(key,next);setDirty();}
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",1);var list=new ListTag();
+        root.putInt("schema",2);var list=new ListTag();
         states.forEach((key,entry)->{
             var n=new CompoundTag();n.putBoolean("npc",key.npc());n.putUUID("id",key.id());
             var s=entry.clock();n.putInt("stamina",s.stamina());n.putLong("tick",s.tick());
@@ -42,15 +42,22 @@ public final class SwordCombatData extends SavedData {
         root.put("combatants",list);return root;
     }
     public static SwordCombatData load(CompoundTag root,HolderLookup.Provider registries){
-        if(root.getInt("schema")!=1||!root.contains("combatants",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown sword combat schema");
+        int schema=root.getInt("schema");
+        if((schema!=1&&schema!=2)||!root.contains("combatants",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown sword combat schema");
         var d=new SwordCombatData();var list=root.getList("combatants",Tag.TAG_COMPOUND);
         for(int i=0;i<list.size();i++){
             var n=list.getCompound(i);
             if(!n.hasUUID("id")||!n.contains("tick",Tag.TAG_LONG)||!n.contains("cooldowns",Tag.TAG_INT_ARRAY))
                 throw new IllegalArgumentException("Invalid combat entry");
             var key=new Key(n.getBoolean("npc"),n.getUUID("id"));
+            int[] timers=n.getIntArray("cooldowns");
+            // v0.2.47 stored the first four skills in their stable enum order.
+            if(schema==1){
+                if(timers.length!=4)throw new IllegalArgumentException("Invalid legacy cooldown count");
+                timers=Arrays.copyOf(timers,Skill.values().length);
+            }else if(timers.length!=Skill.values().length)throw new IllegalArgumentException("Invalid cooldown count");
             var clock=new SwordActions.Saved(n.getInt("stamina"),n.getLong("tick"),n.getInt("recovery"),
-                n.getInt("global"),Arrays.stream(n.getIntArray("cooldowns")).boxed().toList());
+                n.getInt("global"),Arrays.stream(timers).boxed().toList());
             var entry=new Entry(clock,Skill.valueOf(n.getString("selected")));
             if(d.states.put(key,entry)!=null)throw new IllegalArgumentException("Duplicate combat identity");
         }
