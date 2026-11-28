@@ -1,7 +1,7 @@
 name: Stage 2 Deep Mine Client Probe
 on:
   push:
-    branches: ['stage2/deep-mine-client-probe', 'stage2/deep-mine-path-safety']
+    branches: ['stage2/deep-mine-client-probe', 'stage2/deep-mine-path-safety', 'stage2/woodland-mines-combat']
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,6 +11,12 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extended: ['false', 'true']
+    env:
+      SAO_EXTENDED_MINE_PROBE: ${{ matrix.extended }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -31,7 +37,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: sao-deep-mine-probe-${{ github.run_number }}
+          name: sao-deep-mine-probe-${{ github.run_number }}-${{ matrix.extended }}
           path: |
             build/deep-mine-probe/
             run-deep-mine/deep-mine-probe/
