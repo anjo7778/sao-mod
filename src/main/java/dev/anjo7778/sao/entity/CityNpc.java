@@ -4,6 +4,7 @@ import dev.anjo7778.sao.simulation.*;
 import dev.anjo7778.sao.simulation.NpcRoster.*;
 import dev.anjo7778.sao.world.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,7 +34,7 @@ public final class CityNpc extends PathfinderMob {
     private UUID conversationPeer;
     public CityNpc(EntityType<? extends CityNpc> type,Level level){super(type,level);}
     public static AttributeSupplier.Builder attributes(){return Mob.createMobAttributes()
-        .add(Attributes.MAX_HEALTH,20).add(Attributes.MOVEMENT_SPEED,.27).add(Attributes.FOLLOW_RANGE,40);}
+        .add(Attributes.MAX_HEALTH,20).add(Attributes.ATTACK_DAMAGE,4).add(Attributes.MOVEMENT_SPEED,.27).add(Attributes.FOLLOW_RANGE,40);}
     @Override protected void registerGoals(){
         goalSelector.addGoal(0,new FloatGoal(this));
         goalSelector.addGoal(5,new LookAtPlayerGoal(this,Player.class,8));
@@ -53,6 +54,20 @@ public final class CityNpc extends PathfinderMob {
         updateDisplayItem();
     }
     public long originFloor(){return floor;}
+    public boolean boundAdventurer(){return profile!=null&&profile.occupation()==Occupation.ADVENTURER;}
+    public Profile boundProfile(){return profile;}
+    @Override public boolean hurt(DamageSource source,float amount){
+        if(!(level() instanceof ServerLevel server)||!HuntService.canRetaliate(this,server,source)||!Float.isFinite(amount)||amount<=0)return false;
+        // Prototype retreat: keep at least one HP, never create a permanent NPC death or free revival.
+        float bounded=Math.min(amount,Math.max(0,getHealth()-1));
+        if(bounded<=0)return false;
+        setInvulnerable(false);
+        try{
+            boolean hit=super.hurt(source,bounded);
+            if(hit)HuntService.recordHealth(this,server);
+            return hit;
+        }finally{setInvulnerable(true);}
+    }
     public boolean matchesPlan(Plan other){return plan!=null&&plan.equals(other);}
     public boolean atScheduledDestination(){
         if(plan==null)return false;
@@ -146,6 +161,7 @@ public final class CityNpc extends PathfinderMob {
                 swing(InteractionHand.MAIN_HAND);
             }
         }
+        if(HuntService.tick(this,level,trip))return;
         if(conversationPeer!=null){
             if(level.getGameTime()<conversationUntil&&level.getEntity(conversationPeer) instanceof CityNpc peer
                 &&peer.isAlive()&&distanceToSqr(peer)<=49&&hasLineOfSight(peer)
@@ -208,6 +224,8 @@ public final class CityNpc extends PathfinderMob {
             if(journal.surveyed()!=0)line+=" I've surveyed the "+SurveyJournal.directions(journal.surveyed())+" gate approaches.";
             else if(journal.reported()!=0)line+=" I've heard reports about the "+SurveyJournal.directions(journal.reported())+" gate approaches.";
         }
+        var contract=data.hunt(getUUID());
+        if(contract!=null&&contract.active()&&contract.matches(floor,ledger==null?null:ledger.trip()))line+=" I'm hunting a nearby monster for the guild.";
         var journey=AdventureSimulationData.get(p.serverLevel().getServer()).journey(profile);
         if(journey.visiting())line+=" I'm visiting "+RegionalSettlements.site(floor,journey.target()).name()+".";
         if(ledger!=null&&ledger.goal().active()&&state.relationship(p.getUUID()).trust()>=50)

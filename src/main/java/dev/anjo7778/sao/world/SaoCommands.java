@@ -86,20 +86,20 @@ public final class SaoCommands {
                 var server=ctx.getSource().getServer();long floor=LongArgumentType.getLong(ctx,"floor");
                 if(!SaoWorldData.get(server).isUnlocked(floor)){ctx.getSource().sendFailure(Component.literal("Unlocked floor required."));return 0;}
                 var pop=NpcPopulationData.get(server);
-                long purchases=0,observed=0,funds=0,sold=0,till=0,earned=0;
+                long purchases=0,observed=0,funds=0,sold=0,till=0,earned=0,hunts=0,paidHunts=0;
                 var local=new java.util.ArrayList<>(pop.roster(floor));
                 for(var kind:dev.anjo7778.sao.simulation.RegionalSettlements.Kind.values())local.addAll(pop.regionalRoster(floor,kind));
                 for(var state:local){
                     var profile=state.profile();
                     if(profile.occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER){
-                        var w=pop.wallet(profile);purchases+=w.orders();observed+=w.observedOrders();funds+=w.col();earned+=w.earned();
+                        var w=pop.wallet(profile);purchases+=w.orders();observed+=w.observedOrders();funds+=w.col();earned+=w.earned();hunts+=w.huntKills();paidHunts+=w.paidHunts();
                     }else if(dev.anjo7778.sao.simulation.AdventurerMarket.forRole(profile.occupation())!=null){
                         var shop=pop.shop(profile);sold+=shop.sold();till+=shop.till();
                     }
                 }
-                final long a=purchases,b=observed,c=funds,d=sold,e=till,earnedCol=earned;
+                final long a=purchases,b=observed,c=funds,d=sold,e=till,earnedCol=earned,kills=hunts,paidKills=paidHunts;
                 var treasury=pop.treasury(floor);
-                ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+" | "+a+" buyer purchases ("+b+" observed) | "+c+" Col in adventurer wallets | "+d+" local shop sales | "+e+" Col in local tills | "+earnedCol+" earned by current adventurers | guild "+treasury.col()+" Col, wholesale stock "+treasury.reserve(dev.anjo7778.sao.simulation.AdventurerMarket.Service.SUPPLIES)+"/"+treasury.reserve(dev.anjo7778.sao.simulation.AdventurerMarket.Service.REPAIR)+" (supply/repair units)"),false);
+                ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+" | "+a+" buyer purchases ("+b+" observed) | "+c+" Col in adventurer wallets | "+d+" local shop sales | "+e+" Col in local tills | "+earnedCol+" earned by current adventurers | "+kills+" real hunt kills ("+paidKills+" funded) | guild "+treasury.col()+" Col, wholesale stock "+treasury.reserve(dev.anjo7778.sao.simulation.AdventurerMarket.Service.SUPPLIES)+"/"+treasury.reserve(dev.anjo7778.sao.simulation.AdventurerMarket.Service.REPAIR)+" (supply/repair units)"),false);
                 return 1;
             })))
             .then(Commands.literal("journeys")

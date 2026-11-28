@@ -14,6 +14,7 @@ import dev.anjo7778.sao.entity.SaoEntities;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import dev.anjo7778.sao.world.FloorBiomeSource;
 import dev.anjo7778.sao.world.FloorGuardian;
+import dev.anjo7778.sao.world.HuntService;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.neoforged.bus.api.EventPriority;
 import dev.anjo7778.sao.world.FloorRadialDensity;
@@ -60,6 +61,7 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(SaoCommands::register);
         NeoForge.EVENT_BUS.addListener(FloorTravel::guard);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,FloorGuardian::death);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,HuntService::death);
         NeoForge.EVENT_BUS.addListener(FloorGuardian::tick);
         LOGGER.info("SAO Mod loaded. Floor-one prototype and world progression registered.");
     }

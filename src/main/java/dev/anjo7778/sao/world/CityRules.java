@@ -57,7 +57,7 @@ public final class CityRules {
     public static void damage(LivingIncomingDamageEvent event){
         if(!(event.getEntity().level() instanceof ServerLevel level))return;
         var a=event.getSource().getEntity();var b=event.getEntity();
-        if(!(a instanceof Player||a instanceof Enemy))return;
+        if(!(a instanceof Player||a instanceof Enemy||a instanceof dev.anjo7778.sao.entity.CityNpc))return;
         if(isSafeZone(level,b.getBlockX(),b.getBlockZ())||
             a.level()==level&&isSafeZone(level,a.getBlockX(),a.getBlockZ()))event.setCanceled(true);
     }

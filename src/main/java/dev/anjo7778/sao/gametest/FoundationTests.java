@@ -431,4 +431,26 @@ public final class FoundationTests {
         helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.restock(shop,exhausted)==null,"No imaginary goods when reserve empty");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void huntContractPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var buyer=pop.roster(1).stream().filter(dev.anjo7778.sao.simulation.HuntContract::ready).findFirst().orElseThrow();
+        var p=buyer.profile();var quarry=new java.util.UUID(51,52);var wrong=new java.util.UUID(53,54);
+        helper.assertTrue(pop.openHunt(1,p.id(),5,quarry),"One named quarry");
+        helper.assertFalse(pop.openHunt(1,p.id(),5,wrong),"No second contract for same survey");
+        helper.assertFalse(pop.finishHunt(1,p.id(),5,wrong),"Wrong monster cannot pay");
+        helper.assertFalse(pop.finishHunt(2,p.id(),5,quarry),"Wrong floor cannot pay");
+        helper.assertTrue(pop.finishHunt(1,p.id(),5,quarry),"Exact quarry settlement fixture");
+        helper.assertTrue(pop.wallet(p).huntKills()==1&&pop.wallet(p).paidHunts()==1&&pop.wallet(p).col()==110&&pop.treasury(1).col()==1190,"Conserved bounty");
+        helper.assertTrue(pop.state(1,p.id()).needs().equipment()==buyer.needs().equipment()-2,"Combat wear");
+        helper.assertFalse(pop.finishHunt(1,p.id(),5,quarry),"No duplicate death payout");
+        helper.assertTrue(pop.openHunt(1,p.id(),9,wrong)&&pop.expireHunt(1,p.id(),9),"New survey may expire");
+        helper.assertFalse(pop.finishHunt(1,p.id(),9,wrong),"Expired quarry cannot pay");
+        pop.recordHuntHealth(1,p.id(),30);helper.assertTrue(pop.state(1,p.id()).needs().health()==30,"Durable injury");
+        var regs=helper.getLevel().registryAccess();var restored=dev.anjo7778.sao.world.NpcPopulationData.load(pop.save(new CompoundTag(),regs),regs);
+        helper.assertTrue(restored.wallet(p).equals(pop.wallet(p))&&restored.hunt(p.id()).equals(pop.hunt(p.id()))&&restored.state(1,p.id()).equals(pop.state(1,p.id())),"Contract, wallet and injury persist");
+        helper.assertFalse(restored.openHunt(1,p.id(),9,quarry),"Replay refused after reload");
+        helper.assertTrue(restored.settleScouting(1,p.id(),0,1)==10&&restored.wallet(p).col()==120,"Separate actual hunt and scouting rewards");
+        helper.succeed();
+    }
 }

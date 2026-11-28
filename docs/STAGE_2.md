@@ -128,3 +128,11 @@ Regional client [46091014923](https://github.com/anjo7778/sao-mod/actions/runs/4
 ## v0.2.20 guild economy extension (candidate)
 
 Standing guild reconnaissance commission: 10 Col per newly completed existing scouting trip, drawn from a finite 1,200 Col capital treasury, not combat XP or a claimed dungeon kill. Claim watermark persists with wallet and wear; missed/unfunded claims do not create backlog. Existing historical completions are not rewarded. Wholesale reserve 256 supply packs/128 repairs per capital, sold at 8/12 Col per unit to a depleted local or regional shop in batches up to six, using its own receipts. Refill and retail sale commit together in population schema 5. No currency creation beyond explicit starting allocations, no infinite restock, no new item stacks. Schema 4 and earlier preserve existing orders, stock and needs; new allocations begin once. Test treasury/stock conservation, replay, empty reserves, migration and actual independent service cycles. Renewable stock generation and real combat/quest reward sources remain later work.
+
+## v0.2.20 verified guild cycle
+
+[Build 46091718569](https://github.com/anjo7778/sao-mod/actions/runs/46091718569) and [dedicated 46091756710](https://github.com/anjo7778/sao-mod/actions/runs/46091756710) passed commission, wholesale debit, retail purchase and restart conservation using a controlled readiness/depleted-shop fixture.
+
+## v0.2.21 real monster hunt candidate
+
+First physical quest slice: eligible projected melee adventurers at a scouting survey can select one existing nearby zombie, husk, spider or skeleton; no spawning, no credit for abstract travel, no boss/guardian targeting and no combat in safe zones. A bounded three-epoch survey hunt window, vanilla melee damage, restricted retaliation and durable health/retreat (nonlethal clamp, no permanent death), actual matching death attribution, a 10 Col treasury-funded bounty and 2 equipment wear. One contract per survey, one active claimant per quarry, saved status and wallet counters in population schema 6; old saves remain compatible. No fake loot, combat levels, real player quest board, custom models, ranged/magic classes or remote combat yet. Verify real kill, actual damage, rejection of unrelated kills and restart before acceptance. Pure GameTest fixture exercises only settlement/persistence, not physical combat.

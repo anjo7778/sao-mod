@@ -27,14 +27,18 @@ public final class AdventurerMarket {
         }
     }
     /** Starting capital plus explicitly earned guild commissions, keyed by lifetime scouting count. */
-    public record Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough){
+    public record Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough,int huntKills,int paidHunts){
+        public Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders,int earned,int claimedThrough){
+            this(supplyOrders,repairOrders,lastEpoch,observedOrders,earned,claimedThrough,0,0);
+        }
         public Wallet(int supplyOrders,int repairOrders,long lastEpoch,int observedOrders){
             this(supplyOrders,repairOrders,lastEpoch,observedOrders,0,0);
         }
         public Wallet {
             long spent=(long)supplyOrders*Service.SUPPLIES.price()+(long)repairOrders*Service.REPAIR.price();
             if(supplyOrders<0||repairOrders<0||earned<0||earned>MAX||claimedThrough<0
-                ||earned%SCOUT_COMMISSION!=0||earned/SCOUT_COMMISSION>claimedThrough
+                ||huntKills<0||paidHunts<0||paidHunts>huntKills
+                ||earned%SCOUT_COMMISSION!=0||earned/SCOUT_COMMISSION<paidHunts||earned/SCOUT_COMMISSION-paidHunts>claimedThrough
                 ||spent>(long)STARTING_COL+earned||lastEpoch< -1||observedOrders<0
                 ||observedOrders>(long)supplyOrders+repairOrders||(((long)supplyOrders+repairOrders==0)!=(lastEpoch==-1)))
                 throw new IllegalArgumentException("Invalid wallet");
@@ -75,7 +79,15 @@ public final class AdventurerMarket {
         // Never credit historical completions or replay a paid/unfunded completion.
         if(before<0||after!=(long)before+1||after<=w.claimedThrough())return null;
         int paid=treasury.col()>=SCOUT_COMMISSION&&w.earned()<=MAX-SCOUT_COMMISSION?SCOUT_COMMISSION:0;
-        var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,after);
+        var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,after,w.huntKills(),w.paidHunts());
+        return new Commission(next,paid==0?treasury:new Treasury(treasury.supplyReleased(),treasury.repairReleased(),treasury.commissions()+1),paid);
+    }
+    /** The caller must atomically close an exact quarry contract; this never grants a free payout. */
+    public static Commission huntReward(Wallet w,Treasury treasury){
+        if(w.huntKills()==Integer.MAX_VALUE)throw new IllegalStateException("Hunt counter exhausted");
+        int paid=treasury.col()>=HuntContract.REWARD&&w.earned()<=MAX-HuntContract.REWARD?HuntContract.REWARD:0;
+        var next=new Wallet(w.supplyOrders(),w.repairOrders(),w.lastEpoch(),w.observedOrders(),w.earned()+paid,w.claimedThrough(),
+            w.huntKills()+1,w.paidHunts()+(paid>0?1:0));
         return new Commission(next,paid==0?treasury:new Treasury(treasury.supplyReleased(),treasury.repairReleased(),treasury.commissions()+1),paid);
     }
     public static Restock restock(Shop shop,Treasury treasury){
@@ -103,7 +115,7 @@ public final class AdventurerMarket {
         if(epoch<=w.lastEpoch()||!canBuy(n,w,shop))return null;
         var service=shop.service();
         var next=new Wallet(w.supplyOrders()+(service==Service.SUPPLIES?1:0),w.repairOrders()+(service==Service.REPAIR?1:0),
-            epoch,w.observedOrders()+(observed?1:0),w.earned(),w.claimedThrough());
+            epoch,w.observedOrders()+(observed?1:0),w.earned(),w.claimedThrough(),w.huntKills(),w.paidHunts());
         return new Sale(next,new Shop(service,shop.sold()+1,shop.restocked()),service.apply(n));
     }
     public static Needs wear(Needs n,int amount){

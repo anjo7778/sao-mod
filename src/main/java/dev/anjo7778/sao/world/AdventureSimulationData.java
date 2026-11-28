@@ -158,6 +158,8 @@ public final class AdventureSimulationData extends SavedData {
             if(previous.trip().active()){
                 mode=previous.trip().phase()==ScoutingTrip.Phase.SURVEY&&(offscreen||reached)?Mode.SCOUT:Mode.TRAVEL;
             }
+            if(!offscreen&&actor instanceof CityNpc npc&&CityRules.hasRegionalSettlements(level)
+                &&HuntService.holding(npc,level,s,previous.trip(),epoch))reached=false;
             // A mastery/contact objective is not randomly interrupted by a new
             // scouting expedition. Existing trips still finish and urgent needs retain priority.
             boolean deferScout=CityRules.hasLandmarks(level)&&!previous.trip().active()
@@ -165,6 +167,8 @@ public final class AdventureSimulationData extends SavedData {
             var transition=deferScout?new ScoutingTrip.Result(previous.trip(),false):
                 ScoutingTrip.advance(s,previous,epoch,level.getDayTime(),offscreen,reached);
             Ledger next=AdventureProgress.advance(previous,epoch,mode,offscreen).withTrip(transition.trip());
+            if(previous.trip().phase()==ScoutingTrip.Phase.SURVEY&&next.trip().phase()!=ScoutingTrip.Phase.SURVEY)
+                population.expireHunt(cursorFloor,id,previous.trip().since());
             if(next.trip().completed()==previous.trip().completed()+1){
                 boolean observed=next.trip().observed()==previous.trip().observed()+1;
                 next=next.withJournal(previous.journal().complete(next.trip().gate(),observed));

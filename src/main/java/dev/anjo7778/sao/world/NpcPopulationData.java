@@ -20,6 +20,40 @@ public final class NpcPopulationData extends SavedData {
     private final Map<UUID,AdventurerMarket.Wallet> wallets=new HashMap<>();
     private final Map<UUID,AdventurerMarket.Shop> shops=new HashMap<>();
     private final Map<Long,AdventurerMarket.Treasury> treasuries=new HashMap<>();
+    private final Map<UUID,HuntContract> hunts=new HashMap<>();
+    private final Map<UUID,UUID> quarryClaims=new HashMap<>();
+    public HuntContract hunt(UUID actor){return hunts.get(actor);}
+    /** Called only from the real loaded survey encounter service. No extra mob spawn or chunk ticket. */
+    public boolean openHunt(long floor,UUID actor,long surveySince,UUID quarry){
+        var capital=floors.get(floor);var state=capital==null?null:capital.get(actor);
+        var old=hunts.get(actor);
+        if(state==null||!HuntContract.ready(state)||quarry==null||actor.equals(quarry)||surveySince<0
+            ||treasury(floor).col()<HuntContract.REWARD||quarryClaims.containsKey(quarry)
+            ||old!=null&&old.surveySince()>=surveySince)return false;
+        if(old!=null&&old.active())quarryClaims.remove(old.quarry(),actor);
+        hunts.put(actor,new HuntContract(floor,surveySince,quarry,HuntContract.Status.ACTIVE));
+        quarryClaims.put(quarry,actor);setDirty();return true;
+    }
+    public boolean expireHunt(long floor,UUID actor,long surveySince){
+        var h=hunts.get(actor);
+        if(h==null||!h.active()||h.floor()!=floor||h.surveySince()!=surveySince)return false;
+        hunts.put(actor,h.close(HuntContract.Status.EXPIRED));quarryClaims.remove(h.quarry(),actor);setDirty();return true;
+    }
+    /** Exact live death attribution is checked by HuntService before this atomic transaction. */
+    public boolean finishHunt(long floor,UUID actor,long surveySince,UUID quarry){
+        var h=hunts.get(actor);var capital=floors.get(floor);var state=capital==null?null:capital.get(actor);
+        if(state==null||!HuntContract.melee(state.profile())||h==null||!h.active()||h.floor()!=floor
+            ||h.surveySince()!=surveySince||!h.quarry().equals(quarry)||!actor.equals(quarryClaims.get(quarry)))return false;
+        var reward=AdventurerMarket.huntReward(wallet(state.profile()),treasury(floor));
+        wallets.put(actor,reward.wallet());treasuries.put(floor,reward.treasury());
+        capital.put(actor,state.withNeeds(AdventurerMarket.wear(state.needs(),2)));
+        hunts.put(actor,h.close(HuntContract.Status.KILLED));quarryClaims.remove(quarry,actor);setDirty();return true;
+    }
+    public void recordHuntHealth(long floor,UUID id,int health){
+        var state=state(floor,id);if(state==null||!HuntContract.melee(state.profile()))return;
+        var n=state.needs();
+        updateNeeds(floor,id,new Needs(Math.max(1,Math.min(n.health(),health)),n.supplies(),n.equipment(),n.partyReadiness(),n.danger()));
+    }
     public AdventurerMarket.Treasury treasury(long floor){return treasuries.getOrDefault(floor,AdventurerMarket.NEW_TREASURY);}
     /** Settlement of a newly completed authoritative scouting trip, not an arbitrary quest reward. */
     public int settleScouting(long floor,UUID id,int before,int after){
@@ -152,7 +186,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -194,7 +228,7 @@ public final class NpcPopulationData extends SavedData {
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",5);ListTag capitals=new ListTag();
+        root.putInt("schema",6);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
             ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
@@ -231,7 +265,12 @@ public final class NpcPopulationData extends SavedData {
         var wallet=wallets.get(p.id());
         if(wallet!=null){
             var w=new CompoundTag();w.putInt("supply",wallet.supplyOrders());w.putInt("repair",wallet.repairOrders());
-            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());b.put("wallet",w);
+            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());w.putInt("huntKills",wallet.huntKills());w.putInt("paidHunts",wallet.paidHunts());b.put("wallet",w);
+        }
+        var hunt=hunts.get(p.id());
+        if(hunt!=null){
+            var h=new CompoundTag();h.putLong("floor",hunt.floor());h.putLong("since",hunt.surveySince());h.putUUID("quarry",hunt.quarry());
+            h.putString("status",hunt.status().name());b.put("hunt",h);
         }
         var shop=shops.get(p.id());if(shop!=null){b.putInt("sold",shop.sold());b.putInt("restocked",shop.restocked());}
         return b;
@@ -240,7 +279,16 @@ public final class NpcPopulationData extends SavedData {
         if(b.contains("wallet",Tag.TAG_COMPOUND)){
             if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Wallet role mismatch");
             var w=b.getCompound("wallet");
-            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed")));
+            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts")));
+        }
+        if(b.contains("hunt",Tag.TAG_COMPOUND)){
+            if(!HuntContract.melee(p))throw new IllegalArgumentException("Invalid hunt profile");
+            var h=b.getCompound("hunt");
+            var hunt=new HuntContract(h.getLong("floor"),h.getLong("since"),h.getUUID("quarry"),HuntContract.Status.valueOf(h.getString("status")));
+            if(hunt.quarry().equals(p.id())||hunt.floor()>p.currentFloor()||hunt.floor()<p.birthFloor()
+                ||hunt.active()&&hunt.floor()!=p.currentFloor())throw new IllegalArgumentException("Invalid hunt floor");
+            hunts.put(p.id(),hunt);
+            if(hunt.active()&&quarryClaims.put(hunt.quarry(),p.id())!=null)throw new IllegalArgumentException("Duplicate active quarry");
         }
         if(b.contains("sold",Tag.TAG_INT)){
             var service=AdventurerMarket.forRole(p.occupation());
