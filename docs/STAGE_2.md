@@ -164,3 +164,7 @@ Add server-side adapters for player actual hostile kills and meaningful iron/gol
 ## v0.2.26 first functional menu candidate
 
 [v0.2.25 build 46096889135](https://github.com/anjo7778/sao-mod/actions/runs/46096889135) passed. Real XP handlers not yet runtime-tested. Native SAO Utils reference screen-space menu, actual server-backed snapshot/attribute allocation payloads, read-only mastery views and clearly unavailable sections. Non-pausing and M fallback plus provisional two-button downward gesture; native world-space/finger animation and final visual fidelity pending. Archery and boar probe branches rerun with enhanced full crash diagnostics, not accepted yet. See AINCRAD_UI.md.
+
+## v0.2.27 compatibility and spawn correction candidate
+
+v0.2.26 build and [client probe 46097100943](https://github.com/anjo7778/sao-mod/actions/runs/46097100943) passed actual player kills, discovery, profile sync, allocation and mouse/keyboard opening; screenshots unreviewed. Boar probe failed before spawning: no outdoor surface. Replace roof-sensitive heightmap/sky requirement with a bounded terrain-band search using loaded chunks, dirt support, fluid/collision checks and six-block headroom; castle roof ribs above terrain are valid. Re-run graphical spawn/AI/loot tests; no verified fix yet. Weapon family resolver, actual item classification and compatibility GameTest added; combat enforcement and animation/skill implementation pending. Solo play added as explicit acceptance requirement in RPG_SYSTEM.md.

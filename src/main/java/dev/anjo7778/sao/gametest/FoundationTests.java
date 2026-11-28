@@ -539,4 +539,28 @@ public final class FoundationTests {
         helper.assertTrue(restored.craft(owner,2,smith),"New elapsed day budget");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void believableWeaponCompatibility(GameTestHelper helper){
+        var F=dev.anjo7778.sao.simulation.WeaponRules.Family.SWORD;
+        var D=dev.anjo7778.sao.simulation.WeaponRules.Family.DAGGER;
+        var G=dev.anjo7778.sao.simulation.WeaponRules.Family.GREATSWORD;
+        var S=dev.anjo7778.sao.simulation.WeaponRules.Family.SCYTHE;
+        var K=dev.anjo7778.sao.simulation.WeaponRules.Family.SICKLE;
+        var H=dev.anjo7778.sao.simulation.WeaponRules.Family.SHIELD;
+        var P=dev.anjo7778.sao.simulation.WeaponRules.Family.SPEAR;
+        var M=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.DUAL_SWORDS;
+        helper.assertTrue(dev.anjo7778.sao.simulation.WeaponRules.resolve(F,false,F,false).mastery()==M,"Paired blades separate style");
+        helper.assertTrue(dev.anjo7778.sao.simulation.WeaponRules.resolve(F,false,D,false).compatible(),"Sword and dagger");
+        helper.assertTrue(dev.anjo7778.sao.simulation.WeaponRules.resolve(K,false,K,false).compatible(),"Small sickles");
+        helper.assertFalse(dev.anjo7778.sao.simulation.WeaponRules.resolve(S,false,S,false).compatible(),"No paired full scythes");
+        helper.assertFalse(dev.anjo7778.sao.simulation.WeaponRules.resolve(G,false,H,false).compatible(),"Greatsword needs both hands");
+        helper.assertFalse(dev.anjo7778.sao.simulation.WeaponRules.resolve(F,false,G,false).compatible(),"Cannot bypass by reversing hands");
+        helper.assertTrue(dev.anjo7778.sao.simulation.WeaponRules.resolve(P,false,H,false).compatible(),"Versatile spear and shield");
+        helper.assertTrue(dev.anjo7778.sao.simulation.WeaponRules.resolve(S,false,null,true).compatible(),"Solo two-handed scythe");
+        var sword=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_SWORD);
+        var shield=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SHIELD);
+        helper.assertTrue(dev.anjo7778.sao.world.WeaponItems.classify(sword)==F&&dev.anjo7778.sao.world.WeaponItems.classify(shield)==H,"Actual vanilla items classified");
+        helper.assertTrue(dev.anjo7778.sao.world.WeaponItems.resolve(sword,shield).mastery()==dev.anjo7778.sao.simulation.CharacterProgress.Mastery.SWORD_SHIELD,"Actual compatible loadout");
+        helper.succeed();
+    }
 }

@@ -10,7 +10,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /** Loaded-only wilderness spawning. No biome-list pollution, spawn eggs, forced chunks or distant mob simulation. */
@@ -59,15 +58,28 @@ public final class BoarSpawns {
         // Check surrounding chunks before any heightmap/block/collision lookup.
         for(int dx:new int[]{-2,2})for(int dz:new int[]{-2,2})
             if(!level.hasChunkAt(new BlockPos(x+dx,96,z+dz)))return null;
-        int y=level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z);
-        if(y<48||y>205)return null;
-        var p=new BlockPos(x,y,z);var below=p.below();
-        if(!level.getWorldBorder().isWithinBounds(p)||!level.canSeeSky(p.above())
-            ||!level.getBlockState(below).is(BlockTags.DIRT)
-            ||!level.getBlockState(below).isFaceSturdy(level,below,Direction.UP)
-            ||!level.getBlockState(p).getCollisionShape(level,p).isEmpty()
-            ||!level.getBlockState(p.above()).getCollisionShape(level,p.above()).isEmpty()
-            ||!level.getFluidState(p).isEmpty()||!level.getFluidState(p.above()).isEmpty()||!level.getFluidState(below).isEmpty())return null;
-        return p;
+        long floor=FloorTravel.currentFloor(level,x,z);
+        return groundSurface(level,x,z,FloorLayout.surfaceBase(floor));
+    }
+    /** The castle ceiling is not terrain. Find the highest sturdy dirt surface inside
+     * the floor's terrain band, even beneath overhead ribs. No cave/roof heightmap dependency.
+     * Callers must establish loaded neighboring chunks before this bounded search.
+     */
+    public static BlockPos groundSurface(ServerLevel level,int x,int z,int base){
+        int high=Math.min(205,base+48),low=Math.max(48,base-36);
+        for(int y=high;y>=low;y--){
+            var p=new BlockPos(x,y,z);var below=p.below();
+            if(!level.getWorldBorder().isWithinBounds(p)||!level.getBlockState(below).is(BlockTags.DIRT)
+                ||!level.getBlockState(below).isFaceSturdy(level,below,Direction.UP)
+                ||!level.getBlockState(p).getCollisionShape(level,p).isEmpty()
+                ||!level.getBlockState(p.above()).getCollisionShape(level,p.above()).isEmpty()
+                ||!level.getFluidState(p).isEmpty()||!level.getFluidState(p.above()).isEmpty()
+                ||!level.getFluidState(below).isEmpty())continue;
+            // Reject enclosed low cavities; castle ceilings are well above this clearance.
+            boolean clear=true;
+            for(int dy=2;dy<=5;dy++)if(!level.getBlockState(p.above(dy)).getCollisionShape(level,p.above(dy)).isEmpty()){clear=false;break;}
+            if(clear)return p;
+        }
+        return null;
     }
 }

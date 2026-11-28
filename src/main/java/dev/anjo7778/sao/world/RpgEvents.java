@@ -10,8 +10,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.Arrow;
-import net.minecraft.world.item.AxeItem;
-import net.minecraft.world.item.SwordItem;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -42,9 +40,11 @@ public final class RpgEvents {
         Mastery mastery=null;
         if(event.getSource().getDirectEntity()==p){
             var weapon=p.getMainHandItem();
+            var family=WeaponItems.classify(weapon);
+            // A vanilla main-hand strike earns only that actual weapon's mastery.
+            // An equipped pair is not proof of a dual-wield skill or offhand strike.
             if(weapon.isEmpty())mastery=Mastery.UNARMED;
-            else if(weapon.getItem() instanceof SwordItem)mastery=Mastery.SWORD;
-            else if(weapon.getItem() instanceof AxeItem)mastery=Mastery.AXE;
+            else if(family!=null)mastery=family.mastery;
         }
         var data=CharacterProgressData.get(level.getServer());var owner=player(p);
         long xp=combatXp(floor,data.state(owner).level());
