@@ -103,7 +103,7 @@ public final class NpcResourceService {
         }
         return best;
     }
-    public static boolean holding(CityNpc npc){return ACTIVE.containsKey(npc)||MINES.containsKey(npc);}
+    public static boolean holding(CityNpc npc){return ACTIVE.containsKey(npc)||MINES.containsKey(npc)||NpcWoodlandService.holding(npc);}
     private static void clear(CityNpc npc){if(ACTIVE.remove(npc)!=null)npc.updateDisplayItem();}
     public static boolean tick(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip){
         if(!npc.boundAdventurer())return false;
@@ -111,6 +111,7 @@ public final class NpcResourceService {
         if(state==null){clear(npc);MINES.remove(npc);return false;}
         var supplies=NpcSupplyData.get(level.getServer());
         if(MINES.containsKey(npc))return mineTick(npc,level,trip,state,supplies);
+        if(NpcWoodlandService.holding(npc))return NpcWoodlandService.tick(npc,level,trip,state,supplies);
         if(trip==null||!trip.active()){
             clear(npc);return deliver(npc,level,state);
         }
@@ -136,7 +137,11 @@ public final class NpcResourceService {
         var cargo=supplies.candidate(npc.getUUID(),npc.originFloor(),assigned.id());
         if(cargo==null||cargo.size()>=NpcSupplyData.CAPACITY)return false;
         var target=find(npc,level,trip,cargo);
-        if(target==null)return startMine(npc,level,trip,cargo);
+        if(target==null){
+            if(cargo.logs()==0&&NpcWoodlandService.start(npc,level,trip,state,cargo))return true;
+            if(startMine(npc,level,trip,cargo))return true;
+            return NpcWoodlandService.start(npc,level,trip,state,cargo);
+        }
         ACTIVE.put(npc,new Attempt(target.pos(),target.resource(),cargo.smith(),trip.since(),level.getGameTime()+30));
         npc.getNavigation().stop();npc.setItemSlot(EquipmentSlot.MAINHAND,tool(cargo,target.resource()));
         npc.setDropChance(EquipmentSlot.MAINHAND,0);npc.swing(InteractionHand.MAIN_HAND);
