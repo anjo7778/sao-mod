@@ -4,13 +4,15 @@ package dev.anjo7778.sao.simulation;
 public final class SwordActions {
     public static final int MAX_STAMINA=100, ATTACK_COST=12, GUARD_COST=8, DODGE_COST=24;
     public static final int HORIZONTAL_MASTERY=3, HORIZONTAL_COOLDOWN=100;
-    public static final int MAX_SKILL_COOLDOWN=160, GLOBAL_SKILL_DELAY=30;
+    public static final int MAX_SKILL_COOLDOWN=260, GLOBAL_SKILL_DELAY=30;
     /** Mastery unlocks are independent of character level. Single-target skills only. */
     public enum Skill {
         HORIZONTAL(Move.HORIZONTAL,3,100),
         SLANT(Move.SLANT,4,90),
         VERTICAL(Move.VERTICAL,5,120),
-        SONIC_LEAP(Move.SONIC_LEAP,7,160);
+        SONIC_LEAP(Move.SONIC_LEAP,7,160),
+        HORIZONTAL_SQUARE(Move.HORIZONTAL_SQUARE,9,220),
+        VERTICAL_SQUARE(Move.VERTICAL_SQUARE,11,260);
         public final Move move;
         public final int mastery,cooldown;
         Skill(Move move,int mastery,int cooldown){this.move=move;this.mastery=mastery;this.cooldown=cooldown;}
@@ -21,14 +23,23 @@ public final class SwordActions {
     public enum Defense { NONE, BLOCK, PARRY, EVADE }
     public enum Move {
         BASIC(12,4,10,1.0), FOLLOW_UP(14,4,10,1.10),
-        FINISHER(18,5,13,1.25), COUNTER(8,2,10,1.0), HORIZONTAL(26,7,16,1.60), SLANT(20,5,13,1.40), VERTICAL(32,10,18,1.85), SONIC_LEAP(34,9,20,1.55);
-        public final int cost,windup,recovery;
-        public final double damage;
-        Move(int cost,int windup,int recovery,double damage){
+        FINISHER(18,5,13,1.25), COUNTER(8,2,10,1.0), HORIZONTAL(26,7,16,1.60), SLANT(20,5,13,1.40), VERTICAL(32,10,18,1.85), SONIC_LEAP(34,9,20,1.55),
+        HORIZONTAL_SQUARE(52,8,18,.85,4,14,1.05),
+        VERTICAL_SQUARE(60,10,20,.95,4,14,1.20);
+        public final int cost,windup,recovery,hits,spacing;
+        public final double damage,finalDamage;
+        Move(int cost,int windup,int recovery,double damage){this(cost,windup,recovery,damage,1,0,damage);}
+        Move(int cost,int windup,int recovery,double damage,int hits,int spacing,double finalDamage){
             this.cost=cost;this.windup=windup;this.recovery=recovery;this.damage=damage;
+            this.hits=hits;this.spacing=spacing;this.finalDamage=finalDamage;
+        }
+        public int duration(){return windup+(hits-1)*spacing+recovery;}
+        public double hitDamage(int index){
+            if(index<0||index>=hits)throw new IllegalArgumentException("Invalid hit index");
+            return index==hits-1?finalDamage:damage;
         }
     }
-    private int stamina=MAX_STAMINA,nextCombo;
+    private int stamina=MAX_STAMINA,nextCombo,hitIndex,landedHits;
     private Phase phase=Phase.IDLE;
     private Move move=Move.BASIC;
     private SwordPose.Kind pose;
@@ -37,6 +48,8 @@ public final class SwordActions {
     public int stamina(){return stamina;}
     public Phase phase(){return phase;}
     public Move move(){return move;}
+    public int landedHits(){return landedHits;}
+    public double claimedDamage(){if(claimTick<0)throw new IllegalStateException("No claimed hit");return move.hitDamage(hitIndex);}
     public int visualCode(long clockNow,long levelTime){
         if(pose==null||phase==Phase.IDLE||clockNow<start||clockNow>=end)return 0;
         return SwordPose.encode(pose,levelTime-(clockNow-start));
@@ -49,11 +62,11 @@ public final class SwordActions {
     }
     public void advance(long now){
         if(now<0||now<last)throw new IllegalArgumentException("Non-monotonic combat clock");
-        if(claimTick>=0&&now>claimTick){claimTick=-1;breakCombo();}
+        if(claimTick>=0&&now>claimTick){claimTick=-1;abortHits();}
         if(nextCombo!=0&&now>=comboUntil)breakCombo();
-        if(phase==Phase.WINDUP&&now>=activeAt+2){phase=Phase.RECOVERY;breakCombo();}
+        if(phase==Phase.WINDUP&&now>=activeAt+2)abortHits();
         if((phase==Phase.GUARD||phase==Phase.DODGE)&&now>=activeAt)phase=Phase.RECOVERY;
-        if(phase!=Phase.IDLE&&now>=end){phase=Phase.IDLE;pose=null;}
+        if(phase!=Phase.IDLE&&now>=end){phase=Phase.IDLE;pose=null;landedHits=0;}
         if(now>last&&phase==Phase.IDLE&&last>=0)stamina=Math.min(MAX_STAMINA,stamina+2);
         last=now;
     }
@@ -74,20 +87,32 @@ public final class SwordActions {
     private boolean begin(long now,Move selected){
         if(phase!=Phase.IDLE||stamina<selected.cost)return false;
         stamina-=selected.cost;move=selected;pose=SwordPose.Kind.valueOf(selected.name());phase=Phase.WINDUP;start=now;
-        activeAt=now+selected.windup;end=activeAt+selected.recovery;
+        activeAt=now+selected.windup;end=now+selected.duration();hitIndex=0;landedHits=0;
         counterUntil=-1;claimTick=-1;breakCombo();return true;
     }
-    /** The hit may be claimed exactly once, in the two-tick active window. */
+    /** Each scheduled strike is claimed once. No next window exists until the current hit is confirmed. */
     public boolean claimHit(long now){
         advance(now);
-        if(phase!=Phase.WINDUP||now<activeAt||now>=activeAt+2)return false;
-        phase=Phase.RECOVERY;claimTick=now;return true;
+        if(phase!=Phase.WINDUP||claimTick>=0||now<activeAt||now>=activeAt+2)return false;
+        if(hitIndex==move.hits-1)phase=Phase.RECOVERY;
+        claimTick=now;return true;
+    }
+    private void abortHits(){
+        phase=Phase.RECOVERY;claimTick=-1;breakCombo();
+        if(move.hits>1)pose=null;
     }
     /** Only the authoritative damage resolver may confirm a claimed hit, on that same tick. */
     public boolean confirmHit(long now,boolean landed){
         advance(now);
         if(claimTick!=now)return false;
         claimTick=-1;
+        if(landed)landedHits++;
+        if(hitIndex+1<move.hits){
+            if(!landed){abortHits();return true;}
+            hitIndex++;
+            activeAt=start+move.windup+(long)hitIndex*move.spacing;
+            return true;
+        }
         nextCombo=landed?(move==Move.BASIC?1:move==Move.FOLLOW_UP?2:0):0;
         comboUntil=nextCombo>0?end+12:-1;
         return true;
@@ -96,13 +121,13 @@ public final class SwordActions {
     public boolean guard(long now){
         advance(now);
         if(phase!=Phase.IDLE||stamina<GUARD_COST)return false;
-        stamina-=GUARD_COST;pose=SwordPose.Kind.GUARD;phase=Phase.GUARD;start=now;activeAt=now+8;end=activeAt+6;
+        stamina-=GUARD_COST;landedHits=0;pose=SwordPose.Kind.GUARD;phase=Phase.GUARD;start=now;activeAt=now+8;end=activeAt+6;
         counterUntil=-1;breakCombo();return true;
     }
     public boolean dodge(long now){
         advance(now);
         if(phase!=Phase.IDLE||stamina<DODGE_COST)return false;
-        stamina-=DODGE_COST;pose=SwordPose.Kind.DODGE;phase=Phase.DODGE;start=now;activeAt=now+5;end=activeAt+13;
+        stamina-=DODGE_COST;landedHits=0;pose=SwordPose.Kind.DODGE;phase=Phase.DODGE;start=now;activeAt=now+5;end=activeAt+13;
         counterUntil=-1;breakCombo();return true;
     }
     /** Caller validates source type, direction, equipment and real dodge displacement. */
