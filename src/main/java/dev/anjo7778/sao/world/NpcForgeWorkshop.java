@@ -85,6 +85,8 @@ public final class NpcForgeWorkshop {
             ||!level.getBlockState(pos.anvil()).is(BlockTags.ANVIL))return Result.IDLE;
         // Do not modify a furnace or barrel while a player has that native menu open.
         if(level.players().stream().anyMatch(p->p.containerMenu!=p.inventoryMenu&&p.distanceToSqr(npc)<20*20))return Result.IDLE;
+        // A real customer already at the forge gets first chance to use the repair steel.
+        if(has(copy(stock),SaoItems.STEEL_INGOT.get())&&NpcEquipmentService.readyRepairCustomer(npc,level))return Result.IDLE;
         var result=process(level,profile,stock,output,furnace);
         if(result!=Result.IDLE)npc.swing(InteractionHand.MAIN_HAND);
         return result;
