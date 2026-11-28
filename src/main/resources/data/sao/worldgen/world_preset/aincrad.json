@@ -4,7 +4,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:floor_one_city",
+        "settings": "sao:floor_one_city_landmarks",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": false,
@@ -52,7 +52,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:upper_floors_city",
+        "settings": "sao:upper_floors_city_landmarks",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": true,

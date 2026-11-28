@@ -50,7 +50,7 @@ public final class SaoCommands {
                     }).reversed()).limit(5).forEach(s->{
                         var l=data.ledger(floor,s.profile().id());
                         ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | practice rank "+(l==null?1:l.practiceRank())+
-                            " | fatigue "+(l==null?0:l.fatigue())+" | trip "+(l==null?"IDLE":l.trip().phase().name())+" | last "+(l==null?"IDLE":l.last().name())),false);
+                            " | fatigue "+(l==null?0:l.fatigue())+" | trip "+(l==null?"IDLE":l.trip().phase().name())+" | last "+(l==null?"IDLE":l.last().name())+" | goal "+(l==null?"none":dev.anjo7778.sao.simulation.AdventurerGoals.description(l.goal()))),false);
                     });
                     return 1;
                 })))

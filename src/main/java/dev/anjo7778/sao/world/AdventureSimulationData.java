@@ -35,9 +35,9 @@ public final class AdventureSimulationData extends SavedData {
         var t=get(level.getServer()).trip(floor,id);return t!=null&&t.active();
     }
     public static NpcDailyPlan.Plan plan(ServerLevel level,State state){
-        if(state.profile().occupation()!=Occupation.ADVENTURER||!CityRules.hasCities(level))
-            return NpcDailyPlan.at(state,level.getDayTime());
-        return AdventureProgress.plan(state,level.getDayTime(),get(level.getServer()).ledger(state.profile().originFloor(),state.profile().id()));
+        if(!CityRules.hasCities(level))return NpcDailyPlan.at(state,level.getDayTime());
+        var ledger=state.profile().occupation()==Occupation.ADVENTURER?get(level.getServer()).ledger(state.profile().originFloor(),state.profile().id()):null;
+        return CityVenueRoutine.plan(state,level.getDayTime(),ledger,CityRules.hasLandmarks(level));
     }
     public boolean update(long floor,UUID id,long epoch,Mode mode,boolean offscreen){
         if(!FloorLayout.supported(floor)||id==null||epoch<0)throw new IllegalArgumentException("Invalid simulation target");
@@ -50,14 +50,20 @@ public final class AdventureSimulationData extends SavedData {
     }
     /** One real accepted social encounter is the only route to exchanging firsthand reports. */
     public Optional<NpcSocial.Encounter> converse(NpcPopulationData population,long floor,UUID first,UUID second,long day){
+        var a=ledger(floor,first);var b=ledger(floor,second);
+        return converse(population,floor,first,second,day,Math.max(a==null?0:a.epoch(),b==null?0:b.epoch()));
+    }
+    public Optional<NpcSocial.Encounter> converse(NpcPopulationData population,long floor,UUID first,UUID second,long day,long epoch){
         var result=population.converse(floor,first,second,day);
         if(result.isEmpty()||!result.get().friendly())return result;
         var a=ledger(floor,first);var b=ledger(floor,second);
         if(a==null||b==null||a.trip().active()||b.trip().active())return result;
         var ja=a.journal().learn(b.journal());var jb=b.journal().learn(a.journal());
-        if(ja.equals(a.journal())&&jb.equals(b.journal()))return result;
+        var ga=AdventurerGoals.conversation(a.goal(),epoch);
+        var gb=AdventurerGoals.conversation(b.goal(),epoch);
+        if(ja.equals(a.journal())&&jb.equals(b.journal())&&ga.equals(a.goal())&&gb.equals(b.goal()))return result;
         var roster=floors.get(floor);
-        roster.put(first,a.withJournal(ja));roster.put(second,b.withJournal(jb));setDirty();
+        roster.put(first,a.withJournal(ja).withGoal(ga));roster.put(second,b.withJournal(jb).withGoal(gb));setDirty();
         return result;
     }
     public static void onTick(ServerTickEvent.Post event){
@@ -86,13 +92,13 @@ public final class AdventureSimulationData extends SavedData {
             State s=roster.get(cursorIndex);UUID id=s.profile().id();
             var previous=ledger(cursorFloor,id);
             if(previous!=null&&previous.epoch()>=epoch)continue;
-            var desired=AdventureProgress.plan(s,level.getDayTime(),previous);
+            var desired=CityVenueRoutine.plan(s,level.getDayTime(),previous,CityRules.hasLandmarks(level));
             var actor=level.getEntity(id);
             // Visible actors earn only sampled activity at their actual destination, not abstract work.
             boolean offscreen=actor==null;
             Mode mode=offscreen?AdventureProgress.mode(desired.activity()):Mode.IDLE;
             if(actor instanceof CityNpc npc&&npc.isAlive()&&npc.originFloor()==cursorFloor){
-                mode=npc.atScheduledDestination()?AdventureProgress.mode(NpcDailyPlan.Activity.valueOf(npc.activity())):Mode.TRAVEL;
+                mode=npc.matchesPlan(desired)&&npc.atScheduledDestination()?AdventureProgress.mode(desired.activity()):Mode.TRAVEL;
             }
             if(previous==null){update(cursorFloor,id,epoch,mode,offscreen);continue;}
             boolean reached=actor instanceof CityNpc npc&&npc.isAlive()
@@ -106,6 +112,7 @@ public final class AdventureSimulationData extends SavedData {
                 boolean observed=next.trip().observed()==previous.trip().observed()+1;
                 next=next.withJournal(previous.journal().complete(next.trip().gate(),observed));
             }
+            if(CityRules.hasLandmarks(level))next=next.withGoal(AdventurerGoals.update(s,previous,next,epoch));
             floors.get(cursorFloor).put(id,next);setDirty();
             if(transition.began()){
                 var n=s.needs();
@@ -126,14 +133,14 @@ public final class AdventureSimulationData extends SavedData {
             if(a.profile().id().equals(id)||level.getEntity(id)!=null)continue;
             State b=population.state(cursorFloor,id);
             if(b==null)continue;
-            var other=AdventureProgress.plan(b,level.getDayTime(),ledger(cursorFloor,id));
+            var other=CityVenueRoutine.plan(b,level.getDayTime(),ledger(cursorFloor,id),CityRules.hasLandmarks(level));
             if(other.activity()!=NpcDailyPlan.Activity.SOCIALIZE)continue;
             if(Math.hypot(plan.destination().x()-other.destination().x(),plan.destination().z()-other.destination().z())>16)continue;
-            if(converse(population,cursorFloor,a.profile().id(),id,day).isPresent())return;
+            if(converse(population,cursorFloor,a.profile().id(),id,day,epoch).isPresent())return;
         }
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",3);ListTag all=new ListTag();
+        root.putInt("schema",4);ListTag all=new ListTag();
         floors.forEach((floor,records)->{
             CompoundTag group=new CompoundTag();group.putLong("floor",floor);ListTag npcs=new ListTag();
             records.forEach((id,l)->{
@@ -146,7 +153,11 @@ public final class AdventureSimulationData extends SavedData {
                 q.putIntArray("counts",new int[]{trip.completed(),trip.observed(),trip.aborted()});
                 q.putBoolean("abstract",trip.abstractLeg());q.putBoolean("surveyed",trip.surveyed());
                 n.put("trip",q);
-                var journal=l.journal();n.putIntArray("journal",new int[]{journal.surveyed(),journal.observed(),journal.reported()});npcs.add(n);
+                var journal=l.journal();n.putIntArray("journal",new int[]{journal.surveyed(),journal.observed(),journal.reported()});
+                var goal=l.goal();var g=new CompoundTag();
+                g.putString("kind",goal.kind().name());g.putInt("progress",goal.progress());g.putInt("target",goal.target());
+                g.putLong("deadline",goal.deadline());g.putLong("next",goal.nextPick());g.putInt("completed",goal.completed());g.putInt("expired",goal.expired());
+                n.put("goal",g);npcs.add(n);
             });
             group.put("npcs",npcs);all.add(group);
         });
@@ -154,7 +165,7 @@ public final class AdventureSimulationData extends SavedData {
     }
     public static AdventureSimulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
         var data=new AdventureSimulationData();ListTag all=root.getList("capitals",Tag.TAG_COMPOUND);
         for(int i=0;i<all.size();i++){
             var group=all.getCompound(i);long floor=group.getLong("floor");
@@ -176,6 +187,10 @@ public final class AdventureSimulationData extends SavedData {
                     int[] masks=n.getIntArray("journal");
                     if(masks.length!=3)throw new IllegalArgumentException("Invalid survey journal vector");
                     l=l.withJournal(new SurveyJournal(masks[0],masks[1],masks[2]));
+                }
+                if(schema>=4){
+                    var g=n.getCompound("goal");
+                    l=l.withGoal(new AdventurerGoals.Goal(AdventurerGoals.Kind.valueOf(g.getString("kind")),g.getInt("progress"),g.getInt("target"),g.getLong("deadline"),g.getLong("next"),g.getInt("completed"),g.getInt("expired")));
                 }
                 if(records.put(n.getUUID("id"),l)!=null)throw new IllegalArgumentException("Duplicate adventurer ledger");
             }

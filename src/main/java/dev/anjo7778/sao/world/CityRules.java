@@ -17,8 +17,13 @@ public final class CityRules {
     private CityRules(){}
     public static boolean hasCities(ServerLevel level){
         if(!(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator n))return false;
-        return level.dimension().equals(Level.OVERWORLD)&&n.generatorSettings().is(FloorTravel.FIRST_CITY)
-            || level.dimension().equals(FloorTravel.UPPER)&&n.generatorSettings().is(FloorTravel.UPPER_CITY);
+        return level.dimension().equals(Level.OVERWORLD)&&(n.generatorSettings().is(FloorTravel.FIRST_CITY)||n.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||n.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||n.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES_V2)||n.generatorSettings().is(FloorTravel.FIRST_CITY_DISTRICTS)||n.generatorSettings().is(FloorTravel.FIRST_CITY_LANDMARKS))
+            || level.dimension().equals(FloorTravel.UPPER)&&(n.generatorSettings().is(FloorTravel.UPPER_CITY)||n.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||n.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||n.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2)||n.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS)||n.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS));
+    }
+    public static boolean hasLandmarks(ServerLevel level){
+        if(!(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator n))return false;
+        return level.dimension().equals(Level.OVERWORLD)&&n.generatorSettings().is(FloorTravel.FIRST_CITY_LANDMARKS)
+            ||level.dimension().equals(FloorTravel.UPPER)&&n.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
     }
     public static boolean isCity(ServerLevel level,int x,int z){
         if(!hasCities(level))return false;

@@ -11,3 +11,5 @@ This is a Sword Art Online inspired Minecraft Java Edition mod for Minecraft 1.2
 - State clearly whether a change was compiled, tested in Minecraft, or left unverified. Never claim gameplay testing from a compilation alone.
 - Keep generated caches, build directories, local paths, and credentials out of commits.
 - Update the README when implemented behavior or build instructions change.
+
+- City buildings use versioned, immutable authored templates. Never label a building accepted from a compile or math-only test. Follow docs/BUILDING_TEMPLATES.md: structural checks, actual generated block states, walkable entrances/interiors, lighting and multiple in-game screenshots. Keep legacy generator keys stable; do not overwrite existing cities.

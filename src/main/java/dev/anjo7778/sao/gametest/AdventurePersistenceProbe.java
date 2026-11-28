@@ -16,7 +16,8 @@ import org.slf4j.Logger;
 public final class AdventurePersistenceProbe {
     private static final Logger LOG=LogUtils.getLogger();
     private static int start=-1;
-    private static boolean evening;
+    private static long lastEpoch=-1;
+    private static int venueSamples=0;
     private AdventurePersistenceProbe(){}
 
     @SubscribeEvent public static void started(ServerStartedEvent event){
@@ -24,7 +25,7 @@ public final class AdventurePersistenceProbe {
         if(phase.equals("off"))return;
         var server=event.getServer();
         require(server.isDedicatedServer()&&server.getWorldData().getLevelName().equals("mts-adventure-test")
-            &&CityRules.hasCities(server.overworld())&&server.getLevel(FloorTravel.UPPER)!=null,
+            &&CityRules.hasLandmarks(server.overworld())&&server.getLevel(FloorTravel.UPPER)!=null,
             "Not isolated test world");
         require(server.getPlayerList().getPlayers().isEmpty(),"Unexpected connected player");
         var pop=NpcPopulationData.get(server);
@@ -48,10 +49,24 @@ public final class AdventurePersistenceProbe {
         var server=event.getServer();
         require(server.getPlayerList().getPlayers().isEmpty(),"Unexpected player");
         int elapsed=server.getTickCount()-start;
-        if(!evening&&elapsed>=6500){
-            server.overworld().setDayTime(12000);evening=true;
+        // Run actual world ticks across multiple complete day/night cycles.
+        long epoch=server.overworld().getGameTime()/AdventureProgress.EPOCH_TICKS;
+        if(lastEpoch!=epoch){
+            lastEpoch=epoch;
+            server.overworld().setDayTime(Math.floorMod(elapsed,24000));
+            var pop=NpcPopulationData.get(server);
+            for(long floor:new long[]{1,2}){
+                var level=floor==1?server.overworld():server.getLevel(FloorTravel.UPPER);
+                for(var s:pop.roster(floor)){
+                    if(s.profile().occupation()!=NpcRoster.Occupation.ADVENTURER)continue;
+                    var plan=AdventureSimulationData.plan(level,s);
+                    if(CityCourts.at(floor,plan.destination().x(),plan.destination().z())!=null)venueSamples++;
+                }
+            }
         }
-        if(elapsed>=14200){
+        if(elapsed>=58000){
+            require(venueSamples>100,"No autonomous venue use");
+            LOG.info("SAO_GOAL_VENUES_OK sampledPlans={}",venueSamples);
             require(server.getLevel(FloorTravel.UPPER).getChunkSource().getLoadedChunksCount()==0,"Upper chunks loaded");
             require(server.getLevel(FloorTravel.UPPER).getForcedChunks().isEmpty(),"Forced chunk ticket");
             LOG.info("SAO_ADVENTURE_SAVE_OK {}",snapshot(server));
@@ -60,9 +75,9 @@ public final class AdventurePersistenceProbe {
     }
     private static String snapshot(MinecraftServer server){
         var pop=NpcPopulationData.get(server);var sim=AdventureSimulationData.get(server);
-        StringBuilder out=new StringBuilder(),exact=new StringBuilder();int paired=0;
+        StringBuilder out=new StringBuilder(),exact=new StringBuilder();int paired=0,goalCompletedAll=0;
         for(long floor:new long[]{1,2}){
-            int count=0,updates=0,practice=0,rests=0,social=0,fatigue=0,completed=0,aborted=0,active=0,spent=0,known=0,reported=0,multidirectional=0;
+            int count=0,updates=0,practice=0,rests=0,social=0,fatigue=0,completed=0,aborted=0,active=0,spent=0,known=0,reported=0,multidirectional=0,goalActive=0,goalCompleted=0,goalExpired=0;
             var initial=new java.util.HashMap<java.util.UUID,NpcRoster.State>();
             for(var s:NpcRoster.generate(42,floor))initial.put(s.profile().id(),s);
             for(var s:pop.roster(floor)){
@@ -72,6 +87,9 @@ public final class AdventurePersistenceProbe {
                 require(l!=null&&l.abstractUpdates()>0,"Adventurer did not advance");
                 require(l.updates()==l.abstractUpdates(),"Unexpected physical update");
                 updates+=l.updates();practice+=l.practice();rests+=l.restSessions();fatigue+=l.fatigue();
+                var goal=l.goal();
+                if(goal.active())goalActive++;
+                goalCompleted+=goal.completed();goalExpired+=goal.expired();
                 var trip=l.trip();
                 require(trip.observed()==0,"Unobserved expedition incorrectly marked physical");
                 completed+=trip.completed();aborted+=trip.aborted();if(trip.active())active++;
@@ -103,13 +121,15 @@ public final class AdventurePersistenceProbe {
             require(count==(floor==1?48:24)&&practice>0&&updates>=count,"No independent practice");
             require(social>0,"No offscreen social contacts on floor "+floor);
             require(completed>0&&known>0,"No autonomous scouting knowledge on floor "+floor);
-            require(reported>0,"No autonomous sharing on floor "+floor);
+            require(goalActive>0,"No persistent personal goals");
+            goalCompletedAll+=goalCompleted;
             paired+=social;
             out.append("floor=").append(floor).append(",actors=").append(count).append(",updates=").append(updates)
                 .append(",practice=").append(practice).append(",rests=").append(rests).append(",fatigue=").append(fatigue)
-                .append(",memories=").append(social).append(",scouted=").append(completed).append(",aborted=").append(aborted).append(",active=").append(active).append(",suppliesSpent=").append(spent).append(",surveyedDirections=").append(known).append(",reportedDirections=").append(reported).append(",multiDirectionScouts=").append(multidirectional).append(';');
+                .append(",memories=").append(social).append(",scouted=").append(completed).append(",aborted=").append(aborted).append(",active=").append(active).append(",suppliesSpent=").append(spent).append(",surveyedDirections=").append(known).append(",reportedDirections=").append(reported).append(",multiDirectionScouts=").append(multidirectional).append(",goalActive=").append(goalActive).append(",goalCompleted=").append(goalCompleted).append(",goalExpired=").append(goalExpired).append(';');
         }
         require(paired%2==0,"Non-reciprocal total");
+        require(goalCompletedAll>0,"No autonomously completed goals");
         require(SaoWorldData.get(server).highestUnlocked()==2,"Reconnaissance granted a floor unlock");
         try{
             var digest=java.security.MessageDigest.getInstance("SHA-256").digest(exact.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));

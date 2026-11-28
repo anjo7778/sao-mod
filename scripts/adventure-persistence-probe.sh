@@ -22,6 +22,7 @@ enable-query=false
 PROPERTIES
 bash ./gradlew --no-daemon --no-configuration-cache -PadventurePhase=write runAdventureProbe 2>&1 | tee "$out/write.log"
 grep -q 'SAO_ADVENTURE_SAVE_OK' "$out/write.log"
+grep -q 'SAO_GOAL_VENUES_OK' "$out/write.log"
 test -s "$world/data/sao_adventures.dat"
 test -s "$world/data/sao_population.dat"
 bash ./gradlew --no-daemon --no-configuration-cache -PadventurePhase=read runAdventureProbe 2>&1 | tee "$out/read.log"

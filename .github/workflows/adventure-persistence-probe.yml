@@ -21,7 +21,7 @@ jobs:
           java-version: '21'
           distribution: temurin
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
-      - name: Verify autonomous survey journals, peer reports and exact restart state
+      - name: Verify autonomous personal objectives and venue choices across two floors
         run: bash scripts/adventure-persistence-probe.sh
       - name: Archive evidence
         if: always()

@@ -35,7 +35,7 @@ public final class CitySocial {
                 var stateB=data.state(floor,b.getUUID());
                 if(!NpcSocial.canTalk(stateA,stateB,day))continue;
                 if(!a.canConverse()||!b.canConverse())continue;
-                var result=AdventureSimulationData.get(level.getServer()).converse(data,floor,a.getUUID(),b.getUUID(),day);
+                var result=AdventureSimulationData.get(level.getServer()).converse(data,floor,a.getUUID(),b.getUUID(),day,Math.max(0,level.getGameTime()/dev.anjo7778.sao.simulation.AdventureProgress.EPOCH_TICKS));
                 if(result.isEmpty())continue;
                 a.beginConversation(b);b.beginConversation(a);
                 if(player.distanceToSqr(a)<=12*12&&player.distanceToSqr(b)<=12*12){
