@@ -170,7 +170,7 @@ public final class SwordCombat {
     private static void sync(ServerPlayer p,Session s,boolean available){
         int pose=available?s.clock.visualCode(now(p.serverLevel()),p.serverLevel().getGameTime()):0;
         CombatNetwork.send(p,available,s.clock.stamina(),s.clock.phase(),s.clock.move(),
-            s.clock.combo(),s.clock.skillCooldown(s.selected,now(p.serverLevel())),available&&s.selected.unlocked(mastery(p,p.serverLevel())),pose,s.selected.ordinal());
+            s.clock.combo(),s.clock.skillCooldown(s.selected,now(p.serverLevel())),available&&s.selected.unlocked(mastery(p,p.serverLevel())),pose,s.selected.ordinal(),s.clock.landedHits());
         s.shown=available;s.lastPose=pose;
     }
     public static void attack(AttackEntityEvent event){
