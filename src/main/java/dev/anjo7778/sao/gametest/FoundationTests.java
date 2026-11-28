@@ -690,4 +690,24 @@ public final class FoundationTests {
         helper.assertTrue(blade.getItem().isValidRepairItem(blade,steel),"Steel repairs native sword");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void materialProfessionBudgets(GameTestHelper helper){
+        var level=helper.getLevel();
+        var data=new dev.anjo7778.sao.world.CharacterProgressData();
+        var owner=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.PLAYER,java.util.UUID.randomUUID());
+        var m=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.MINING;
+        var met=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.METALLURGY;
+        for(int i=0;i<32;i++)helper.assertTrue(data.profession(owner,1,m),"Mining budget");
+        helper.assertFalse(data.profession(owner,1,m),"Daily mining cap");
+        for(int i=0;i<16;i++)helper.assertTrue(data.profession(owner,1,met),"Metallurgy budget");
+        helper.assertFalse(data.profession(owner,1,met),"Daily metallurgy cap");
+        var restored=dev.anjo7778.sao.world.CharacterProgressData.load(data.save(new CompoundTag(),level.registryAccess()),level.registryAccess());
+        helper.assertTrue(restored.state(owner).equals(data.state(owner)),"Profession progression survives save");
+        helper.assertFalse(restored.profession(owner,1,m),"Save-backed mining cap");
+        helper.assertFalse(restored.profession(owner,1,met),"Save-backed metallurgy cap");
+        helper.assertTrue(restored.profession(owner,2,m),"Next day");
+        helper.assertTrue(restored.profession(owner,2,met),"Independent metallurgy cap");
+        helper.succeed();
+    }
 }

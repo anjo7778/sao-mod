@@ -63,9 +63,49 @@ public final class RpgEvents {
         }
         CharacterProgressData.get(level.getServer()).discover(player(p),floor,site);
     }
+    /** Final drop event: only actual non-Silk ore extraction with expected valuable drops. */
+    public static void mined(net.neoforged.neoforge.event.level.BlockDropsEvent event){
+        if(event.isCanceled()||!(event.getBreaker() instanceof ServerPlayer p)||!eligible(p)
+            ||p.serverLevel()!=event.getLevel()||CityRules.isSafeZone(event.getLevel(),event.getPos().getX(),event.getPos().getZ()))return;
+        long floor=FloorTravel.currentFloor(event.getLevel(),event.getPos().getX(),event.getPos().getZ());
+        if(floor!=FloorTravel.currentFloor(p.serverLevel(),p.getBlockX(),p.getBlockZ()))return;
+        var block=event.getState().getBlock();
+        var material=dev.anjo7778.sao.block.SaoBlocks.material(block);
+        net.minecraft.world.item.Item expected;
+        if(material!=null)expected=dev.anjo7778.sao.item.SaoItems.raw(material);
+        else {
+            String id=BuiltInRegistries.BLOCK.getKey(block).toString();
+            expected=switch(id){
+                case "minecraft:iron_ore","minecraft:deepslate_iron_ore"->net.minecraft.world.item.Items.RAW_IRON;
+                case "minecraft:copper_ore","minecraft:deepslate_copper_ore"->net.minecraft.world.item.Items.RAW_COPPER;
+                case "minecraft:gold_ore","minecraft:deepslate_gold_ore"->net.minecraft.world.item.Items.RAW_GOLD;
+                case "minecraft:coal_ore","minecraft:deepslate_coal_ore"->net.minecraft.world.item.Items.COAL;
+                case "minecraft:diamond_ore","minecraft:deepslate_diamond_ore"->net.minecraft.world.item.Items.DIAMOND;
+                case "minecraft:emerald_ore","minecraft:deepslate_emerald_ore"->net.minecraft.world.item.Items.EMERALD;
+                case "minecraft:lapis_ore","minecraft:deepslate_lapis_ore"->net.minecraft.world.item.Items.LAPIS_LAZULI;
+                case "minecraft:redstone_ore","minecraft:deepslate_redstone_ore"->net.minecraft.world.item.Items.REDSTONE;
+                default->null;
+            };
+        }
+        if(expected==null||event.getDrops().stream().noneMatch(e->e.getItem().is(expected)&&!e.getItem().isEmpty()))return;
+        var server=p.serverLevel().getServer();
+        CharacterProgressData.get(server).profession(player(p),Math.max(0,server.overworld().getGameTime()/24000),Mastery.MINING);
+    }
+    /** Native furnace output extraction; no preview, hopper credit, or invented NPC labor. */
+    public static void smelted(PlayerEvent.ItemSmeltedEvent event){
+        if(!(event.getEntity() instanceof ServerPlayer p)||!eligible(p)||event.getSmelting().isEmpty())return;
+        var item=event.getSmelting().getItem();
+        if(!(item instanceof dev.anjo7778.sao.item.RefinedMetalItem)
+            &&item!=net.minecraft.world.item.Items.IRON_INGOT&&item!=net.minecraft.world.item.Items.COPPER_INGOT&&item!=net.minecraft.world.item.Items.GOLD_INGOT)return;
+        var server=p.serverLevel().getServer();
+        CharacterProgressData.get(server).profession(player(p),Math.max(0,server.overworld().getGameTime()/24000),Mastery.METALLURGY);
+    }
     public static void crafted(PlayerEvent.ItemCraftedEvent event){
         if(!(event.getEntity() instanceof ServerPlayer p)||!eligible(p)||event.getCrafting().isEmpty())return;
         var key=BuiltInRegistries.ITEM.getKey(event.getCrafting().getItem());
+        if(event.getCrafting().getItem() instanceof dev.anjo7778.sao.item.NativeSteelSword){
+            var server=p.serverLevel().getServer();CharacterProgressData.get(server).craft(player(p),Math.max(0,server.overworld().getGameTime()/24000),Mastery.BLACKSMITHING);return;
+        }
         if(!key.getNamespace().equals("minecraft"))return;
         String name=key.getPath();
         if(!(name.startsWith("iron_")||name.startsWith("golden_")||name.startsWith("diamond_")))return;

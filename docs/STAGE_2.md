@@ -212,3 +212,7 @@ v0.2.36 steel tests all passed (28). Introduce actual tin ore, raw/refined items
 ## v0.2.38 expanded material candidate
 
 Tin actual worldgen passed on allowed floors and capital/out-of-range exclusion; native harvest failed. Fix custom ore properties, add silver/mithril/adamantite/orichalcum/celestium/astralite and ordinary advanced alloys, native steel sword/recipe/model. Vanilla materials remain in use. Player and NPC profession progression, higher-quality production, dragonsteel, special boss loot and full combat pending. Build and runtime checks required.
+
+### Material professions
+
+Added actual player ore-drop and furnace-extraction XP adapters (vanilla and custom ores), native sword crafting XP and independent persisted profession budgets. NPC work and mastery-driven craftsmanship not yet wired. New tests cover save/reload and caps; actual mining and smelting events need runtime proof.
