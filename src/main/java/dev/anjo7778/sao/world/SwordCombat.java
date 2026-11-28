@@ -154,6 +154,13 @@ public final class SwordCombat {
     }
     private static void confirm(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level,float before){
         boolean landed=remainingHealth(victim)<before;
+        if(landed&&s.clock.move().hits>1){
+            // Cosmetic feedback only after real health/absorption loss, once per confirmed strike.
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SWEEP_ATTACK,
+                victim.getX(),victim.getY()+victim.getBbHeight()*.55,victim.getZ(),1,0,0,0,0);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.ENCHANTED_HIT,
+                victim.getX(),victim.getY()+victim.getBbHeight()*.55,victim.getZ(),4,.2,.25,.2,.04);
+        }
         s.clock.confirmHit(now(level),landed);
         if(!supports(actor)||!victim.isAlive()){
             if(s.clock.phase()==Phase.WINDUP)s.clock.cancel(now(level));
