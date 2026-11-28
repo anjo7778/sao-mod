@@ -20,6 +20,7 @@ public abstract class HumanoidGestureMixin {
         if(!((Object)this instanceof PlayerModel<?> model))return;
         AincradFingerRig.clear(model);
         float partial=Math.max(0,Math.min(1,age-entity.tickCount));
+        if(dev.anjo7778.sao.client.SwordPoseRenderer.apply(model,entity,partial))return;
         HumanoidArm hand=MenuGesture.freeArm(entity);
         if(hand==null)return;
         float pitchValue,extension;
