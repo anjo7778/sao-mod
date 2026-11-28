@@ -45,8 +45,12 @@ public final class CombatNetwork {
     public static void register(RegisterPayloadHandlersEvent event){
         var r=event.registrar("1");
         r.playToServer(Intent.TYPE,Intent.CODEC,(payload,context)->context.enqueueWork(()->{
-            if(context.player() instanceof ServerPlayer p&&payload.action()>=0&&payload.action()<=3
-                &&payload.direction()>=0&&(payload.action()==2||payload.action()==3&&payload.direction()==0||payload.action()<2&&payload.direction()<=3))SwordCombat.intent(p,payload.action(),payload.direction());
+            boolean valid=switch(payload.action()){
+                case 0,3,4->payload.direction()==0;
+                case 1->payload.direction()>=0&&payload.direction()<=3;
+                default->false;
+            };
+            if(context.player() instanceof ServerPlayer p&&valid)SwordCombat.intent(p,payload.action(),payload.direction());
         }));
         r.playToClient(Snapshot.TYPE,Snapshot.CODEC,(payload,context)->context.enqueueWork(()->client=payload));
     }
