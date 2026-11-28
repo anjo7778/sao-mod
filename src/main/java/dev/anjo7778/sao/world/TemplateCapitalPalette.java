@@ -31,6 +31,7 @@ final class TemplateCapitalPalette{
             case 'g'->Blocks.GLASS.defaultBlockState();
             case '+'->Blocks.SEA_LANTERN.defaultBlockState();
             case 'l'->Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING,false);
+            case 'H'->Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING,true);
             case 'B'->Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING,Direction.UP);
             case 'C'->Blocks.CRAFTING_TABLE.defaultBlockState();
             case 'F'->Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.FACING,Direction.EAST);
