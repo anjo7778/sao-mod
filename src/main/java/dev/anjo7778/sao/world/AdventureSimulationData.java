@@ -65,6 +65,8 @@ public final class AdventureSimulationData extends SavedData {
             if(ledger!=null&&!ledger.trip().active()&&!journey.active()){
                 var delivery=NpcResourceService.deliveryPlan(level,state);
                 if(delivery!=null)return delivery;
+                var goods=NpcEquipmentService.plan(level,state);
+                if(goods!=null)return goods;
             }
             if(journey.visiting())base=RegionalJourney.visitPlan(state.profile(),journey);
             return MarketService.plan(level,state,journey,base);

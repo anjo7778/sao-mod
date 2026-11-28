@@ -19,6 +19,39 @@ public final class NpcPopulationData extends SavedData {
     private final Map<Region,LinkedHashMap<UUID,State>> regions=new LinkedHashMap<>();
     private final Map<UUID,AdventurerMarket.Wallet> wallets=new HashMap<>();
     private final Map<UUID,AdventurerMarket.Shop> shops=new HashMap<>();
+    private final Map<UUID,net.minecraft.world.item.ItemStack> blades=new HashMap<>();
+    private final Map<UUID,Integer> goodsReceipts=new HashMap<>();
+    public net.minecraft.world.item.ItemStack blade(UUID id){
+        var stack=blades.get(id);return stack==null?net.minecraft.world.item.ItemStack.EMPTY:stack.copy();
+    }
+    public int goodsReceipts(UUID id){return goodsReceipts.getOrDefault(id,0);}
+    /** Exact stock, price and physical presence are checked by NpcEquipmentService. */
+    boolean buyGoods(long floor,UUID buyer,UUID seller,net.minecraft.world.item.ItemStack item,int price,long time,long epoch){
+        var capital=floors.get(floor);
+        if(capital==null||buyer.equals(seller)||item.isEmpty()||item.getCount()!=1)return false;
+        var b=capital.get(buyer);var s=capital.get(seller);
+        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||s.profile().occupation()!=Occupation.BLACKSMITH
+            ||NpcRoutine.resting(b.profile(),time)||b.needs().health()<35||NpcDailyPlan.at(s,time).activity()!=NpcDailyPlan.Activity.WORK)return false;
+        boolean blade=item.is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get());
+        if(!blade&&!item.is(net.minecraft.world.item.Items.IRON_PICKAXE)&&!item.is(net.minecraft.world.item.Items.IRON_AXE))return false;
+        if(blade&&(!HuntContract.melee(b.profile())||!blade(buyer).isEmpty()))return false;
+        var w=AdventurerMarket.buyGoods(wallet(b.profile()),price,epoch);
+        int received=goodsReceipts(seller);
+        if(w==null||received>AdventurerMarket.MAX-price)return false;
+        wallets.put(buyer,w);goodsReceipts.put(seller,received+price);
+        if(blade){
+            blades.put(buyer,item.copy());
+            var n=b.needs();capital.put(buyer,b.withNeeds(new Needs(n.health(),n.supplies(),100,n.partyReadiness(),n.danger())));
+        }
+        setDirty();return true;
+    }
+    public boolean wearBlade(UUID id,net.minecraft.world.item.ItemStack held){
+        var stack=blades.get(id);
+        if(stack==null||!net.minecraft.world.item.ItemStack.matches(stack,held))return false;
+        var next=stack.copy();next.setDamageValue(next.getDamageValue()+1);
+        if(next.getDamageValue()>=next.getMaxDamage())blades.remove(id);else blades.put(id,next);
+        setDirty();return true;
+    }
     private final Map<Long,AdventurerMarket.Treasury> treasuries=new HashMap<>();
     private final Map<UUID,HuntContract> hunts=new HashMap<>();
     private final Map<UUID,UUID> quarryClaims=new HashMap<>();
@@ -195,7 +228,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6&&schema!=7)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -206,7 +239,7 @@ public final class NpcPopulationData extends SavedData {
             for(int k=0;k<list.size();k++){
                 var s=readState(list.getCompound(k),floor,schema);
                 if(s.profile().regionalHome()!=null||!identities.add(s.profile().id())||roster.put(s.profile().id(),s)!=null)throw new IllegalArgumentException("Invalid capital identity");
-                if(schema>=4)d.readEconomy(list.getCompound(k),s.profile());
+                if(schema>=4)d.readEconomy(list.getCompound(k),s.profile(),registries);
             }
             d.floors.put(floor,roster);
             if(schema>=5&&entry.contains("treasury",Tag.TAG_COMPOUND)){
@@ -229,7 +262,7 @@ public final class NpcPopulationData extends SavedData {
                     var s=readState(list.getCompound(k),floor,schema);var p=s.profile();
                     if(!site.equals(p.regionalHome())||!homes.add(List.of(p.homeX(),p.homeZ()))||!identities.add(p.id())||roster.put(p.id(),s)!=null)
                         throw new IllegalArgumentException("Invalid regional identity");
-                    if(schema>=4)d.readEconomy(list.getCompound(k),p);
+                    if(schema>=4)d.readEconomy(list.getCompound(k),p,registries);
                 }
                 d.regions.put(key,roster);
             }
@@ -237,10 +270,10 @@ public final class NpcPopulationData extends SavedData {
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",6);ListTag capitals=new ListTag();
+        root.putInt("schema",7);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
-            ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
+            ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s,registries)));
             entry.put("npcs",npcs);
             var treasury=treasuries.get(floor);
             if(treasury!=null){
@@ -253,12 +286,12 @@ public final class NpcPopulationData extends SavedData {
         ListTag regional=new ListTag();
         regions.forEach((key,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",key.floor());entry.putString("kind",key.kind().name());
-            ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
+            ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s,registries)));
             entry.put("npcs",npcs);regional.add(entry);
         });
         root.put("regions",regional);return root;
     }
-    private CompoundTag writeState(State s){
+    private CompoundTag writeState(State s,HolderLookup.Provider registries){
         var p=s.profile();var n=s.needs();var t=p.personality();
         CompoundTag b=new CompoundTag();b.putUUID("id",p.id());b.putString("name",p.name());
         b.putLong("birthFloor",p.birthFloor());b.putLong("relocatedAt",p.relocatedAt());
@@ -274,21 +307,34 @@ public final class NpcPopulationData extends SavedData {
         var wallet=wallets.get(p.id());
         if(wallet!=null){
             var w=new CompoundTag();w.putInt("supply",wallet.supplyOrders());w.putInt("repair",wallet.repairOrders());
-            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());w.putInt("huntKills",wallet.huntKills());w.putInt("paidHunts",wallet.paidHunts());b.put("wallet",w);
+            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());w.putInt("huntKills",wallet.huntKills());w.putInt("paidHunts",wallet.paidHunts());w.putInt("goodsOrders",wallet.goodsOrders());w.putInt("goodsSpent",wallet.goodsSpent());b.put("wallet",w);
         }
         var hunt=hunts.get(p.id());
         if(hunt!=null){
             var h=new CompoundTag();h.putLong("floor",hunt.floor());h.putLong("since",hunt.surveySince());h.putUUID("quarry",hunt.quarry());
             h.putString("status",hunt.status().name());b.put("hunt",h);
         }
+        var blade=blades.get(p.id());if(blade!=null&&!blade.isEmpty())b.put("blade",blade.save(registries));
+        int receipts=goodsReceipts(p.id());if(receipts>0)b.putInt("goodsReceipts",receipts);
         var shop=shops.get(p.id());if(shop!=null){b.putInt("sold",shop.sold());b.putInt("restocked",shop.restocked());}
         return b;
     }
-    private void readEconomy(CompoundTag b,Profile p){
+    private void readEconomy(CompoundTag b,Profile p,HolderLookup.Provider registries){
         if(b.contains("wallet",Tag.TAG_COMPOUND)){
             if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Wallet role mismatch");
             var w=b.getCompound("wallet");
-            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts")));
+            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts"),w.getInt("goodsOrders"),w.getInt("goodsSpent")));
+        }
+        if(b.contains("blade")){
+            var blade=net.minecraft.world.item.ItemStack.parse(registries,b.get("blade")).orElseThrow();
+            if(!HuntContract.melee(p)||!blade.is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get())||blade.getCount()!=1
+                ||blade.getDamageValue()>=blade.getMaxDamage()||wallet(p).goodsOrders()==0)throw new IllegalArgumentException("Invalid purchased blade");
+            blades.put(p.id(),blade);
+        }
+        if(b.contains("goodsReceipts",Tag.TAG_INT)){
+            int n=b.getInt("goodsReceipts");
+            if(p.occupation()!=Occupation.BLACKSMITH||n<=0||n>AdventurerMarket.MAX)throw new IllegalArgumentException("Invalid goods receipts");
+            goodsReceipts.put(p.id(),n);
         }
         if(b.contains("hunt",Tag.TAG_COMPOUND)){
             if(!HuntContract.supported(p))throw new IllegalArgumentException("Invalid hunt profile");

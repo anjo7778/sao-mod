@@ -89,8 +89,13 @@ public final class HuntService {
             if(distance<=style.reach*style.reach&&npc.hasLineOfSight(mob)){
                 npc.getNavigation().stop();npc.swing(InteractionHand.MAIN_HAND);
                 var attack=npc.getAttribute(Attributes.ATTACK_DAMAGE);
-                if(attack!=null)attack.setBaseValue(style.baseAttack);
-                if(npc.doHurtTarget(mob)&&mob.isAlive()&&mob.getTarget()==null)mob.setTarget(npc);
+                var held=npc.getMainHandItem().copy();
+                boolean owned=held.is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get())&&net.minecraft.world.item.ItemStack.matches(held,pop.blade(npc.getUUID()));
+                if(attack!=null)attack.setBaseValue(owned?1.0:style.baseAttack);
+                if(npc.doHurtTarget(mob)){
+                    if(owned&&pop.wearBlade(npc.getUUID(),held))npc.updateDisplayItem();
+                    if(mob.isAlive()&&mob.getTarget()==null)mob.setTarget(npc);
+                }
             }else npc.getNavigation().moveTo(mob,style.speed);
         }
         return true;

@@ -172,7 +172,12 @@ public final class CityNpc extends PathfinderMob {
                 default -> null;
             };
         }
-        setItemSlot(EquipmentSlot.MAINHAND,item==null?ItemStack.EMPTY:new ItemStack(item));
+        ItemStack selected=item==null?ItemStack.EMPTY:new ItemStack(item);
+        if(level() instanceof ServerLevel server&&boundAdventurer()&&(plan.activity()==Activity.TRAIN||plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN)){
+            var owned=NpcPopulationData.get(server.getServer()).blade(getUUID());
+            if(!owned.isEmpty())selected=owned;
+        }
+        setItemSlot(EquipmentSlot.MAINHAND,selected);
         setDropChance(EquipmentSlot.MAINHAND,0);
     }
     @Override public void tick(){
@@ -226,6 +231,8 @@ public final class CityNpc extends PathfinderMob {
         if(profile.occupation()==Occupation.BLACKSMITH&&tickCount%40==Math.floorMod(profile.id().hashCode(),40))
             NpcForgeWorkshop.tick(this,level);
         if(NpcResourceService.tick(this,level,trip)){closeMenu();return;}
+        if((trip==null||!trip.active())&&tickCount%20==Math.floorMod(getUUID().hashCode(),20)
+            &&NpcEquipmentService.tick(this,level)){closeMenu();return;}
         if(HuntService.tick(this,level,trip)){closeMenu();return;}
         if(isUsingItem())stopUsingItem();
         if(conversationPeer!=null){

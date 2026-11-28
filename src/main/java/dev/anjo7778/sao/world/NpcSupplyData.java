@@ -10,7 +10,7 @@ import java.util.*;
 
 /** Cargo is persistent actual harvested material, keyed to durable NPC identity. */
 public final class NpcSupplyData extends SavedData {
-    public static final int CAPACITY=12, STARTING_TOOL_USES=250;
+    public static final int CAPACITY=12, STARTING_TOOL_USES=250, REPLACE_AT=20;
     public record Cargo(long floor,UUID smith,int iron,int coal,int logs,int pickUses,int axeUses,long delivered){
         public Cargo{
             if(!FloorLayout.supported(floor)||smith==null||iron<0||coal<0||logs<0
@@ -31,6 +31,11 @@ public final class NpcSupplyData extends SavedData {
             if(size()==0||delivered==Long.MAX_VALUE)throw new IllegalStateException("No delivery");
             return new Cargo(floor,smith,0,0,0,pickUses,axeUses,delivered+1);
         }
+        public Cargo replacement(Resource r,int remaining){
+            if(size()!=0||remaining<=0||remaining>STARTING_TOOL_USES
+                ||(r==Resource.DEADWOOD?axeUses:pickUses)>REPLACE_AT)throw new IllegalArgumentException("Tool replacement not needed");
+            return new Cargo(floor,smith,0,0,0,r==Resource.DEADWOOD?pickUses:remaining,r==Resource.DEADWOOD?remaining:axeUses,delivered);
+        }
         public Cargo reassigned(long nextFloor,UUID nextSmith){
             if(size()!=0)throw new IllegalStateException("Undelivered cargo");
             return new Cargo(nextFloor,nextSmith,0,0,0,pickUses,axeUses,delivered);
@@ -40,6 +45,9 @@ public final class NpcSupplyData extends SavedData {
     private final Map<UUID,Cargo> cargo=new LinkedHashMap<>();
     public static NpcSupplyData get(MinecraftServer server){return server.overworld().getDataStorage().computeIfAbsent(FACTORY,"sao_npc_supply");}
     public Cargo cargo(UUID id){return cargo.get(id);}
+    public boolean needsTool(UUID smith,boolean axe){
+        return cargo.values().stream().anyMatch(c->c.smith().equals(smith)&&(axe?c.axeUses():c.pickUses())<=REPLACE_AT);
+    }
     public boolean carrying(UUID id){var c=cargo(id);return c!=null&&c.size()>0;}
     public Cargo candidate(UUID id,long floor,UUID smith){
         var before=cargo(id);

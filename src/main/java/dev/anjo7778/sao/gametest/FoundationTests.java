@@ -820,4 +820,22 @@ public final class FoundationTests {
         helper.assertTrue(again.cargo(id).equals(next),"Save preserves cargo and tools");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void actualGoodsWalletAndReplacement(GameTestHelper helper){
+        var market=dev.anjo7778.sao.simulation.AdventurerMarket.NEW_WALLET;
+        var paid=dev.anjo7778.sao.simulation.AdventurerMarket.buyGoods(market,40,1);
+        helper.assertTrue(paid!=null&&paid.col()==60&&paid.goodsSpent()==40&&paid.goodsOrders()==1,"Real purchase uses existing wallet");
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.buyGoods(paid,61,2)==null,"Cannot overspend");
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.buyGoods(paid,12,1)==null,"No same-epoch replay");
+        var reward=dev.anjo7778.sao.simulation.AdventurerMarket.huntReward(paid,dev.anjo7778.sao.simulation.AdventurerMarket.NEW_TREASURY);
+        helper.assertTrue(reward.wallet().col()==70&&reward.wallet().goodsSpent()==40,"Hunt rewards retain real goods expense");
+        var old=new dev.anjo7778.sao.world.NpcSupplyData.Cargo(1,java.util.UUID.randomUUID(),0,0,0,0,11,3);
+        var next=old.replacement(dev.anjo7778.sao.simulation.GateProspects.Resource.IRON,250);
+        helper.assertTrue(next.pickUses()==250&&next.axeUses()==11&&next.delivered()==3,"Only purchased tool restored");
+        boolean rejected=false;
+        try{next.replacement(dev.anjo7778.sao.simulation.GateProspects.Resource.IRON,250);}catch(IllegalArgumentException expected){rejected=true;}
+        helper.assertTrue(rejected,"Healthy tool not replaced");
+        helper.succeed();
+    }
 }

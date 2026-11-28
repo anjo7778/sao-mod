@@ -124,6 +124,26 @@ public final class NpcForgeWorkshop {
             var log=CraftingInput.of(1,1,List.of(new ItemStack(Items.OAK_LOG)));
             if(craftStock(level,stock,log,Items.OAK_PLANKS))return Result.BLEND;
         }
+        // Produce actual native tools only when one of this smith's gatherers is running low.
+        var supply=NpcSupplyData.get(level.getServer());
+        Item replacement=null;
+        if(supply.needsTool(smith.id(),false)&&!has(copy(output),Items.IRON_PICKAXE))replacement=Items.IRON_PICKAXE;
+        else if(supply.needsTool(smith.id(),true)&&!has(copy(output),Items.IRON_AXE))replacement=Items.IRON_AXE;
+        if(replacement!=null){
+            var toolInput=replacement==Items.IRON_PICKAXE
+                ?CraftingInput.of(3,3,List.of(new ItemStack(Items.IRON_INGOT),new ItemStack(Items.IRON_INGOT),new ItemStack(Items.IRON_INGOT),
+                    ItemStack.EMPTY,new ItemStack(Items.STICK),ItemStack.EMPTY,ItemStack.EMPTY,new ItemStack(Items.STICK),ItemStack.EMPTY))
+                :CraftingInput.of(2,3,List.of(new ItemStack(Items.IRON_INGOT),new ItemStack(Items.IRON_INGOT),
+                    new ItemStack(Items.IRON_INGOT),new ItemStack(Items.STICK),ItemStack.EMPTY,new ItemStack(Items.STICK)));
+            if(craftGoods(level,stock,output,toolInput,replacement)){
+                progress.craft(owner,day,Mastery.BLACKSMITHING);return Result.FORGED;
+            }
+            // Keep iron for actual tool replacement rather than consuming it in steel.
+            if(has(before,Items.RAW_IRON))return furnace.getBlockState().is(Blocks.BLAST_FURNACE)
+                ?load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.BLASTING)
+                :load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.SMELTING);
+            return Result.IDLE;
+        }
         var steel=SaoItems.STEEL_INGOT.get();
         var in=copy(stock);var out=copy(output);
         if(consume(in,steel,2)&&consume(in,Items.STICK,1)&&fuel(in)){
@@ -147,6 +167,16 @@ public final class NpcForgeWorkshop {
             ?load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.BLASTING)
             :load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.SMELTING);
         return Result.IDLE;
+    }
+    private static boolean craftGoods(ServerLevel level,Container stock,Container output,CraftingInput input,Item expected){
+        var recipe=level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,input,level).orElse(null);
+        if(recipe==null)return false;
+        var result=recipe.value().assemble(input,level.registryAccess());
+        if(result.isEmpty()||!result.is(expected)||result.getCount()!=1)return false;
+        var contents=copy(stock);var out=copy(output);
+        for(var ingredient:input.items())if(!ingredient.isEmpty()&&!consume(contents,ingredient.getItem(),ingredient.getCount()))return false;
+        if(!insert(out,result))return false;
+        apply(stock,contents);apply(output,out);return true;
     }
     private static boolean craftStock(ServerLevel level,Container stock,CraftingInput input,Item expected){
         var recipe=level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,input,level).orElse(null);
