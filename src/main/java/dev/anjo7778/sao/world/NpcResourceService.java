@@ -108,7 +108,7 @@ public final class NpcResourceService {
     public static boolean tick(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip){
         if(!npc.boundAdventurer())return false;
         var state=NpcPopulationData.get(level.getServer()).state(npc.originFloor(),npc.getUUID());
-        if(state==null){clear(npc);return false;}
+        if(state==null){clear(npc);MINES.remove(npc);return false;}
         var supplies=NpcSupplyData.get(level.getServer());
         if(MINES.containsKey(npc))return mineTick(npc,level,trip,state,supplies);
         if(trip==null||!trip.active()){
@@ -147,7 +147,7 @@ public final class NpcResourceService {
         return level.hasChunkAt(p)&&level.getBlockState(p).getCollisionShape(level,p).isEmpty()
             &&level.getBlockState(p.above()).getCollisionShape(level,p.above()).isEmpty()
             &&level.getBlockState(p.below()).isFaceSturdy(level,p.below(),net.minecraft.core.Direction.UP)
-            &&level.getFluidState(p).isEmpty();
+            &&level.getFluidState(p).isEmpty()&&level.getFluidState(p.above()).isEmpty();
     }
     private static boolean startMine(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip,NpcSupplyData.Cargo cargo){
         if(!GateMinePlan.supported(npc.originFloor())||!cargo.canGather(Resource.IRON,1)
@@ -172,7 +172,8 @@ public final class NpcResourceService {
         var cargo=supplies.candidate(npc.getUUID(),npc.originFloor(),run.smith);
         if(!run.returning&&(trip==null||trip.phase()!=ScoutingTrip.Phase.SURVEY||trip.since()!=run.since
             ||epoch(level)-run.since>=3||now-run.started>=1000||cargo==null||!cargo.canGather(Resource.IRON,1)
-            ||state.needs().health()<70||!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING))){
+            ||state.needs().health()<70||state.needs().equipment()<40||state.needs().supplies()<25
+            ||!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING))){
             returnMine(npc,run,route,now);
         }
         if(run.returning&&now-run.lastStep>200){
@@ -180,10 +181,14 @@ public final class NpcResourceService {
             MINES.remove(npc);npc.getNavigation().stop();npc.updateDisplayItem();return false;
         }
         var dest=block(route.get(run.index));
-        double distance=npc.distanceToSqr(dest.getX()+.5,dest.getY(),dest.getZ()+.5);
-        if(distance>1.8*1.8){
+        // Adjacent ramp steps differ by one block vertically. A broad spherical
+        // tolerance falsely reaches the next step while still standing on the previous one.
+        double dx=npc.getX()-dest.getX()-.5,dz=npc.getZ()-dest.getZ()-.5;
+        boolean arrived=dx*dx+dz*dz<=1.0&&Math.abs(npc.getY()-dest.getY())<.8;
+        if(!arrived){
             if(!run.returning&&now-run.lastStep>100){returnMine(npc,run,route,now);return true;}
-            if(now-run.lastPath>=10&&walkable(level,dest)){
+            if(now-run.lastPath>=10&&walkable(level,dest)
+                &&(npc.getNavigation().isDone()||!dest.equals(npc.getNavigation().getTargetPos()))){
                 var path=npc.getNavigation().createPath(dest,0);
                 if(path!=null&&path.canReach())npc.getNavigation().moveTo(path,.9);
                 run.lastPath=now;
@@ -194,7 +199,9 @@ public final class NpcResourceService {
             if(run.index==0){MINES.remove(npc);npc.getNavigation().stop();npc.updateDisplayItem();return false;}
             run.index=Math.max(0,run.index-1);run.lastStep=now;return true;
         }
-        if(run.index<route.size()-1){run.index++;run.lastStep=now;return true;}
+        // Search the final four stations, not just the end of the ramp. Each
+        // reachable vein still requires the existing line-of-sight and real loot transaction.
+        if(run.index<route.size()-4){run.index++;run.lastStep=now;return true;}
         npc.getNavigation().stop();
         if(run.work!=null){
             var work=run.work;
@@ -217,6 +224,7 @@ public final class NpcResourceService {
                 npc.swing(InteractionHand.MAIN_HAND);return true;
             }
         }
+        if(run.index<route.size()-1){run.index++;run.lastStep=now;return true;}
         returnMine(npc,run,route,now);return true;
     }
     private static void returnMine(CityNpc npc,MineRun run,List<GateMinePlan.Point> route,long now){
