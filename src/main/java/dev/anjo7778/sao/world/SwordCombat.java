@@ -56,7 +56,10 @@ public final class SwordCombat {
     private static Session session(LivingEntity e){return SESSIONS.computeIfAbsent(e,k->new Session());}
     private static void advance(Session s,LivingEntity actor,ServerLevel level){
         long time=now(level);s.clock.advance(time);
-        if(s.clock.phase()!=Phase.IDLE&&!s.same(actor,level))s.clock.cancel(time);
+        if(s.clock.phase()!=Phase.IDLE&&!s.same(actor,level)){
+            if(s.clock.phase()!=Phase.RECOVERY)s.clock.cancel(time);
+            s.capture(actor,level);
+        }
         if(s.clock.phase()!=Phase.WINDUP)s.target=null;
         if(s.clock.phase()!=Phase.DODGE)s.dodgeStart=null;
     }
@@ -89,7 +92,7 @@ public final class SwordCombat {
         if(s==null){if(!available)return;s=session(p);}
         advance(s,p,level);
         if(!available||!outside(p,level)){
-            if(s.clock.phase()!=Phase.IDLE)s.clock.cancel(now(level));
+            if(s.clock.phase()!=Phase.IDLE&&s.clock.phase()!=Phase.RECOVERY)s.clock.cancel(now(level));
             s.target=null;s.dodgeStart=null;
         }
         if(available&&s.target!=null&&s.clock.claimHit(now(level))){
