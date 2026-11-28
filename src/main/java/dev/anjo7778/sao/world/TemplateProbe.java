@@ -81,7 +81,38 @@ public final class TemplateProbe {
             }
             case 2 -> {
                 capture(c,"00-city-overview");
-                action(c,p->exterior(p,plots.get(index)));
+                action(c,p->{
+                    var level=p.serverLevel();
+                    var extra=CityFabric.infillPlot(1,0,1);
+                    require(extra!=null,"Missing boulevard infill");
+                    // Validate a complete new building, including chunk-crossing cells.
+                    verify(level,1,extra);
+                    LOG.info("SAO_DISTRICT_INFILL_OK floor=1 x={} z={}",extra.x(),extra.z());
+                    camera(p,0.5,101,35.5,1,101,76);
+                });
+                phase=13;
+            }
+            case 13 -> {
+                capture(c,"city-boulevard");
+                action(c,p->{
+                    var extra=CityFabric.infillPlot(1,0,1);
+                    camera(p,extra.x()+.5,97.1,extra.z()-3.5,extra.x()+.5,98,extra.z()+3);
+                });
+                phase=14;
+            }
+            case 14 -> {
+                capture(c,"infill-home-interior");
+                action(c,p->{
+                    // Compare exact template blocks and collision states in a normal street.
+                    var level=p.serverLevel();
+                    for(int x=-60;x<=60;x++){
+                        var pos=new BlockPos(x,CityPlan.GROUND+1,24);
+                        level.getChunk(x>>4,24>>4);
+                        require(level.getBlockState(pos).getCollisionShape(level,pos).isEmpty(),"Obstructed cross street at "+pos);
+                    }
+                    LOG.info("SAO_DISTRICT_STREET_OK");
+                    exterior(p,plots.get(index));
+                });
                 phase=3;
             }
             case 3 -> {
@@ -144,6 +175,10 @@ public final class TemplateProbe {
                     require(FloorTravel.request(p,2)==1,"Upper travel failed");
                     var upper=p.serverLevel();
                     verify(upper,2,CityPlan.plot(2,1,1));
+                    var extra=CityFabric.infillPlot(2,0,1);
+                    require(extra!=null,"Missing upper boulevard infill");
+                    verify(upper,2,extra);
+                    LOG.info("SAO_DISTRICT_INFILL_OK floor=2 x={} z={}",extra.x(),extra.z());
                     LOG.info("SAO_TEMPLATE_UPPER_OK");
                     LOG.info("SAO_TEMPLATE_PROBE_PASS");
                 });phase=9;
@@ -171,7 +206,7 @@ public final class TemplateProbe {
         p.setDeltaMovement(0,0,0);p.fallDistance=0;
     }
     private static void verify(ServerLevel level,long floor,CityPlan.Plot plot){
-        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_TEMPLATES_V2:FloorTravel.UPPER_CITY_TEMPLATES_V2),"Wrong template generator");
+        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_DISTRICTS:FloorTravel.UPPER_CITY_DISTRICTS),"Wrong template generator");
         var model=BuildingTemplates.forPlot(plot);
         var center=FloorLayout.center(floor);
         int x0=center.x()+plot.x(),z0=center.z()+plot.z(),y0=CityPlan.GROUND;

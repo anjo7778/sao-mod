@@ -328,3 +328,11 @@ tasks.register('verifyBuildingTemplates', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.BuildingTemplateChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyBuildingTemplates') }
+
+tasks.register('verifyCityFabric', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.CityFabricChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyCityFabric') }

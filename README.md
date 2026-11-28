@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.10.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.11.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.10 |
+| Mod version | 0.2.11 |
 
 ## Local builds (optional)
 
@@ -108,3 +108,7 @@ New Aincrad worlds select immutable, versioned, text-layer blueprints for eight 
 ## v0.2.10 lighting and inn layout revision
 
 New worlds select fixed v2 blueprints. Existing v1 files and generator keys remain unchanged. The inn gains five separated sleeping alcoves, a common room and reception counter; all models receive supported lighting based on a conservative air-only propagation check. No resource pack required. Actual runtime visual approval remains pending; the city grid is still too spacious for the intended final capital.
+
+## v0.2.11 compact capital districts
+
+New Aincrad worlds use versioned district generation with additional cottage/townhouse infill, narrower contrasting road surfaces, side alleys and paved neighborhood courts. All reused building layers are unchanged v2 models. Existing primary plot identities, service destinations, gates, spawn and cross-street geometry are preserved; secondary homes do not yet add NPC residents. Original v1/v2 generator settings and files remain frozen. Geometric/route checks and actual Minecraft inspection required; this is a denser grid, not yet a fully organic city.

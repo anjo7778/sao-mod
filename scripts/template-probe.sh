@@ -16,8 +16,11 @@ while ((SECONDS<deadline)); do
             grep -q "SAO_TEMPLATE_MODEL_OK floor=1 style=$style " "$log"
         done
         grep -q 'SAO_TEMPLATE_UPPER_OK' "$log"
+        grep -q 'SAO_DISTRICT_INFILL_OK floor=1' "$log"
+        grep -q 'SAO_DISTRICT_INFILL_OK floor=2' "$log"
+        grep -q 'SAO_DISTRICT_STREET_OK' "$log"
         test -s run-templates/template-probe/inn-sleeping-alcove.png
-        test "$(find run-templates/template-probe -name '*.png' | wc -l)" -eq 19
+        test "$(find run-templates/template-probe -name '*.png' | wc -l)" -eq 21
         grep 'SAO_TEMPLATE_' "$log"
         exit 0
     fi
