@@ -73,6 +73,12 @@ neoForge {
             systemProperty 'sao.deepMineProbe', 'true'
         }
 
+        supplyProbe {
+            client()
+            gameDirectory = project.file('run-supply')
+            systemProperty 'sao.supplyProbe', 'true'
+        }
+
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
@@ -370,3 +376,5 @@ tasks.register('verifyRegionalSettlements', JavaExec) {
 tasks.named('check') { dependsOn tasks.named('verifyRegionalSettlements') }
 
 tasks.named('jar') { exclude('**/DeepMineProbe.class') }
+
+tasks.named('jar') { exclude('**/SupplyProbe.class') }
