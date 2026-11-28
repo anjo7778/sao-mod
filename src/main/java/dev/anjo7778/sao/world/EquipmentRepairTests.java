@@ -56,4 +56,37 @@ public final class EquipmentRepairTests {
         helper.assertTrue(loaded.wallet(buyer).col()==12&&loaded.goodsReceipts(smith.id())==88,"Repair income and expense persist");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void paidMaterialDeliveryReplay(GameTestHelper helper){
+        var pop=new NpcPopulationData();pop.discover(1,42);
+        long time=6000;
+        var buyer=pop.roster(1).stream().filter(s->HuntContract.melee(s.profile())&&!NpcRoutine.resting(s.profile(),time)).findFirst().orElseThrow().profile();
+        var smith=pop.roster(1).stream().filter(s->s.profile().occupation()==Occupation.BLACKSMITH
+            &&NpcDailyPlan.at(s,time).activity()==NpcDailyPlan.Activity.WORK).findFirst().orElseThrow().profile();
+        var original=NativeSteelSword.forged(CraftQuality.STANDARD,smith.id(),smith.name());
+        helper.assertTrue(pop.buyGoods(1,buyer.id(),smith.id(),original,32,time,1),"Equipment sale funds actual smith");
+        var supplies=new NpcSupplyData();var stock=new SimpleContainer(27);
+        var cargo=supplies.candidate(buyer.id(),1,smith.id())
+            .gather(GateProspects.Resource.IRON,12);
+        supplies.store(buyer.id(),cargo);
+        var after=NpcForgeWorkshop.copy(stock);
+        helper.assertTrue(NpcResourceService.deposit(after,cargo),"Real material transfer fits");
+        helper.assertTrue(pop.settleDelivery(supplies,1,buyer.id(),cargo),"Funded delivery accepted");
+        NpcForgeWorkshop.apply(stock,after);
+        helper.assertTrue(pop.wallet(buyer).col()==92&&pop.supplierBudget(smith.id())==8,"24 Col moved from existing receipts");
+        helper.assertTrue(stock.getItem(0).getCount()==12&&supplies.cargo(buyer.id()).size()==0,"Exact material transfer");
+        helper.assertFalse(pop.settleDelivery(supplies,1,buyer.id(),cargo),"Old cargo cannot replay");
+        var second=supplies.cargo(buyer.id()).gather(GateProspects.Resource.IRON,12);
+        supplies.store(buyer.id(),second);
+        after=NpcForgeWorkshop.copy(stock);
+        helper.assertTrue(NpcResourceService.deposit(after,second),"Second delivery fits");
+        helper.assertTrue(pop.settleDelivery(supplies,1,buyer.id(),second),"Partially funded second delivery");
+        NpcForgeWorkshop.apply(stock,after);
+        helper.assertTrue(stock.getItem(0).getCount()==24&&pop.wallet(buyer).col()==100&&pop.supplierBudget(smith.id())==0,"No currency minted");
+        var regs=helper.getLevel().registryAccess();
+        var loaded=NpcPopulationData.load(pop.save(new CompoundTag(),regs),regs);
+        helper.assertTrue(loaded.wallet(buyer).materialEarned()==32&&loaded.supplierPayments(smith.id())==32,"Balanced income survives reload");
+        helper.succeed();
+    }
 }
