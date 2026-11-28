@@ -81,9 +81,9 @@ public final class CityArchitecture {
         }
         // An open monumental arch north of the spawn ring, not a blocking portal at spawn.
         if(z>=-29&&z<=-27&&ax<=9){
+            if(y==6&&ax==7&&z==-27)return Piece.LIGHT;
             if(ax>=7&&y<=7)return y==1||y==7?Piece.TRIM:Piece.MASONRY;
             if(y==8||y==9&&ax<=7||y==10&&ax<=4)return y==8?Piece.TRIM:Piece.MASONRY;
-            if(y==6&&ax==7&&z==-27)return Piece.LIGHT;
         }
         if(ax==18&&az==28)return y<=3?Piece.POST:y==4?Piece.LIGHT:Piece.AIR;
         return Piece.AIR;
@@ -128,7 +128,10 @@ public final class CityArchitecture {
         int ax=Math.abs(dx),az=Math.abs(dz),e=eaves(p),roofY=roofY(p,dx,dz);
         Style style=style(p);
         boolean masonry=style==Style.FORGE||style==Style.GUILDHALL||style==Style.QUEST_HALL;
-        boolean edge=ax==p.width()||az==p.depth();
+        int x=p.x()+dx,z=p.z()+dz;
+        boolean clippedX=Math.abs(z)<=PLAZA&&(Math.abs(x-1)<=PLAZA||Math.abs(x+1)<=PLAZA);
+        boolean clippedZ=Math.abs(x)<=PLAZA&&(Math.abs(z-1)<=PLAZA||Math.abs(z+1)<=PLAZA);
+        boolean edge=ax==p.width()||az==p.depth()||clippedX||clippedZ;
         boolean chimney=(style==Style.FORGE||style==Style.INN||style==Style.COTTAGE||style==Style.TOWNHOUSE)
             &&dx>=p.width()-4&&dx<=p.width()-3&&dz>=p.depth()-4&&dz<=p.depth()-3;
         if(y==0)return Piece.FLOOR;
