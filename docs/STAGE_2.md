@@ -224,3 +224,7 @@ v0.2.38 compiled and passed 31 GameTests. Added real material-funded self forge 
 ## v0.2.40 stocked workshop candidate
 
 v0.2.39 real forge/self/NPC/persistence passed, 32 required GameTests passed, 3D model test failed; corrected inherited generated model. Real advanced ore generation passed, loot and mastery event passed, final drop entity test pending. Add exact assigned workplace supply/output barrels, native real furnace loading/collection, maker-tagged actual sword stock production, no fake materials. Real NPC mining and delivering stock remain pending; tests added for native furnace chain and resource conservation.
+
+## v0.2.41 verification update
+
+Full materials and 3D forge client probes passed. v0.2.40 all 33 GameTests passed. Correct commission access to assigned generated forge anvil; extend real native furnace production test to raw iron rather than pre-refined iron. Full generated-site autonomous tick probe pending.

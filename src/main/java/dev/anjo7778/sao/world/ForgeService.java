@@ -104,7 +104,12 @@ public final class ForgeService {
         }
         var state=NpcPopulationData.get(level.getServer()).state(smith.originFloor(),smith.getUUID());
         var current=state==null?null:NpcDailyPlan.at(state,level.getDayTime());
-        var anvil=anvilNear(level,smith.blockPosition());
+        // Use the real assigned forge first; the anvil is farther from the scheduled
+        // work marker than a generic short-radius scan allows.
+        var assigned=NpcForgeWorkshop.fixtures(profile).anvil();
+        var anvil=level.hasChunkAt(assigned)&&level.getBlockState(assigned).is(BlockTags.ANVIL)
+            &&CityRules.isSafeZone(level,assigned.getX(),assigned.getZ())
+            ?assigned:anvilNear(level,smith.blockPosition());
         if(current==null||current.activity()!=NpcDailyPlan.Activity.WORK||!smith.matchesPlan(current)||!smith.atScheduledDestination()
             ||anvil==null||!furnaceNear(level,anvil)){
             feedback(p,Outcome.UNAVAILABLE);return Outcome.UNAVAILABLE;

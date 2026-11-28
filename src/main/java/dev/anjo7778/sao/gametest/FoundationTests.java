@@ -749,7 +749,8 @@ public final class FoundationTests {
         helper.succeed();
     }
 
-    @GameTest(template="empty",timeoutTicks=520)
+
+    @GameTest(template="empty",timeoutTicks=720)
     public static void autonomousStockedForge(GameTestHelper helper){
         var level=helper.getLevel();
         var state=dev.anjo7778.sao.simulation.NpcRoster.generate(42,1).stream()
@@ -761,18 +762,26 @@ public final class FoundationTests {
         var furnace=(net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity)level.getBlockEntity(pos);
         var smith=state.profile();
         helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.IDLE,"Empty workshop cannot conjure materials");
-        stock.setItem(0,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_INGOT,2));
+        stock.setItem(0,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.RAW_IRON,2));
         stock.setItem(1,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL,5));
         stock.setItem(2,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK));
-        helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.BLEND,"Real bloom blend");
-        helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.LOADED,"Real furnace input");
+        helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.LOADED,"Real raw iron input");
         helper.runAfterDelay(110,()->{
-            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual first ingot");
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual first iron ingot");
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.BLEND,"Real bloom blend");
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.LOADED,"Real steel furnace input");
+        });
+        helper.runAfterDelay(225,()->{
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual first steel ingot");
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.LOADED,"Second raw iron input");
+        });
+        helper.runAfterDelay(340,()->{
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual second iron ingot");
             helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.BLEND,"Second real blend");
             helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.LOADED,"Second real furnace input");
         });
-        helper.runAfterDelay(230,()->{
-            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual second ingot");
+        helper.runAfterDelay(455,()->{
+            helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.COLLECTED,"Collect actual second steel ingot");
             helper.assertTrue(dev.anjo7778.sao.world.NpcForgeWorkshop.process(level,smith,stock,output,furnace)==dev.anjo7778.sao.world.NpcForgeWorkshop.Result.FORGED,"Forge one actual blade");
             int blades=0;for(int i=0;i<output.getContainerSize();i++)if(output.getItem(i).is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get()))blades+=output.getItem(i).getCount();
             helper.assertTrue(blades==1,"Exactly one finished sword");
