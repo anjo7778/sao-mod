@@ -1,6 +1,9 @@
 package dev.anjo7778.sao.client;
 
 import dev.anjo7778.sao.network.ProfileNetwork;
+import dev.anjo7778.sao.network.CombatNetwork;
+import dev.anjo7778.sao.simulation.SwordActions;
+import dev.anjo7778.sao.simulation.SwordActions.Skill;
 import dev.anjo7778.sao.simulation.CharacterProgress.Attribute;
 import dev.anjo7778.sao.simulation.CharacterProgress.Mastery;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,6 +22,7 @@ public final class AincradMenu extends Screen {
     private static final int[][] PAGE_ICON={{3,8,9,10},{4,12,3},{5},{13,11,14},{7}};
     private static final int INK=0xff45484b,FAINT=0xff737c82,WHITE=0xfffafcfc,PALE=0xd9f3f8f8,EDGE=0xd9bac1c5,ORANGE=0xffe2a126,GOLD=0xffffd582,SHADOW=0x35505b61;
     private int group,page,age,slide,scroll,closing=-1;
+    private boolean weaponMasteryView;
     private Attribute pendingAttribute;
     private long pendingValue,pendingPoints;
     private int pendingAge;
@@ -97,7 +101,10 @@ public final class AincradMenu extends Screen {
         if(!real){p.text("Awaiting profile...",x+7,y+32,FAINT,w-14);return;}
         if(group==0&&page==0)character(p,s,x,y,w,mx,my);
         else if(group==0&&page==1)equipment(p,x,y,w,mx,my);
-        else if(group==0&&(page==2||page==3))mastery(p,s,x,y,w,page==3);
+        else if(group==0&&page==2){
+            if(weaponMasteryView){mastery(p,s,x,y,w,false);masteryToggle(p,x,y,w,mx,my,"Sword skills");}
+            else swordSkills(p,s,x,y,w,mx,my);
+        }else if(group==0&&page==3)mastery(p,s,x,y,w,true);
         else{p.text("Not available yet",x+7,y+35,INK,w-14);p.text("In development",x+7,y+49,FAINT,w-14);}
     }
     private static void navigation(Painter p,int group,int page,double mx,double my){
@@ -170,10 +177,59 @@ public final class AincradMenu extends Screen {
         p.rect(x+7,y+154,w-14,14,inside(mx,my,x+7,y+154,w-14,14)?ORANGE:0xffdce6e7);
         center(p,"Manage inventory",x+7,y+156,w-14,INK);
     }
+    // Two visual progression columns. Actual unlocks are the existing mastery
+    // requirements; links do not invent additional skill-point prerequisites.
+    private static final Skill[] SWORD_NODES={Skill.HORIZONTAL,Skill.SLANT,
+        Skill.HORIZONTAL_SQUARE,Skill.VERTICAL,Skill.SONIC_LEAP,Skill.VERTICAL_SQUARE};
+    private static final int NODE_W=64,NODE_H=29,NODE_DX=68,NODE_DY=34,NODE_Y=39;
+    private static int nodeX(int x,int i){return x+7+(i%2)*NODE_DX;}
+    private static int nodeY(int y,int i){return y+NODE_Y+(i/2)*NODE_DY;}
+    private CombatNetwork.Snapshot combat(){
+        var snapshot=CombatNetwork.snapshot();
+        return snapshot!=null&&minecraft!=null&&minecraft.player!=null
+            &&snapshot.owner().equals(minecraft.player.getUUID())?snapshot:null;
+    }
+    private static void masteryToggle(Painter p,int x,int y,int w,double mx,double my,String title){
+        p.rect(x+7,y+157,w-14,13,inside(mx,my,x+7,y+157,w-14,13)?ORANGE:0xffdce6e7);
+        center(p,title,x+7,y+159,w-14,INK);
+    }
+    private void swordSkills(Painter p,ProfileNetwork.Snapshot s,int x,int y,int w,double mx,double my){
+        long level=s.mastery(Mastery.SWORD);var combat=combat();
+        Skill selected=combat==null?null:Skill.fromIndex(combat.selectedSkill());
+        p.text("SWORD MASTERY  "+level,x+7,y+26,FAINT,w-14);
+        // Horizontal branch and diagonal/vertical branch; Sonic Leap is independent.
+        for(int i:new int[]{0,1,3}){
+            int bx=nodeX(x,i)+NODE_W/2;
+            p.rect(bx,nodeY(y,i)+NODE_H,1,NODE_DY-NODE_H,EDGE);
+        }
+        Skill hovered=null;
+        for(int i=0;i<SWORD_NODES.length;i++){
+            Skill skill=SWORD_NODES[i];int bx=nodeX(x,i),by=nodeY(y,i);
+            boolean unlocked=skill.unlocked(level),active=skill==selected,hover=inside(mx,my,bx,by,NODE_W,NODE_H);
+            if(hover)hovered=skill;
+            p.rect(bx,by,NODE_W,NODE_H,active?ORANGE:EDGE);
+            p.rect(bx+1,by+1,NODE_W-2,NODE_H-2,unlocked?(hover?0xfff9e8bd:0xffe9f2f2):0xffd0d6d7);
+            String title=label(skill.name());
+            if(skill==Skill.HORIZONTAL_SQUARE||skill==Skill.VERTICAL_SQUARE){
+                int split=title.indexOf(' ');p.text(title.substring(0,split),bx+3,by+3,INK,NODE_W-6);
+                p.text("Square",bx+3,by+12,INK,NODE_W-6);
+            }else{
+                p.text(title,bx+3,by+3,INK,NODE_W-6);
+                p.text(skill.move.cost+" STA",bx+3,by+12,FAINT,NODE_W-6);
+            }
+            p.text(active?"Selected":unlocked?"Learned":"Lv. "+skill.mastery,bx+3,by+21,active?0xff8d5c0a:FAINT,NODE_W-6);
+        }
+        String detail=hovered!=null?hovered.move.cost+" STA / "+(hovered.cooldown/20.0)+"s"
+            :combat==null||!combat.available()?"Equip one sword to select":selected==null?"Select a learned skill":"R: "+label(selected.name());
+        p.text(detail,x+7,y+141,FAINT,w-14);
+        masteryToggle(p,x,y,w,mx,my,"Weapon mastery");
+    }
     private void mastery(Painter p,ProfileNetwork.Snapshot s,int x,int y,int w,boolean profession){
         var list=Arrays.stream(Mastery.values()).filter(m->(m.ordinal()>=Mastery.BLACKSMITHING.ordinal())==profession).toList();
         scroll=Math.max(0,Math.min(scroll,Math.max(0,list.size()-10)));p.text(profession?"PROFESSION MASTERY":"WEAPON MASTERY",x+7,y+26,FAINT,w-14);
-        for(int i=0;i<10&&i+scroll<list.size();i++){
+        int rows=profession?10:9;
+        scroll=Math.max(0,Math.min(scroll,Math.max(0,list.size()-rows)));
+        for(int i=0;i<rows&&i+scroll<list.size();i++){
             var m=list.get(i+scroll);int ry=y+40+i*12;
             p.text(label(m.name()),x+7,ry,INK,w-64);String v=s.experience(m)==0?"Untrained":"Lv "+s.mastery(m);
             p.text(v,x+w-7-p.width(v),ry,FAINT,58);if(s.experience(m)>0)p.rect(x+7,ry+10,w-14,1,EDGE);
@@ -201,8 +257,23 @@ public final class AincradMenu extends Screen {
         }
         if(group==4)for(int i=0;i<5;i++)if(inside(mx,my,228,46+i*25,133,16)){MenuPreferences.cycle(i);AincradSounds.play(AincradSounds.Cue.SELECT);return true;}
         var s=ProfileNetwork.clientSnapshot();
+        if(group==0&&page==2&&s!=null&&s.available()){
+            if(inside(mx,my,228,167,133,13)){weaponMasteryView=!weaponMasteryView;scroll=0;AincradSounds.play(AincradSounds.Cue.SELECT);return true;}
+            if(!weaponMasteryView)for(int i=0;i<SWORD_NODES.length;i++){
+                if(!inside(mx,my,nodeX(221,i),nodeY(10,i),NODE_W,NODE_H))continue;
+                var skill=SWORD_NODES[i];var combat=combat();
+                if(!skill.unlocked(s.mastery(Mastery.SWORD))){
+                    minecraft.player.displayClientMessage(Component.translatable("message.sao.control.mastery",skill.mastery),true);
+                }else if(combat==null||!combat.available()){
+                    minecraft.player.displayClientMessage(Component.translatable("message.sao.control.equip"),true);
+                }else{
+                    CombatNetwork.intent(5,skill.ordinal());AincradSounds.play(AincradSounds.Cue.SELECT);
+                }
+                return true;
+            }
+        }
         if(group==0&&page==0&&s!=null&&s.available()&&s.unspent()>0)for(var a:Attribute.values())if(inside(mx,my,351,76+a.ordinal()*12,12,11)){pendingAttribute=a;pendingValue=s.attribute(a);pendingPoints=s.unspent();pendingAge=age;ProfileNetwork.allocate(a);return true;}
         return super.mouseClicked(x,y,button);
     }
-    @Override public boolean mouseScrolled(double mx,double my,double sx,double sy){if(group==0&&(page==2||page==3)){scroll=Math.max(0,scroll+(sy<0?1:sy>0?-1:0));return true;}return super.mouseScrolled(mx,my,sx,sy);}
+    @Override public boolean mouseScrolled(double mx,double my,double sx,double sy){if(group==0&&(page==3||page==2&&weaponMasteryView)){scroll=Math.max(0,scroll+(sy<0?1:sy>0?-1:0));return true;}return super.mouseScrolled(mx,my,sx,sy);}
 }
