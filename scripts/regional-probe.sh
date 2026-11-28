@@ -14,8 +14,10 @@ while ((SECONDS<deadline)); do
         for floor in 1 2; do
             for kind in MARKET_TOWN LODGING_VILLAGE CRAFTS_VILLAGE EXPEDITION_REFUGE; do
                 grep -q "SAO_REGIONAL_SITE_OK floor=$floor kind=$kind " "$log"
+                grep -q "SAO_REGIONAL_NPCS_OK floor=$floor kind=$kind " "$log"
             done
         done
+        grep -q "SAO_REGIONAL_MOVEMENT_OK " "$log"
         test "$(find run-regional/regional-probe -name '*.png' | wc -l)" -eq 16
         grep 'SAO_REGIONAL_' "$log"
         exit 0

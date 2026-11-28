@@ -14,7 +14,7 @@ public final class CitySocial {
     public static void tick(PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer player)||!player.isAlive()||player.isSpectator()||player.tickCount%PERIOD!=0)return;
         var level=player.serverLevel();
-        if(!CityRules.isCity(level,player.getBlockX(),player.getBlockZ()))return;
+        if(!CityRules.isSafeZone(level,player.getBlockX(),player.getBlockZ()))return;
         long floor=FloorTravel.currentFloor(level,player.getBlockX(),player.getBlockZ());
         var data=NpcPopulationData.get(level.getServer());
         List<CityNpc> actors=level.getEntitiesOfClass(CityNpc.class,player.getBoundingBox().inflate(36),

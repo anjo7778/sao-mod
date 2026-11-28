@@ -14,6 +14,8 @@ public final class NpcDailyPlan {
         int key=p.id().hashCode();
         long day=Math.floorMod(time,24000L);
         Point home=new Point(p.homeX()+3,p.homeZ()-3);
+        var region=p.regionalHome();
+        if(region!=null)return RegionalNpcRoutine.plan(state,time,region);
         Point plaza=new Point(Math.floorMod(key,43)-21,Math.floorMod((int)(p.id().getMostSignificantBits()>>>16),43)-21);
         if(state.needs().health()<35 || NpcRoutine.resting(p,time)) return new Plan(Activity.REST,home);
         if(p.occupation()!=Occupation.ADVENTURER){

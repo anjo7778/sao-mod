@@ -42,6 +42,27 @@ public final class RegionalSettlementChecks {
                 for(int i=0;i<size;i++){
                     check(seen[s.half()*size+i]&&seen[i*size+s.half()],"Main road blocked");
                 }
+                var roster=NpcRoster.generateRegional(42,floor,s.kind());
+                check(roster.size()==buildings.size()&&roster.equals(NpcRoster.generateRegional(42,floor,s.kind())),"Stable regional identities");
+                for(var resident:roster){
+                    check(s.equals(resident.profile().regionalHome())&&resident.profile().occupation()!=NpcRoster.Occupation.ADVENTURER,"Local resident");
+                    for(long time:new long[]{0,6000,12000,18000}){
+                        var plan=NpcDailyPlan.at(resident,time);
+                        var dest=plan.destination();
+                        check(clear(s,buildings,dest.x(),dest.z()),"Blocked resident destination");
+                        var home=new NpcDailyPlan.Point(resident.profile().homeX()+3,resident.profile().homeZ()-3);
+                        var route=RegionalNpcRoutine.route(s,home,dest);
+                        check(home.equals(dest)?route.isEmpty():!route.isEmpty()&&route.getLast().equals(dest),"Regional route endpoint");
+                        var last=home;
+                        for(var p:route){
+                            int dx=p.x()-last.x(),dz=p.z()-last.z();
+                            check((dx==0||dz==0)&&Math.abs(dx)+Math.abs(dz)<=10,"Regional route length");
+                            for(int step=1;step<=Math.abs(dx)+Math.abs(dz);step++)
+                                check(clear(s,buildings,last.x()+Integer.signum(dx)*step,last.z()+Integer.signum(dz)*step),"Regional waypoint obstructed");
+                            last=p;
+                        }
+                    }
+                }
                 placements+=buildings.size();paths+=tail;count++;
             }
         }

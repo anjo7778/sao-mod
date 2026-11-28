@@ -90,7 +90,8 @@ public final class SaoCommands {
                 var center=dev.anjo7778.sao.simulation.FloorLayout.center(floor);
                 for(var s:dev.anjo7778.sao.simulation.RegionalSettlements.sites(floor)){
                     int x=center.x()+s.x(),z=center.z()+s.z();
-                    ctx.getSource().sendSuccess(()->Component.literal(s.name()+" | Floor "+floor+" | x="+x+" z="+z+" | "+s.kind().name()),false);
+                    var roster=NpcPopulationData.get(level.getServer()).regionalRoster(floor,s.kind());
+                    ctx.getSource().sendSuccess(()->Component.literal(s.name()+" | Floor "+floor+" | x="+x+" z="+z+" | "+s.kind().name()+" | "+(roster.isEmpty()?"unvisited":roster.size()+" saved residents")),false);
                 }
                 return 1;
             }))

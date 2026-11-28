@@ -104,3 +104,11 @@ Four deterministic hubs per floor: market town (8 buildings), three villages/ref
 ## v0.2.16 regional edge candidate
 
 v0.2.15 build [46089487855](https://github.com/anjo7778/sao-mod/actions/runs/46089487855) passed; client [46089542911](https://github.com/anjo7778/sao-mod/actions/runs/46089542911) failed a road/foundation assertion at (-1040,97,0), the west boundary of Ironbrook. The failure did not distinguish obstruction from ground loss. A two-chunk decoration-free biome buffer is a targeted candidate for neighboring vanilla feature spillover; not a confirmed diagnosis or a guarantee against modded features. New presets opt in via a serialized optional flag (legacy defaults false); noise settings, safe-zone bounds, authored templates and existing chunks are unchanged. Geometry checks cover exact buffer boundaries. Repeat the actual client test without weakening any road or template assertion. Regional services remain deferred until runtime verification.
+
+## v0.2.16 runtime acceptance
+
+[Build 46089893175](https://github.com/anjo7778/sao-mod/actions/runs/46089893175) and [client 46089919130](https://github.com/anjo7778/sao-mod/actions/runs/46089919130) passed. All eight actual settlements on Floors 1 and 2: 324,856 exact template states, 40 entrance paths, exact cobblestone road/air checks, safety and decoration buffer checks, 16 screenshots. This is structural/runtime acceptance, not new artistic approval; screenshots not inspected in this continuation.
+
+## v0.2.17 regional resident candidate
+
+Discover a separate roster on visiting an unlocked regional site: 8 market-town residents and 4 per village/refuge (20 per fully visited floor). One identity per actual building, independent ID namespace, unchanged capital IDs and capital-only adventure ledgers. Schema 3 reads schemas 1 and 2 with no invented regional discovery. Local mixed work/rest/social schedules, bounded geometry-aware routes and existing loaded-only projection budget. Local reciprocal memories reuse existing social rules but cross-site exchanges are refused. No real service inventory, paid transactions, offline resident activity, new adventurer rosters or intersettlement travel. Verify real regional NPC presence, movement, dialogue and save/reload before acceptance.

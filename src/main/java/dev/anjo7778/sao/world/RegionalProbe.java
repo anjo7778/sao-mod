@@ -36,6 +36,9 @@ public final class RegionalProbe{
     private static int phase,ticks,index;
     private static long floor=1;
     private static CompletableFuture<Void> pending;
+    private static UUID observedResident;
+    private static double startX,startZ;
+    private static NpcDailyPlan.Plan observedPlan;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!ENABLED||phase==5)return;
         var c=Minecraft.getInstance();
@@ -54,7 +57,7 @@ public final class RegionalProbe{
         }
         if(pending!=null){if(!pending.isDone())return;pending.join();pending=null;}
         if(c.screen!=null||c.player==null||c.level==null||c.getSingleplayerServer()==null){ticks=0;return;}
-        if(++ticks<100)return;ticks=0;
+        if(++ticks<(phase==4?650:150))return;ticks=0;
         switch(phase){
             case 1 -> {
                 require(Math.abs(c.player.getX())<=16&&Math.abs(c.player.getZ())<=16,"Capital spawn lost");
@@ -79,6 +82,18 @@ public final class RegionalProbe{
             case 3 -> {
                 var site=RegionalSettlements.sites(floor).get(index);
                 capture(c,"floor-"+floor+"-"+site.kind().name().toLowerCase(Locale.ROOT)+"-street");
+                boolean movement=floor==1&&index==0;
+                action(c,p->{
+                    verifyResidents(p,site);
+                    if(movement)startMovement(p,site);
+                });
+                if(movement){phase=4;}else{phase=6;}
+            }
+            case 4 -> {
+                action(c,p->finishMovement(p));
+                phase=6;
+            }
+            case 6 -> {
                 index++;
                 if(index<4){
                     action(c,p->overview(p,RegionalSettlements.sites(floor).get(index)));phase=2;
@@ -148,6 +163,51 @@ public final class RegionalProbe{
                 "Road obstruction or foundation gap "+pos+" feet="+feet+" head="+head+" base="+base);
         }
         LOG.info("SAO_REGIONAL_SITE_OK floor={} kind={} cells={} paths={} safe=true",floor,site.kind(),cells,paths);
+    }
+    private static List<CityNpc> residents(ServerPlayer p,RegionalSettlements.Site site){
+        return p.serverLevel().getEntitiesOfClass(CityNpc.class,p.getBoundingBox().inflate(100),
+            e->e.isAlive()&&e.originFloor()==floor&&site.equals(Optional.ofNullable(NpcPopulationData.get(p.serverLevel().getServer()).state(floor,e.getUUID())).map(s->s.profile().regionalHome()).orElse(null)));
+    }
+    private static void verifyResidents(ServerPlayer p,RegionalSettlements.Site site){
+        var data=NpcPopulationData.get(p.serverLevel().getServer());var roster=data.regionalRoster(floor,site.kind());
+        require(roster.size()==RegionalSettlements.buildings(site).size(),"Regional roster not discovered");
+        var actors=residents(p,site);
+        require(!actors.isEmpty()&&actors.size()<=roster.size(),"No local NPC projections or duplicate population");
+        var ids=new HashSet<UUID>();
+        for(var actor:actors){
+            require(ids.add(actor.getUUID()),"Duplicate projected identity");
+            require(data.state(floor,actor.getUUID())!=null,"No authoritative resident record");
+        }
+        var regs=p.serverLevel().registryAccess();
+        var restored=NpcPopulationData.load(data.save(new net.minecraft.nbt.CompoundTag(),regs),regs);
+        require(restored.regionalRoster(floor,site.kind()).equals(roster),"Regional roster round trip");
+        LOG.info("SAO_REGIONAL_NPCS_OK floor={} kind={} profiles={} actors={}",floor,site.kind(),roster.size(),actors.size());
+    }
+    private static void startMovement(ServerPlayer p,RegionalSettlements.Site site){
+        var level=p.serverLevel();var data=NpcPopulationData.get(level.getServer());var center=FloorLayout.center(floor);
+        for(var actor:residents(p,site)){
+            var state=data.state(floor,actor.getUUID());
+            var plan=NpcDailyPlan.at(state,11500);
+            if(!actor.activity().equals("WORK")||plan.activity()!=NpcDailyPlan.Activity.SOCIALIZE||
+                actor.distanceToSqr(center.x()+plan.destination().x()+.5,CityPlan.GROUND+1,center.z()+plan.destination().z()+.5)<20*20)continue;
+            observedResident=actor.getUUID();startX=actor.getX();startZ=actor.getZ();observedPlan=plan;
+            level.setDayTime(11500);return;
+        }
+        throw new IllegalStateException("No work-to-social resident fixture among naturally projected actors");
+    }
+    private static void finishMovement(ServerPlayer p){
+        var level=p.serverLevel();var center=FloorLayout.center(floor);
+        require(level.getEntity(observedResident) instanceof CityNpc,"Regional resident vanished during route");
+        var actor=(CityNpc)level.getEntity(observedResident);
+        double moved=Math.hypot(actor.getX()-startX,actor.getZ()-startZ);
+        double remaining=Math.hypot(actor.getX()-(center.x()+observedPlan.destination().x()+.5),actor.getZ()-(center.z()+observedPlan.destination().z()+.5));
+        require(actor.matchesPlan(observedPlan)&&moved>=12&&remaining<=8,"Regional schedule movement failed moved="+moved+" remaining="+remaining);
+        // Direct server interaction fixture: exercise the actual greeting handler, not a fake memory insertion.
+        var data=NpcPopulationData.get(level.getServer());var before=data.state(floor,observedResident);
+        actor.interact(p,net.minecraft.world.InteractionHand.MAIN_HAND);
+        var after=data.state(floor,observedResident);
+        require(after.memories().size()>before.memories().size(),"Regional greeting did not persist");
+        LOG.info("SAO_REGIONAL_MOVEMENT_OK moved={} remaining={} greeting=true",moved,remaining);
     }
     private static void camera(ServerPlayer p,double x,double y,double z,float yaw,float pitch){
         p.getAbilities().flying=true;p.onUpdateAbilities();

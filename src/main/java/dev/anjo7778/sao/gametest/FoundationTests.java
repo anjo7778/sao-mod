@@ -300,4 +300,32 @@ public final class FoundationTests {
         helper.assertFalse(restored.relocate(1,2,id,26,2),"No duplicate migration");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void regionalPopulationPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();
+        var market=dev.anjo7778.sao.simulation.RegionalSettlements.Kind.MARKET_TOWN;
+        var village=dev.anjo7778.sao.simulation.RegionalSettlements.Kind.CRAFTS_VILLAGE;
+        helper.assertTrue(pop.discoverRegional(1,market,42),"Discover market");
+        helper.assertFalse(pop.discoverRegional(1,market,42),"No duplicate discovery");
+        helper.assertTrue(pop.roster(1).isEmpty()&&pop.discoveredCapitals()==0,"Village does not discover capital");
+        pop.discoverRegional(1,village,42);pop.discover(1,42);
+        var residents=pop.regionalRoster(1,market);
+        helper.assertTrue(residents.size()==8&&pop.regionalRoster(1,village).size()==4&&pop.roster(1).size()==148,"Separate populations");
+        var a=residents.getFirst();
+        helper.assertTrue(pop.state(1,a.profile().id()).equals(a),"Identity lookup");
+        helper.assertTrue(pop.converse(1,a.profile().id(),pop.regionalRoster(1,village).getFirst().profile().id(),1).isEmpty(),"Cross-site exchange refused");
+        helper.assertTrue(pop.converse(1,a.profile().id(),pop.roster(1).getFirst().profile().id(),1).isEmpty(),"Cross-capital exchange refused");
+        var n=a.needs();
+        helper.assertTrue(pop.updateNeeds(1,a.profile().id(),new dev.anjo7778.sao.simulation.AdventurerMind.Needs(90,n.supplies(),n.equipment(),n.partyReadiness(),n.danger())),"Regional needs update");
+        boolean talked=false;
+        for(var first:residents)for(var second:residents)if(!talked&&pop.converse(1,first.profile().id(),second.profile().id(),2).isPresent())talked=true;
+        helper.assertTrue(talked,"Regional reciprocal memory");
+        var regs=helper.getLevel().registryAccess();var tag=pop.save(new CompoundTag(),regs);
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(tag,regs);
+        helper.assertTrue(restored.regionalRoster(1,market).equals(pop.regionalRoster(1,market))&&restored.roster(1).equals(pop.roster(1)),"Regional and capital persistence");
+        tag.putInt("schema",2);tag.remove("regions");
+        var legacy=dev.anjo7778.sao.world.NpcPopulationData.load(tag,regs);
+        helper.assertTrue(legacy.regionalRoster(1,market).isEmpty()&&legacy.roster(1).equals(pop.roster(1)),"Legacy population keeps capital without invented residents");
+        helper.succeed();
+    }
 }

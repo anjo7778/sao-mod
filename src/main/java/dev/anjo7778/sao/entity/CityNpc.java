@@ -108,7 +108,10 @@ public final class CityNpc extends PathfinderMob {
         var centerCheck=FloorLayout.center(floor);
         var ledgerNow=AdventureSimulationData.get(level.getServer()).ledger(profile);
         var trip=ledgerNow==null?null:ledgerNow.trip();
-        if(!CityRules.isCity(level,getBlockX(),getBlockZ())&&
+        var region=profile.regionalHome();
+        if(region!=null){
+            if(!CityRules.hasRegionalSettlements(level)||!region.contains(getBlockX()-centerCheck.x(),getBlockZ()-centerCheck.z())){discard();return;}
+        }else if(!CityRules.isCity(level,getBlockX(),getBlockZ())&&
             (trip==null||!trip.active()||!ScoutingTrip.inRange(floor,getBlockX()-centerCheck.x(),getBlockZ()-centerCheck.z()))){
             discard();return;
         }
@@ -171,7 +174,7 @@ public final class CityNpc extends PathfinderMob {
                 }
                 return;
             }
-            route=CityVenueRoutine.route(floor,here,plan.destination(),trip,CityRules.hasLandmarks(level));waypoint=0;failedAttempts=0;
+            route=region==null?CityVenueRoutine.route(floor,here,plan.destination(),trip,CityRules.hasLandmarks(level)):RegionalNpcRoutine.route(region,here,plan.destination());waypoint=0;failedAttempts=0;
         }
         if(waypoint>=route.size())return;
         Point p=route.get(waypoint);
@@ -183,7 +186,8 @@ public final class CityNpc extends PathfinderMob {
         }else failedAttempts=0;
     }
     private boolean canWalk(ServerLevel level,FloorLayout.Center c,Point p){
-        if(!CityPlan.inside(floor,p.x(),p.z()))return false;
+        var region=profile.regionalHome();
+        if(region==null?!CityPlan.inside(floor,p.x(),p.z()):!region.contains(p.x(),p.z()))return false;
         var pos=new BlockPos(c.x()+p.x(),CityPlan.GROUND+1,c.z()+p.z());
         return level.hasChunkAt(pos)&&level.getBlockState(pos).getCollisionShape(level,pos).isEmpty()
             &&level.getBlockState(pos.above()).getCollisionShape(level,pos.above()).isEmpty()
