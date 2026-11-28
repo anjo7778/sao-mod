@@ -16,7 +16,7 @@ public final class GateProspects {
         // Leave the actual gate approach and center walking corridor clear.
         for(int side:new int[]{-1,1})for(int along:new int[]{-3,-1,1,3}){
             int x=p.x()+(alongX?along:side*3),z=p.z()+(alongX?side*3:along);
-            Resource material=along==-3||along==1?Resource.IRON:along==-1||along==3?Resource.COAL:Resource.COAL;
+            Resource material=along==-3||along==1?Resource.IRON:Resource.COAL;
             out.add(new Column(center.x()+x,center.z()+z,material));
         }
         for(int side:new int[]{-1,1}){

@@ -14,7 +14,12 @@ public final class GateProspectFeature {
     public static int place(WorldGenLevel level,long floor,int originX,int originZ){
         if(floor<1||floor>10)return 0;
         int placed=0;
-        for(var gate:ScoutingTrip.Gate.values())for(var c:GateProspects.columns(floor,gate)){
+        var fc=FloorLayout.center(floor);
+        for(var gate:ScoutingTrip.Gate.values()){
+            var g=ScoutingTrip.gatePoint(floor,gate,36);
+            int gx=fc.x()+g.x(),gz=fc.z()+g.z();
+            if(gx+4<originX||gx-4>=originX+16||gz+4<originZ||gz-4>=originZ+16)continue;
+            for(var c:GateProspects.columns(floor,gate)){
             if(c.x()<originX||c.x()>=originX+16||c.z()<originZ||c.z()>=originZ+16)continue;
             var center=FloorLayout.center(floor);int lx=c.x()-center.x(),lz=c.z()-center.z();
             if(CityPlan.inside(floor,lx,lz)||RegionalSettlements.inDecorationBuffer(floor,lx,lz))continue;
@@ -31,6 +36,7 @@ public final class GateProspectFeature {
                 if(level.setBlock(pos,state,2))placed++;
                 break;
             }
+        }
         }
         return placed;
     }
