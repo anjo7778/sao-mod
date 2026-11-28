@@ -58,6 +58,12 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        templateProbe {
+            client()
+            gameDirectory = project.file('run-templates')
+            systemProperty 'sao.templateProbe', 'true'
+            programArguments.addAll '--width', '1280', '--height', '720'
+        }
         server {
             server()
             programArgument '--nogui'
