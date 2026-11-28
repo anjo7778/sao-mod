@@ -21,15 +21,14 @@ import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 
 import java.util.*;
-import java.util.function.Predicate;
 
 /**
  * First autonomous stocked workshop. Only exact native fixtures in the smith's assigned
  * v2 forge, only while a real NPC is present at work. Never scans player containers.
  * Two barrels: (6,1,2) ingredients/intermediates, (6,1,3) finished blades.
- * Furnace (-6,1,-4) processes actual recipes; other furnace remains available.
+ * Furnace (-6,1,-4) refines metals; optional kiln (-6,1,-3) makes charcoal.
  * Existing ordinary furnaces refine raw iron but cannot process steel bloom until replaced.
- * No automatic input generation, no offscreen production, no market sale yet.
+ * No automatic input generation or offscreen production.
  */
 public final class NpcForgeWorkshop {
     private static final String JOB="sao_workshop_job";
@@ -166,7 +165,21 @@ public final class NpcForgeWorkshop {
      * Reserve handles first, never consume coal/charcoal merely to create another unit. */
     static Result processCharcoal(ServerLevel level,NpcRoster.Profile smith,Container stock,FurnaceBlockEntity kiln){
         if(smith.occupation()!=Occupation.BLACKSMITH)return Result.IDLE;
-        if(kiln.getPersistentData().contains(JOB))return finishOrRefuel(level,smith,stock,kiln,true);
+        if(kiln.getPersistentData().contains(JOB)){
+            var result=finishOrRefuel(level,smith,stock,kiln,true);
+            if(result!=Result.IDLE)return result;
+            var job=kiln.getPersistentData().getCompound(JOB);
+            if(job.hasUUID("owner")&&job.getUUID("owner").equals(smith.id())
+                &&kiln.getItem(2).isEmpty()&&kiln.getItem(1).isEmpty()
+                &&!kiln.getBlockState().getValue(net.minecraft.world.level.block.AbstractFurnaceBlock.LIT)
+                &&pendingInputMatches(level,kiln,job,true)){
+                // An interrupted batch may have only logs left in stock. Make actual fuel
+                // from a separate log without touching the existing furnace input.
+                var log=CraftingInput.of(1,1,List.of(new ItemStack(Items.OAK_LOG)));
+                if(craftStock(level,stock,log,Items.OAK_PLANKS))return Result.BLEND;
+            }
+            return Result.IDLE;
+        }
         if(!kiln.getItem(0).isEmpty()||!kiln.getItem(1).isEmpty()||!kiln.getItem(2).isEmpty())return Result.IDLE;
         var before=copy(stock);
         if(count(before,Items.COAL)+count(before,Items.CHARCOAL)>=3||!has(before,Items.OAK_LOG))return Result.IDLE;
