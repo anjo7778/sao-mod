@@ -38,3 +38,11 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+/run-rpg-menu/
+
+/run-material-probe/
+
+/run-forge-probe/
+
+/run-equipment-probe/
