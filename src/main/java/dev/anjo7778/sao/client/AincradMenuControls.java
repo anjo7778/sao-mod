@@ -67,10 +67,10 @@ public final class AincradMenuControls {
         if(c.player==null||c.level==null||c.getConnection()==null)return;
         var combat=CombatNetwork.snapshot();
         if(c.screen==null&&allowed(c)&&combat!=null&&combat.available()&&combat.owner().equals(c.player.getUUID())){
-            if(guard)CombatNetwork.intent(0,0);
+            if(guard){CombatNetwork.intent(0,0);lastCombat=ticks;}
             else if(dodge){
                 int direction=c.options.keyLeft.isDown()?1:c.options.keyRight.isDown()?2:c.options.keyUp.isDown()?3:0;
-                CombatNetwork.intent(1,direction);
+                CombatNetwork.intent(1,direction);lastCombat=ticks;
             }else if(skill&&combat.skillUnlocked()&&combat.skillCooldown()==0&&c.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit){
                 CombatNetwork.intent(2,hit.getEntity().getId());lastCombat=ticks;
             }
