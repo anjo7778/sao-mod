@@ -1,7 +1,7 @@
 name: Stage 2 Deep Mine Client Probe
 on:
   push:
-    branches: ['stage2/deep-mine-client-probe']
+    branches: ['stage2/deep-mine-client-probe', 'stage2/deep-mine-path-safety']
   workflow_dispatch:
 permissions:
   contents: read
