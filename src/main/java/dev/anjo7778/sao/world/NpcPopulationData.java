@@ -21,10 +21,26 @@ public final class NpcPopulationData extends SavedData {
     private final Map<UUID,AdventurerMarket.Shop> shops=new HashMap<>();
     private final Map<UUID,net.minecraft.world.item.ItemStack> blades=new HashMap<>();
     private final Map<UUID,Integer> goodsReceipts=new HashMap<>();
+    private final Map<UUID,Integer> supplierPayments=new HashMap<>();
     public net.minecraft.world.item.ItemStack blade(UUID id){
         var stack=blades.get(id);return stack==null?net.minecraft.world.item.ItemStack.EMPTY:stack.copy();
     }
     public int goodsReceipts(UUID id){return goodsReceipts.getOrDefault(id,0);}
+    public int supplierPayments(UUID id){return supplierPayments.getOrDefault(id,0);}
+    public int supplierBudget(UUID id){return goodsReceipts(id)-supplierPayments(id);}
+    /** Called once by the server-thread delivery service after actual stock transfer and cargo clearing.
+     * Only real equipment-sale receipts fund payments. No treasury withdrawal or free currency. */
+    int settleMaterials(long floor,UUID buyer,NpcSupplyData.Cargo cargo){
+        if(cargo==null||cargo.floor()!=floor||cargo.size()==0||buyer.equals(cargo.smith()))return 0;
+        var b=state(floor,buyer);var s=state(floor,cargo.smith());
+        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||s.profile().occupation()!=Occupation.BLACKSMITH)return 0;
+        var payment=AdventurerMarket.payMaterials(wallet(b.profile()),
+            AdventurerMarket.materialQuote(cargo.iron(),cargo.coal(),cargo.logs()),supplierBudget(cargo.smith()));
+        if(payment.paid()==0)return 0;
+        wallets.put(buyer,payment.wallet());
+        supplierPayments.put(cargo.smith(),supplierPayments(cargo.smith())+payment.paid());
+        setDirty();return payment.paid();
+    }
     /** Exact stock, price and physical presence are checked by NpcEquipmentService. */
     boolean buyGoods(long floor,UUID buyer,UUID seller,net.minecraft.world.item.ItemStack item,int price,long time,long epoch){
         var capital=floors.get(floor);
@@ -228,7 +244,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6&&schema!=7)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6&&schema!=7&&schema!=8)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -267,10 +283,13 @@ public final class NpcPopulationData extends SavedData {
                 d.regions.put(key,roster);
             }
         }
+        long paid=d.supplierPayments.values().stream().mapToLong(Integer::longValue).sum();
+        long received=d.wallets.values().stream().mapToLong(AdventurerMarket.Wallet::materialEarned).sum();
+        if(paid!=received)throw new IllegalArgumentException("Unbalanced material trade ledger");
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",7);ListTag capitals=new ListTag();
+        root.putInt("schema",8);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
             ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s,registries)));
@@ -307,7 +326,7 @@ public final class NpcPopulationData extends SavedData {
         var wallet=wallets.get(p.id());
         if(wallet!=null){
             var w=new CompoundTag();w.putInt("supply",wallet.supplyOrders());w.putInt("repair",wallet.repairOrders());
-            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());w.putInt("huntKills",wallet.huntKills());w.putInt("paidHunts",wallet.paidHunts());w.putInt("goodsOrders",wallet.goodsOrders());w.putInt("goodsSpent",wallet.goodsSpent());b.put("wallet",w);
+            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());w.putInt("huntKills",wallet.huntKills());w.putInt("paidHunts",wallet.paidHunts());w.putInt("goodsOrders",wallet.goodsOrders());w.putInt("goodsSpent",wallet.goodsSpent());w.putInt("materialEarned",wallet.materialEarned());b.put("wallet",w);
         }
         var hunt=hunts.get(p.id());
         if(hunt!=null){
@@ -316,6 +335,7 @@ public final class NpcPopulationData extends SavedData {
         }
         var blade=blades.get(p.id());if(blade!=null&&!blade.isEmpty())b.put("blade",blade.save(registries));
         int receipts=goodsReceipts(p.id());if(receipts>0)b.putInt("goodsReceipts",receipts);
+        int supplierPaid=supplierPayments(p.id());if(supplierPaid>0)b.putInt("supplierPayments",supplierPaid);
         var shop=shops.get(p.id());if(shop!=null){b.putInt("sold",shop.sold());b.putInt("restocked",shop.restocked());}
         return b;
     }
@@ -323,7 +343,7 @@ public final class NpcPopulationData extends SavedData {
         if(b.contains("wallet",Tag.TAG_COMPOUND)){
             if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Wallet role mismatch");
             var w=b.getCompound("wallet");
-            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts"),w.getInt("goodsOrders"),w.getInt("goodsSpent")));
+            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts"),w.getInt("goodsOrders"),w.getInt("goodsSpent"),w.getInt("materialEarned")));
         }
         if(b.contains("blade")){
             var blade=net.minecraft.world.item.ItemStack.parse(registries,b.get("blade")).orElseThrow();
@@ -335,6 +355,11 @@ public final class NpcPopulationData extends SavedData {
             int n=b.getInt("goodsReceipts");
             if(p.occupation()!=Occupation.BLACKSMITH||n<=0||n>AdventurerMarket.MAX)throw new IllegalArgumentException("Invalid goods receipts");
             goodsReceipts.put(p.id(),n);
+        }
+        if(b.contains("supplierPayments",Tag.TAG_INT)){
+            int paid=b.getInt("supplierPayments");
+            if(p.occupation()!=Occupation.BLACKSMITH||paid<0||paid>goodsReceipts(p.id()))throw new IllegalArgumentException("Invalid supplier payments");
+            if(paid>0)supplierPayments.put(p.id(),paid);
         }
         if(b.contains("hunt",Tag.TAG_COMPOUND)){
             if(!HuntContract.supported(p))throw new IllegalArgumentException("Invalid hunt profile");
