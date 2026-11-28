@@ -141,8 +141,12 @@ public final class SwordCombat {
     }
     private static boolean impact(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level){
         if(!target(actor,victim,level))return false;
-        return s.clock.move()!=Move.SONIC_LEAP||s.leapStart!=null
-            &&actor.position().distanceToSqr(s.leapStart)>=.30*.30;
+        if(s.clock.move()!=Move.SONIC_LEAP)return true;
+        if(s.leapStart==null)return false;
+        Vec3 moved=actor.position().subtract(s.leapStart),toward=victim.position().subtract(s.leapStart);
+        double distance=Math.hypot(moved.x,moved.z),direction=Math.hypot(toward.x,toward.z);
+        return distance>=.30&&distance<=2.2&&direction>.001
+            &&(moved.x*toward.x+moved.z*toward.z)/(distance*direction)>=.5;
     }
     private static float remainingHealth(LivingEntity victim){
         return victim.getHealth()+victim.getAbsorptionAmount();
@@ -184,8 +188,9 @@ public final class SwordCombat {
         if(s==null){if(!available)return;s=session(p);}
         advance(s,p,level);
         if(!available||!outside(p,level)){
-            if(s.clock.phase()!=Phase.IDLE&&s.clock.phase()!=Phase.RECOVERY)s.clock.cancel(now(level));
-            s.target=null;s.dodgeStart=null;
+            if(s.clock.phase()!=Phase.RECOVERY)s.clock.cancel(now(level));
+            else s.clock.breakCombo();
+            s.target=null;s.dodgeStart=null;s.leapStart=null;
         }
         if(available&&s.target!=null&&s.clock.claimHit(now(level))){
             var id=s.target;s.target=null;
