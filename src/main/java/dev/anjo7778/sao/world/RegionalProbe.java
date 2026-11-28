@@ -80,8 +80,8 @@ public final class RegionalProbe{
                 var site=RegionalSettlements.sites(floor).get(index);
                 capture(c,"floor-"+floor+"-"+site.kind().name().toLowerCase(Locale.ROOT)+"-street");
                 index++;
-                if(index<4&&floor==1){
-                    action(c,p->overview(p,RegionalSettlements.sites(1).get(index)));phase=2;
+                if(index<4){
+                    action(c,p->overview(p,RegionalSettlements.sites(floor).get(index)));phase=2;
                 }else if(floor==1){
                     action(c,p->{
                         // Test fixture unlock only, no production synthetic victory.
@@ -112,6 +112,12 @@ public final class RegionalProbe{
         require(!CityRules.isSafeZone(level,x0+h+1,z0),"Safety leaks outside settlement");
         var capital=ResourceKey.create(Registries.BIOME,ResourceLocation.fromNamespaceAndPath("sao","capital"));
         require(level.getBiome(new BlockPos(x0,ground,z0)).is(capital),"Missing settlement biome");
+        for(int[] edge:new int[][]{{-h-16,0},{h+16,0},{0,-h-16},{0,h+16}}){
+            int x=x0+edge[0],z=z0+edge[1];
+            require(!CityRules.isSafeZone(level,x,z),"Decoration buffer incorrectly grants safety");
+            level.getChunk(x>>4,z>>4);
+            require(level.getBiome(new BlockPos(x,ground,z)).is(capital),"Missing decoration buffer biome at "+x+","+z);
+        }
         var spawn=new MobSpawnEvent.SpawnPlacementCheck(EntityType.ZOMBIE,level,MobSpawnType.NATURAL,new BlockPos(x0,ground+1,z0),p.getRandom(),true);
         NeoForge.EVENT_BUS.post(spawn);
         require(!spawn.getPlacementCheckResult(),"Hostile spawn not blocked");
@@ -136,8 +142,10 @@ public final class RegionalProbe{
         }
         for(int i=-h;i<h;i++)for(int[] offset:new int[][]{{i,0},{0,i}}){
             var pos=new BlockPos(x0+offset[0],ground+1,z0+offset[1]);
-            require(level.getBlockState(pos).isAir()&&level.getBlockState(pos.above()).isAir()
-                &&level.getBlockState(pos.below()).isFaceSturdy(level,pos.below(),net.minecraft.core.Direction.UP),"Road obstruction or foundation gap "+pos);
+            var feet=level.getBlockState(pos);var head=level.getBlockState(pos.above());var base=level.getBlockState(pos.below());
+            require(feet.isAir()&&head.isAir()&&base.is(Blocks.COBBLESTONE)
+                &&base.isFaceSturdy(level,pos.below(),net.minecraft.core.Direction.UP),
+                "Road obstruction or foundation gap "+pos+" feet="+feet+" head="+head+" base="+base);
         }
         LOG.info("SAO_REGIONAL_SITE_OK floor={} kind={} cells={} paths={} safe=true",floor,site.kind(),cells,paths);
     }

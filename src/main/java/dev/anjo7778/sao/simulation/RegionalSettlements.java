@@ -9,6 +9,8 @@ import static dev.anjo7778.sao.simulation.CityPlan.*;
  */
 public final class RegionalSettlements {
     public static final int BLEND=48, TEMPLATE_VERSION=2;
+    /** Two chunks of decoration-free biome beyond the built envelope, not a safe-zone extension. */
+    public static final int DECORATION_BUFFER=32;
     public enum Kind { MARKET_TOWN, LODGING_VILLAGE, CRAFTS_VILLAGE, EXPEDITION_REFUGE }
     public record Site(Kind kind,int x,int z,int half){
         public boolean contains(int px,int pz){
@@ -51,6 +53,14 @@ public final class RegionalSettlements {
     public static Site at(long floor,int x,int z){
         if(!FloorLayout.supported(floor))return null;
         var s=site(floor,nearestKind(x,z));return s.contains(x,z)?s:null;
+    }
+    /** Use only in the versioned biome source. The actual settlement, roads and combat rules are unchanged. */
+    public static boolean inDecorationBuffer(long floor,int x,int z){
+        if(!FloorLayout.supported(floor))return false;
+        var s=site(floor,nearestKind(x,z));
+        long half=(long)s.half()+DECORATION_BUFFER;
+        long dx=(long)x-s.x(),dz=(long)z-s.z();
+        return dx>=-half&&dx<half&&dz>=-half&&dz<half;
     }
     public static double blend(long floor,int x,int z){
         if(!FloorLayout.supported(floor))return 0;

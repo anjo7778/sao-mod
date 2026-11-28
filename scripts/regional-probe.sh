@@ -11,11 +11,12 @@ trap 'kill -TERM -- "-$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
 deadline=$((SECONDS+540))
 while ((SECONDS<deadline)); do
     if grep -q 'SAO_REGIONAL_PROBE_PASS' "$log"; then
-        for kind in MARKET_TOWN LODGING_VILLAGE CRAFTS_VILLAGE EXPEDITION_REFUGE; do
-            grep -q "SAO_REGIONAL_SITE_OK floor=1 kind=$kind " "$log"
+        for floor in 1 2; do
+            for kind in MARKET_TOWN LODGING_VILLAGE CRAFTS_VILLAGE EXPEDITION_REFUGE; do
+                grep -q "SAO_REGIONAL_SITE_OK floor=$floor kind=$kind " "$log"
+            done
         done
-        grep -q 'SAO_REGIONAL_SITE_OK floor=2 kind=MARKET_TOWN ' "$log"
-        test "$(find run-regional/regional-probe -name '*.png' | wc -l)" -eq 10
+        test "$(find run-regional/regional-probe -name '*.png' | wc -l)" -eq 16
         grep 'SAO_REGIONAL_' "$log"
         exit 0
     fi

@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.14 |
+| Mod version | 0.2.16 |
 
 ## Local builds (optional)
 
@@ -121,9 +121,13 @@ New Aincrad worlds use a versioned landmark layout with four fixed public-space 
 
 In landmark worlds adventurers choose persistent practice, scouting or social-contact objectives based on ambition and feasibility. Goals progress from real ledger changes or accepted reciprocal friendly conversations only; deadlines/cooldowns allow replanning. Practice and social goals bias discretionary schedules, not rest, emergency preparation or active trips. A subset visits training yards, guild squares, market courts or gardens. Venue-specific routes use existing connectors, and training actors look toward targets. Loaded activity credit requires actual matching plan and arrival; off-screen routines use the same decisions. No combat XP, fake rewards, trade or guild membership. Old worlds retain existing schedules; old ledgers load with empty goals. Tests and actual client verification required.
 
-## v0.2.14 upward migration prototype
+## v0.2.16 upward migration prototype
 Eligible offscreen adventurers in landmark worlds can independently relocate once to the next already discovered and unlocked capital after completing a personal goal and scout trip. Bound source and destination population; retain stable identity, needs, memories, goal/practice history, and separate local scouting journals. The lifetime ledger stays keyed to birthplace; residence is saved in the population file. No new unlock, physical portal animation, or generated terrain from migration. This is a one-way initial slice, not unrestricted floor travel. Nearby training routes avoid plaza detours; active practice/social objectives defer new scouting starts. Runtime acceptance pending.
 
 ## v0.2.15 regional settlements
 
 Fresh Aincrad worlds add four regional hubs to every supported floor: Crossroads Market, Hearthvale, Ironbrook and Wayfarer's Rest. Compact town and village layouts reuse unchanged v2 templates; chunk-aligned sites blend into the terrain and have public lanes, plaza lights and safe-zone protections. `/sao settlements` lists locations on the current floor. Capital identities, city layout and prior generator settings remain unchanged. No regional residents, live trading, long-range NPC pathfinding or teleport services yet. Runtime verification required.
+
+## Experimental Stage 2 regional settlements
+
+New v0.2.16 Aincrad worlds include four regional settlements per floor using the existing v2 template library. A 32-block decoration-free biome buffer is intended to protect the settlement edge from nearby vanilla world generation without extending the combat safe zone. Existing saves retain their serialized biome-source setting and are not regenerated. Regional runtime acceptance is pending; see [Stage 2](docs/STAGE_2.md).
