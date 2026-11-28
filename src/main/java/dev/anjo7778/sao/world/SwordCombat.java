@@ -16,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import java.util.*;
 
 /** Authoritative one-handed sword vertical slice. Vanilla damage, loot and durability
@@ -30,6 +31,7 @@ public final class SwordCombat {
         UUID target;
         Vec3 dodgeStart;
         boolean resolving,shown;
+        long lastIntent=-100;
         void capture(LivingEntity actor,ServerLevel world){
             level=world;main=actor.getMainHandItem().copy();off=actor.getOffhandItem().copy();
         }
@@ -64,9 +66,10 @@ public final class SwordCombat {
         if(s.clock.phase()!=Phase.DODGE)s.dodgeStart=null;
     }
     private static boolean facing(LivingEntity actor,LivingEntity other,double threshold){
-        Vec3 view=actor.getViewVector(1),delta=other.position().subtract(actor.position());
-        double a=Math.hypot(view.x,view.z),b=Math.hypot(delta.x,delta.z);
-        return a>.001&&b>.001&&(view.x*delta.x+view.z*delta.z)/(a*b)>=threshold;
+        double yaw=Math.toRadians(actor instanceof CityNpc?actor.getYHeadRot():actor.getYRot());
+        Vec3 delta=other.position().subtract(actor.position());
+        double b=Math.hypot(delta.x,delta.z);
+        return b>.001&&(-Math.sin(yaw)*delta.x+Math.cos(yaw)*delta.z)/b>=threshold;
     }
     private static boolean target(LivingEntity actor,LivingEntity victim,ServerLevel level){
         return actor!=victim&&victim instanceof Enemy&&victim.level()==level&&outside(actor,level)&&outside(victim,level)
@@ -114,6 +117,7 @@ public final class SwordCombat {
         var level=p.serverLevel();
         if(!eligible(p)||!supports(p)||!outside(p,level)||p.isUsingItem())return;
         var s=session(p);advance(s,p,level);
+        long time=now(level);if(time-s.lastIntent<2)return;s.lastIntent=time;
         if(action==0){
             if(s.clock.guard(now(level))){s.capture(p,level);s.target=null;}
         }else if(action==1&&direction>=0&&direction<=3&&p.onGround()&&!p.isInWater()){
@@ -163,6 +167,18 @@ public final class SwordCombat {
         if(s.clock.phase()==Phase.IDLE&&victim.swinging&&victim.getTarget()==npc&&npc.tickCount%7==0
             &&s.clock.guard(time)){s.capture(npc,level);return;}
         if(s.clock.phase()==Phase.IDLE&&npc.tickCount%4==0)begin(s,npc,victim,level);
+    }
+    /** Restore stamina during ordinary represented NPC rest, not only while in combat. */
+    public static void npcTick(EntityTickEvent.Post event){
+        if(!(event.getEntity() instanceof CityNpc npc)||!(npc.level() instanceof ServerLevel level))return;
+        var s=SESSIONS.get(npc);if(s==null)return;
+        advance(s,npc,level);
+        if(s.clock.phase()==Phase.WINDUP||s.clock.phase()==Phase.GUARD||s.clock.phase()==Phase.DODGE){
+            var contract=NpcPopulationData.get(level.getServer()).hunt(npc.getUUID());
+            if(!supports(npc)||!outside(npc,level)||contract==null||!contract.active()){
+                s.clock.cancel(now(level));s.target=null;s.dodgeStart=null;
+            }
+        }
     }
     public static void damage(LivingIncomingDamageEvent event){
         if(event.isCanceled()||!(event.getEntity().level() instanceof ServerLevel level))return;
