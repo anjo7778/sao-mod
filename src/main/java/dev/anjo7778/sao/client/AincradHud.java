@@ -20,7 +20,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import java.util.Locale;
 
 /** Replaces only the explicitly handled vanilla layers in an eligible Aincrad survival view.
- * Uses synchronized real HP, food, air, inventory and RPG XP. No stamina/mana placeholder.
+ * Uses synchronized real HP, food, air, inventory, RPG XP and actual sword stamina.
  */
 @EventBusSubscriber(modid="sao",value=Dist.CLIENT)
 public final class AincradHud {
@@ -67,6 +67,14 @@ public final class AincradHud {
             small(g,x,info,Math.min(w,150),"ABSORB","+"+number(p.getAbsorptionAmount()),ratio(p.getAbsorptionAmount(),p.getMaxHealth()),AMBER);info+=16;
         }
         w=Math.min(w,150);
+        var combat=dev.anjo7778.sao.network.CombatNetwork.snapshot();
+        if(combat!=null&&combat.available()&&combat.owner().equals(p.getUUID())){
+            small(g,x,info,w,"STA",combat.stamina()+"/100",ratio(combat.stamina(),100),combat.stamina()<24?RED:BLUE);info+=16;
+            var phase=dev.anjo7778.sao.simulation.SwordActions.Phase.values()[combat.phase()];
+            if(phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
+                text(g,phase.name(),x+4,info+1,WHITE,w-8);info+=12;
+            }
+        }
         int food=p.getFoodData().getFoodLevel();
         if(food<20){
             small(g,x,info,w,"HUNGER",food+"/20",ratio(food,20),food<=6?RED:AMBER);info+=16;
