@@ -34,12 +34,17 @@ public final class NpcResourceService {
         final ScoutingTrip.Gate gate;
         final long since,started;
         final UUID smith;
+        final List<GateMinePlan.Point> route;
+        final List<GateMinePlan.Vein> veins;
+        final int firstWork;
         int index;
         boolean returning;
         long lastStep,lastPath;
         Attempt work;
-        MineRun(ScoutingTrip.Trip trip,UUID smith,long now){
+        MineRun(ScoutingTrip.Trip trip,UUID smith,long now,List<GateMinePlan.Point> route,List<GateMinePlan.Vein> veins,boolean extended){
             gate=trip.gate();since=trip.since();this.smith=smith;started=now;lastStep=now;
+            this.route=List.copyOf(route);this.veins=List.copyOf(veins);
+            firstWork=extended?GateMinePlan.STEPS:route.size()-4;
         }
     }
     private static final double REACH=4.5;
@@ -83,7 +88,8 @@ public final class NpcResourceService {
             ||!matches(level.getBlockState(pos),resource)||level.getBlockEntity(pos)!=null)return false;
         boolean surface=pos.getY()>=CityPlan.GROUND-18&&pos.getY()<=CityPlan.GROUND+18
             &&GateProspects.resourceAt(npc.originFloor(),trip.gate(),pos.getX(),pos.getZ()).orElse(null)==resource;
-        boolean mine=GateMinePlan.resourceAt(npc.originFloor(),trip.gate(),pos.getX(),pos.getY(),pos.getZ())==resource;
+        boolean mine=GateMinePlan.resourceAt(npc.originFloor(),trip.gate(),pos.getX(),pos.getY(),pos.getZ())==resource
+            ||GateMineExtension.resourceAt(npc.originFloor(),trip.gate(),pos.getX(),pos.getY(),pos.getZ())==resource;
         if(!surface&&!mine)return false;
         Vec3 eye=npc.getEyePosition(),at=Vec3.atCenterOf(pos);
         if(eye.distanceToSqr(at)>REACH*REACH)return false;
@@ -157,26 +163,30 @@ public final class NpcResourceService {
     private static boolean startMine(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip,NpcSupplyData.Cargo cargo){
         if(!GateMinePlan.supported(npc.originFloor())||!cargo.canGather(Resource.IRON,1)
             ||MINE_TRIED.getOrDefault(npc,-1L)==trip.since()||epoch(level)-trip.since()>=2)return false;
-        var route=GateMinePlan.route(npc.originFloor(),trip.gate());
+        long floor=npc.originFloor();var gate=trip.gate();
+        var veins=GateMinePlan.veins(floor,gate);
+        boolean extended=!available(level,veins);
+        var route=extended?GateMineExtension.route(floor,gate):GateMinePlan.route(floor,gate);
+        if(extended)veins=GateMineExtension.veins(floor,gate);
         // Whole known passage must already exist and be loaded; do not create a tunnel at runtime.
+        if(!available(level,veins))return false;
         for(var point:route)if(!walkable(level,block(point)))return false;
-        boolean available=GateMinePlan.veins(npc.originFloor(),trip.gate()).stream().anyMatch(v->{
-            var p=block(v.point());return level.hasChunkAt(p)&&matches(level.getBlockState(p),v.resource());
-        });
-        if(!available)return false;
         var entry=block(route.getFirst());var path=npc.getNavigation().createPath(entry,0);
         if(path==null||!path.canReach()){MINE_TRIED.put(npc,trip.since());return false;}
-        var run=new MineRun(trip,cargo.smith(),level.getGameTime());MINES.put(npc,run);
+        var run=new MineRun(trip,cargo.smith(),level.getGameTime(),route,veins,extended);MINES.put(npc,run);
         MINE_TRIED.put(npc,trip.since());npc.getNavigation().moveTo(path,.9);
         return true;
     }
+    private static boolean available(ServerLevel level,List<GateMinePlan.Vein> veins){
+        return veins.stream().anyMatch(v->{var p=block(v.point());return level.hasChunkAt(p)&&matches(level.getBlockState(p),v.resource());});
+    }
     private static boolean mineTick(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip,State state,NpcSupplyData supplies){
-        var run=MINES.get(npc);var route=GateMinePlan.route(npc.originFloor(),run.gate);
+        var run=MINES.get(npc);var route=run.route;
         if(route.isEmpty()){MINES.remove(npc);return false;}
         long now=level.getGameTime();
         var cargo=supplies.candidate(npc.getUUID(),npc.originFloor(),run.smith);
         if(!run.returning&&(trip==null||trip.phase()!=ScoutingTrip.Phase.SURVEY||trip.since()!=run.since
-            ||epoch(level)-run.since>=3||now-run.started>=1000||cargo==null||!cargo.canGather(Resource.IRON,1)
+            ||epoch(level)-run.since>=3||now-run.started>=(route.size()>GateMinePlan.STEPS?1250:1000)||cargo==null||!cargo.canGather(Resource.IRON,1)
             ||state.needs().health()<70||state.needs().equipment()<40||state.needs().supplies()<25
             ||!level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING))){
             returnMine(npc,run,route,now);
@@ -206,7 +216,7 @@ public final class NpcResourceService {
         }
         // Search the final four stations, not just the end of the ramp. Each
         // reachable vein still requires the existing line-of-sight and real loot transaction.
-        if(run.index<route.size()-4){run.index++;run.lastStep=now;return true;}
+        if(run.index<run.firstWork){run.index++;run.lastStep=now;return true;}
         npc.getNavigation().stop();
         if(run.work!=null){
             var work=run.work;
@@ -221,7 +231,7 @@ public final class NpcResourceService {
             }
             return true;
         }
-        for(var v:GateMinePlan.veins(npc.originFloor(),run.gate)){
+        for(var v:run.veins){
             var pos=block(v.point());
             if(cargo!=null&&cargo.canGather(v.resource(),1)&&reachable(npc,level,trip,pos,v.resource())){
                 run.work=new Attempt(pos,v.resource(),run.smith,run.since,now+35);
