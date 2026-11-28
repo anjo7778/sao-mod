@@ -38,7 +38,9 @@ public final class MaterialProbe {
     private static final boolean ENABLED=Boolean.getBoolean("sao.materialProbe");
     private static final Logger LOG=LogUtils.getLogger();
     private static int phase,ticks;
-    private static BlockPos furnacePos;
+    private static BlockPos furnacePos,miningPos,silkPos;
+    private static long miningBefore;
+    private static int rawDropEvent,silkDropEvent;
     private static long metallurgyBefore,smithBefore;
     private static CompletableFuture<Void> pending;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
@@ -63,8 +65,16 @@ public final class MaterialProbe {
             phase=2;
         }
         if(phase==2&&pending.isDone()){
-            pending.join();phase=3;ticks=0;
+            pending.join();phase=6;ticks=0;
         }
+        if(phase==6&&++ticks>=50){dispatch(c,MaterialProbe::harvestTin);phase=7;return;}
+        if(phase==7&&pending.isDone()){pending.join();phase=8;ticks=0;}
+        if(phase==8&&++ticks>=8){dispatch(c,MaterialProbe::prepareSilk);phase=9;return;}
+        if(phase==9&&pending.isDone()){pending.join();phase=10;ticks=0;}
+        if(phase==10&&++ticks>=50){dispatch(c,MaterialProbe::harvestSilk);phase=11;return;}
+        if(phase==11&&pending.isDone()){pending.join();phase=12;ticks=0;}
+        if(phase==12&&++ticks>=8){dispatch(c,MaterialProbe::prepareFurnace);phase=13;return;}
+        if(phase==13&&pending.isDone()){pending.join();phase=3;ticks=0;}
         if(phase==3&&++ticks>=140){
             var server=c.getSingleplayerServer();var uuid=c.player.getUUID();
             pending=CompletableFuture.runAsync(()->finishRefiningAndCrafting(server.getPlayerList().getPlayer(uuid)),server::execute);
@@ -73,6 +83,18 @@ public final class MaterialProbe {
         if(phase==4&&pending.isDone()){
             pending.join();LOG.info("SAO_MATERIAL_PROBE_PASS");phase=5;
         }
+    }
+    private static void dispatch(Minecraft c,java.util.function.Consumer<ServerPlayer> work){
+        var server=c.getSingleplayerServer();var uuid=c.player.getUUID();
+        pending=CompletableFuture.runAsync(()->work.accept(server.getPlayerList().getPlayer(uuid)),server::execute);
+    }
+    @SubscribeEvent public static void actualDrop(net.neoforged.neoforge.event.level.BlockDropsEvent event){
+        if(!ENABLED||event.isCanceled()||!(event.getBreaker() instanceof ServerPlayer))return;
+        if(miningPos!=null&&event.getPos().equals(miningPos))
+            rawDropEvent=event.getDrops().stream().filter(e->e.getItem().is(SaoItems.RAW_TIN.get())).mapToInt(e->e.getItem().getCount()).sum();
+        if(silkPos!=null&&event.getPos().equals(silkPos))
+            silkDropEvent=event.getDrops().stream().filter(e->e.getItem().is(event.getState().getBlock().asItem())).mapToInt(e->e.getItem().getCount()).sum();
+        LOG.info("SAO_MATERIAL_NATIVE_DROP_EVENT {} {}",event.getPos(),event.getDrops().stream().map(e->e.getItem().toString()).toList());
     }
     private static List<BlockPos> generated(ServerLevel level,long floor,int x,int z){
         require(CityRules.hasRegionalSettlements(level),"Wrong world preset");
@@ -126,36 +148,57 @@ public final class MaterialProbe {
         level.setBlockAndUpdate(stand.above(),Blocks.AIR.defaultBlockState());
         require(p.teleportTo(level,stand.getX()+.5,stand.getY(),stand.getZ()+.5,Set.of(),0,0),"Teleport to mining fixture");
         p.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(Items.STONE_PICKAXE));
+        miningPos=pos;
+        silkPos=ore.stream().filter(v->!v.equals(pos)).min(java.util.Comparator.comparingDouble(v->v.distSqr(pos))).orElseThrow();
+    }
+    private static void harvestTin(ServerPlayer p){
+        var level=p.serverLevel();var server=level.getServer();var pos=miningPos;
         require(p.hasCorrectToolForDrops(level.getBlockState(pos)),"Stone pickaxe should be appropriate");
         var progress=CharacterProgressData.get(server);
         var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,p.getUUID());
-        long before=progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING);
-        LOG.info("SAO_MATERIAL_ORE_BLOCK {} loot={} tool={}",level.getBlockState(pos),level.getBlockState(pos).getBlock().getLootTable(),p.getMainHandItem());
+        miningBefore=progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING);
+        var loot=net.minecraft.world.level.block.Block.getDrops(level.getBlockState(pos),level,pos,null,p,p.getMainHandItem());
+        LOG.info("SAO_MATERIAL_LOOT_RESOLUTION {}",loot);
+        require(loot.stream().mapToInt(stack->stack.is(SaoItems.RAW_TIN.get())?stack.getCount():0).sum()==1,"Native loot table did not produce raw tin");
         require(p.gameMode.destroyBlock(pos),"Native survival harvest failed");
         require(level.getBlockState(pos).isAir(),"Mined ore still present");
-        var dropped=level.getEntitiesOfClass(ItemEntity.class,new AABB(pos).inflate(2),e->e.getItem().is(SaoItems.RAW_TIN.get()));
-        LOG.info("SAO_MATERIAL_ACTUAL_DROPS {}",level.getEntitiesOfClass(ItemEntity.class,new AABB(pos).inflate(2)).stream().map(e->e.getItem().toString()).toList());
-        require(dropped.stream().mapToInt(e->e.getItem().getCount()).sum()==1,"Raw tin drop missing or duplicated");
-        require(progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING)==before+4,"Actual ore drop did not earn mining mastery");
+        require(rawDropEvent==1,"Native harvest event missing raw tin: "+rawDropEvent);
+        require(progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING)==miningBefore+4,"Actual ore drop did not earn mining mastery");
         require(p.getMainHandItem().getDamageValue()==1,"Pickaxe durability not consumed");
-        LOG.info("SAO_MATERIAL_HARVEST_OK pos={} drops=1",pos);
-        var silk=ore.stream().filter(v->!v.equals(pos)&&v.distSqr(pos)<64).min(java.util.Comparator.comparingDouble(v->v.distSqr(pos))).orElse(ore.get(1));
-        require(!level.getBlockState(silk).isAir(),"Missing second ore");
-        BlockPos silkStand=silk.east();
-        if(ore.contains(silkStand)||ore.contains(silkStand.above()))silkStand=silk.west();
-        require(!ore.contains(silkStand)&&!ore.contains(silkStand.above()),"Silk fixture overlaps ore");
-        level.setBlockAndUpdate(silkStand,Blocks.AIR.defaultBlockState());
-        level.setBlockAndUpdate(silkStand.above(),Blocks.AIR.defaultBlockState());
-        require(p.teleportTo(level,silkStand.getX()+.5,silkStand.getY(),silkStand.getZ()+.5,Set.of(),0,0),"Reach silk fixture");
-        var block=level.getBlockState(silk).getBlock().asItem();
+    }
+    private static void prepareSilk(ServerPlayer p){
+        var level=p.serverLevel();
+        int raw=level.getEntitiesOfClass(ItemEntity.class,new AABB(miningPos).inflate(4),e->e.getItem().is(SaoItems.RAW_TIN.get())).stream().mapToInt(e->e.getItem().getCount()).sum();
+        for(int i=0;i<36;i++)if(p.getInventory().getItem(i).is(SaoItems.RAW_TIN.get()))raw+=p.getInventory().getItem(i).getCount();
+        require(raw==1,"Actual raw tin was lost or duplicated: "+raw);
+        LOG.info("SAO_MATERIAL_HARVEST_OK pos={} drops={}",miningPos,raw);
+        require(!level.getBlockState(silkPos).isAir(),"Missing second ore");
+        BlockPos stand=silkPos.east();
+        if(SaoBlocks.material(level.getBlockState(stand).getBlock())!=null||SaoBlocks.material(level.getBlockState(stand.above()).getBlock())!=null)stand=silkPos.west();
+        require(SaoBlocks.material(level.getBlockState(stand).getBlock())==null&&SaoBlocks.material(level.getBlockState(stand.above()).getBlock())==null,"Silk fixture overlaps ore");
+        level.setBlockAndUpdate(stand,Blocks.AIR.defaultBlockState());
+        level.setBlockAndUpdate(stand.above(),Blocks.AIR.defaultBlockState());
+        require(p.teleportTo(level,stand.getX()+.5,stand.getY(),stand.getZ()+.5,Set.of(),0,0),"Reach silk fixture");
         var pickaxe=new ItemStack(Items.STONE_PICKAXE);
         pickaxe.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),1);
         p.setItemInHand(InteractionHand.MAIN_HAND,pickaxe);
-        require(p.gameMode.destroyBlock(silk),"Native silk harvest failed");
-        require(level.getEntitiesOfClass(ItemEntity.class,new AABB(silk).inflate(2),e->e.getItem().is(block)).stream().mapToInt(e->e.getItem().getCount()).sum()==1,"Silk Touch did not return ore block");
-        require(progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING)==before+4,"Silk Touch should not grant duplicate mining mastery");
+    }
+    private static void harvestSilk(ServerPlayer p){
+        var level=p.serverLevel();
+        var loot=net.minecraft.world.level.block.Block.getDrops(level.getBlockState(silkPos),level,silkPos,null,p,p.getMainHandItem());
+        require(loot.stream().anyMatch(stack->stack.is(level.getBlockState(silkPos).getBlock().asItem())),"Silk loot definition");
+        require(p.gameMode.destroyBlock(silkPos),"Native silk harvest failed");
+        require(silkDropEvent==1,"Silk Touch did not return ore block");
+        var progress=CharacterProgressData.get(level.getServer());
+        var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,p.getUUID());
+        require(progress.state(owner).masteryExperience(CharacterProgress.Mastery.MINING)==miningBefore+4,"Silk Touch should not grant duplicate mining mastery");
         LOG.info("SAO_MATERIAL_SILK_OK");
         LOG.info("SAO_MATERIAL_MINING_XP_OK");
+    }
+    private static void prepareFurnace(ServerPlayer p){
+        var level=p.serverLevel();var server=level.getServer();
+        var progress=CharacterProgressData.get(server);
+        var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,p.getUUID());
         require(p.teleportTo(level,.5,CityPlan.GROUND+1,.5,Set.of(),0,0),"Return to capital");
         furnacePos=new BlockPos(2,CityPlan.GROUND+1,0);
         level.setBlockAndUpdate(furnacePos,Blocks.BLAST_FURNACE.defaultBlockState());
