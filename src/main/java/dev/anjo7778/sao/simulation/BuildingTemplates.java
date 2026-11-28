@@ -18,14 +18,17 @@ public final class BuildingTemplates {
             return layers[y][z+halfDepth()][x+halfWidth()];
         }
     }
-    private static final Map<Style,Blueprint> MODELS=load();
+    public static final int LATEST=2;
+    private static final Map<Style,Blueprint> V1=load(1), V2=load(2);
     private BuildingTemplates(){}
-    public static Blueprint forStyle(Style style){return MODELS.get(style);}
+    public static Blueprint forStyle(Style style){return forStyle(style,LATEST);}
+    public static Blueprint forStyle(Style style,int version){return switch(version){case 1->V1.get(style);case 2->V2.get(style);default->throw new IllegalArgumentException("Unknown template version "+version);};}
     public static Blueprint forPlot(CityPlan.Plot p){return forStyle(CityArchitecture.style(p));}
-    private static Map<Style,Blueprint> load(){
+    public static Blueprint forPlot(CityPlan.Plot p,int version){return forStyle(CityArchitecture.style(p),version);}
+    private static Map<Style,Blueprint> load(int version){
         EnumMap<Style,Blueprint> out=new EnumMap<>(Style.class);
         for(Style style:Style.values()){
-            String path="/data/sao/templates/v1/"+style.name().toLowerCase(Locale.ROOT)+".txt";
+            String path="/data/sao/templates/v"+version+"/"+style.name().toLowerCase(Locale.ROOT)+".txt";
             try(InputStream stream=BuildingTemplates.class.getResourceAsStream(path)){
                 if(stream==null)throw new IOException("Missing "+path);
                 try(BufferedReader in=new BufferedReader(new InputStreamReader(stream,StandardCharsets.US_ASCII))){

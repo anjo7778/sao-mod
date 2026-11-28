@@ -94,9 +94,18 @@ public final class TemplateProbe {
                 var plot=plots.get(index);var style=CityArchitecture.style(plot);
                 capture(c,style.name().toLowerCase(Locale.ROOT)+"-interior");
                 action(c,p->verify(p.serverLevel(),1,plot));
+                if(style==CityArchitecture.Style.INN){phase=10;return;}
                 index++;
-                if(index<plots.size()){phase=5;}
-                else phase=6;
+                phase=index<plots.size()?5:6;
+            }
+            case 10 -> {
+                var plot=plots.get(index);
+                action(c,p->camera(p,plot.x()-3.5,97.1,plot.z()+1.5,plot.x()-3.5,98.2,plot.z()+6.5));
+                phase=11;
+            }
+            case 11 -> {
+                capture(c,"inn-sleeping-alcove");
+                index++;phase=index<plots.size()?5:6;
             }
             case 5 -> {
                 action(c,p->exterior(p,plots.get(index)));phase=3;
@@ -121,8 +130,13 @@ public final class TemplateProbe {
                 action(c,p->{
                     var level=p.serverLevel();
                     require(FloorGuardian.challenge(p)==1,"Guardian challenge failed");
+                });phase=12;
+            }
+            case 12 -> {
+                action(c,p->{
+                    var level=p.serverLevel();
                     var data=SaoWorldData.get(level.getServer());
-                    // The player has settled near the arena for a full 60 client ticks.
+                    // Allow entity registration and chunk tracking to settle before checking the guardian.
                     require(level.getEntity(data.activeGuardian()) instanceof net.minecraft.world.entity.monster.Ravager,"Guardian not registered in loaded arena");
                     var boss=(net.minecraft.world.entity.monster.Ravager)level.getEntity(data.activeGuardian());
                     require(!CityRules.isCity(level,boss.getBlockX(),boss.getBlockZ()),"Guardian inside capital");
@@ -157,7 +171,7 @@ public final class TemplateProbe {
         p.setDeltaMovement(0,0,0);p.fallDistance=0;
     }
     private static void verify(ServerLevel level,long floor,CityPlan.Plot plot){
-        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_TEMPLATES:FloorTravel.UPPER_CITY_TEMPLATES),"Wrong template generator");
+        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_TEMPLATES_V2:FloorTravel.UPPER_CITY_TEMPLATES_V2),"Wrong template generator");
         var model=BuildingTemplates.forPlot(plot);
         var center=FloorLayout.center(floor);
         int x0=center.x()+plot.x(),z0=center.z()+plot.z(),y0=CityPlan.GROUND;
@@ -192,7 +206,7 @@ public final class TemplateProbe {
         npc.moveTo(x0+.5,y0+1,z0-hd-1+.5,0,0);npc.setOnGround(true);
         var path=npc.getNavigation().createPath(new BlockPos(x0+3,y0+1,z0-3),0);
         require(path!=null&&path.canReach(),"Actual NPC path to destination failed "+model.style());
-        require(light>=6,"Too dark: "+model.style()+" minimum block light "+light);
+        require(light>=8,"Too dark: "+model.style()+" minimum block light "+light);
         LOG.info("SAO_TEMPLATE_MODEL_OK floor={} style={} cells={} fixtures={} beds={} walkable={} minBlockLight={} path=true",floor,model.style(),compared,fixtures,beds,walkable,light);
     }
     private static void action(Minecraft c,java.util.function.Consumer<ServerPlayer> a){
