@@ -838,4 +838,22 @@ public final class FoundationTests {
         helper.assertTrue(rejected,"Healthy tool not replaced");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void boundedDeepMinePlans(GameTestHelper helper){
+        for(long floor=1;floor<=10;floor++)for(var gate:dev.anjo7778.sao.simulation.ScoutingTrip.Gate.values()){
+            var route=dev.anjo7778.sao.simulation.GateMinePlan.route(floor,gate);
+            helper.assertTrue(route.size()==22&&route.getFirst().y()-route.getLast().y()==21,"Finite 21-block descent");
+            var c=dev.anjo7778.sao.simulation.FloorLayout.center(floor);
+            for(int i=0;i<route.size();i++){
+                var p=route.get(i);int x=p.x()-c.x(),z=p.z()-c.z();
+                helper.assertTrue(!dev.anjo7778.sao.simulation.CityPlan.inside(floor,x,z)&&dev.anjo7778.sao.simulation.ScoutingTrip.inRange(floor,x,z),"Mine remains gate wilderness");
+                if(i>0){var prev=route.get(i-1);helper.assertTrue(Math.abs(prev.x()-p.x())+Math.abs(prev.z()-p.z())==1&&prev.y()-p.y()==1,"Walkable stair geometry");}
+            }
+            var veins=dev.anjo7778.sao.simulation.GateMinePlan.veins(floor,gate);
+            helper.assertTrue(veins.size()==10&&veins.stream().noneMatch(v->route.contains(v.point())),"Finite vein pockets off route");
+        }
+        helper.assertTrue(dev.anjo7778.sao.simulation.GateMinePlan.route(11,dev.anjo7778.sao.simulation.ScoutingTrip.Gate.EAST).isEmpty(),"Starter mine floor boundary");
+        helper.succeed();
+    }
 }
