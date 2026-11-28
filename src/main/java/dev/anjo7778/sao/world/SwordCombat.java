@@ -58,7 +58,7 @@ public final class SwordCombat {
     private static Session session(LivingEntity e){return SESSIONS.computeIfAbsent(e,k->new Session());}
     private static void advance(Session s,LivingEntity actor,ServerLevel level){
         long time=now(level);s.clock.advance(time);
-        if(s.clock.phase()!=Phase.IDLE&&!s.same(actor,level)){
+        if(s.level!=null&&!s.same(actor,level)){
             if(s.clock.phase()!=Phase.RECOVERY)s.clock.cancel(time);
             s.capture(actor,level);
         }
