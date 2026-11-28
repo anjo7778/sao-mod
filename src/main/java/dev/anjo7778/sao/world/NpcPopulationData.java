@@ -28,18 +28,22 @@ public final class NpcPopulationData extends SavedData {
     public int goodsReceipts(UUID id){return goodsReceipts.getOrDefault(id,0);}
     public int supplierPayments(UUID id){return supplierPayments.getOrDefault(id,0);}
     public int supplierBudget(UUID id){return goodsReceipts(id)-supplierPayments(id);}
-    /** Called once by the server-thread delivery service after actual stock transfer and cargo clearing.
-     * Only real equipment-sale receipts fund payments. No treasury withdrawal or free currency. */
-    int settleMaterials(long floor,UUID buyer,NpcSupplyData.Cargo cargo){
-        if(cargo==null||cargo.floor()!=floor||cargo.size()==0||buyer.equals(cargo.smith()))return 0;
+    /** Finish one actual barrel transfer on the server thread. Replays with old cargo are rejected.
+     * Only real equipment-sale receipts fund payments; no treasury withdrawal or free currency. */
+    boolean settleDelivery(NpcSupplyData supplies,long floor,UUID buyer,NpcSupplyData.Cargo cargo){
+        if(cargo==null||cargo.floor()!=floor||cargo.size()==0||cargo.delivered()==Long.MAX_VALUE
+            ||buyer.equals(cargo.smith())||!cargo.equals(supplies.cargo(buyer)))return false;
         var b=state(floor,buyer);var s=state(floor,cargo.smith());
-        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||s.profile().occupation()!=Occupation.BLACKSMITH)return 0;
+        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||s.profile().occupation()!=Occupation.BLACKSMITH)return false;
         var payment=AdventurerMarket.payMaterials(wallet(b.profile()),
             AdventurerMarket.materialQuote(cargo.iron(),cargo.coal(),cargo.logs()),supplierBudget(cargo.smith()));
-        if(payment.paid()==0)return 0;
-        wallets.put(buyer,payment.wallet());
-        supplierPayments.put(cargo.smith(),supplierPayments(cargo.smith())+payment.paid());
-        setDirty();return payment.paid();
+        supplies.store(buyer,cargo.emptied());
+        if(payment.paid()>0){
+            wallets.put(buyer,payment.wallet());
+            supplierPayments.put(cargo.smith(),supplierPayments(cargo.smith())+payment.paid());
+            setDirty();
+        }
+        return true;
     }
     /** Exact stock, price and physical presence are checked by NpcEquipmentService. */
     boolean buyGoods(long floor,UUID buyer,UUID seller,net.minecraft.world.item.ItemStack item,int price,long time,long epoch){
