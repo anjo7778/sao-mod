@@ -73,9 +73,11 @@ final class NpcWoodlandService {
         return true;
     }
     static boolean start(CityNpc npc,ServerLevel level,ScoutingTrip.Trip trip,State state,NpcSupplyData.Cargo cargo){
-        if(!allowed(npc,level,trip,state)||TRIED.getOrDefault(npc,-1L)==trip.since()||cargo.axeUses()<=0)return false;
+        if(!allowed(npc,level,trip,state)||TRIED.getOrDefault(npc,-1L)==trip.since())return false;
         var bank=NpcWoodlandData.get(level.getServer());
-        for(var site:GateWoodlandPlan.sites(npc.originFloor(),trip.gate())){
+        var sites=new ArrayList<>(GateWoodlandPlan.sites(npc.originFloor(),trip.gate()));
+        if(!sites.isEmpty())Collections.rotate(sites,Math.floorMod(trip.since(),sites.size()));
+        for(var site:sites){
             var root=root(level,site);
             if(root==null||RUNS.values().stream().anyMatch(run->run.root.equals(root)))continue;
             int height=trunkHeight(level,root);
@@ -134,9 +136,9 @@ final class NpcWoodlandService {
             }
             return stop(npc);
         }
-        int height=trunkHeight(level,run.root);
-        if(height==0||cargo.axeUses()<height||NpcSupplyData.CAPACITY-cargo.size()<height)return stop(npc);
         if(run.work==null){
+            int height=trunkHeight(level,run.root);
+            if(height==0||cargo.axeUses()<height||NpcSupplyData.CAPACITY-cargo.size()<height)return stop(npc);
             BlockPos target;
             boolean harvestLeaf=bank.seeds(floor,run.root)==0;
             if(harvestLeaf)target=findLeaf(npc,level,run.root);
@@ -159,6 +161,8 @@ final class NpcWoodlandService {
         npc.getLookControl().setLookAt(work.pos().getX()+.5,work.pos().getY()+.5,work.pos().getZ()+.5,30,30);
         if(npc.tickCount%10==0)npc.swing(InteractionHand.MAIN_HAND);
         if(now<work.finish())return true;
+        int currentHeight=trunkHeight(level,run.root);
+        if(currentHeight==0||!work.leaf()&&!work.pos().equals(run.root.above(currentHeight-1)))return stop(npc);
         var block=level.getBlockState(work.pos());
         var tool=work.leaf()?ItemStack.EMPTY:npc.getMainHandItem();
         var drops=Block.getDrops(block,level,work.pos(),null,npc,tool);
