@@ -24,3 +24,6 @@ v1 actual client acceptance failed at inn block light (5; threshold 6). Cottage 
 ## v2 structural verification and visual review
 
 Client run 46087150117 passed all eight exact generated floor-one layouts, real entrance pathfinding and minimum actual block light 9–10. All 19 captures were inspected. Dedicated run 46087169590 preserved 134,224 template block states and a block edit across a real restart. The v2 inn is divided into common space and separate alcoves. Architectural shapes and most service furnishings are still simple; not final artistic approval. v0.2.11 layout prototype may reuse these exact structurally verified v2 models; do not modify or rotate them. Add no new template variants until their own acceptance tests pass.
+
+## Public-space candidates
+v0.2.12 adds four fixed outdoor court layouts in reserved gaps. Keep v2 building assets frozen. Courts must pass exact-state checks, support checks and real pathfinding, plus exterior inspection. No new building template or rotations claimed approved. No signs with fabricated quest text, free rewards, automatic trade, or fluid spillover.

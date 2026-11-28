@@ -16,11 +16,12 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
     public CapitalFeature(){super(NoneFeatureConfiguration.CODEC);}
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx){
         if(!(ctx.chunkGenerator() instanceof NoiseBasedChunkGenerator gen))return false;
-        boolean districts=gen.generatorSettings().is(FloorTravel.FIRST_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS);
+        boolean landmarks=gen.generatorSettings().is(FloorTravel.FIRST_CITY_LANDMARKS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
+        boolean districts=landmarks||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS);
         boolean templateV2=districts||gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2);
         boolean templates=templateV2||gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
         boolean detailed=templates||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
-        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS);
+        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
         if(!upper&&!detailed&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
         int ox=ctx.origin().getX()&~15,oz=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(ox,oz):1;
@@ -36,13 +37,15 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
             var col=CityPlan.column(floor,upper?FloorLayout.local(x):x,upper?FloorLayout.local(z):z);
             if(col.zone()==CityPlan.Zone.OUTSIDE)continue;
             for(int y=93;y<CityPlan.GROUND;y++)level.setBlock(pos.set(x,y,z),palette.get(CityPlan.Piece.FOUNDATION),2);
+            var court=landmarks?CityCourts.at(floor,col.x(),col.z()):null;
             var building=districts?CityFabric.buildingAt(floor,col):col.plot();
             var model=templates&&building!=null?BuildingTemplates.forPlot(building,templateV2?2:1):null;
             var surface=districts?CityFabric.surface(floor,col,building):null;
             int lx=model==null?0:col.x()-building.x(),lz=model==null?0:col.z()-building.z();
             for(int y=0;y<=(detailed?CityArchitecture.MAX_HEIGHT:17);y++){
                 BlockState state;
-                if(model!=null){
+                if(court!=null)state=CourtPalette.state(court.at(col.x(),y,col.z()));
+                else if(model!=null){
                     char symbol=model.at(lx,y,lz);
                     if(y==0&&symbol=='.'){
                         boolean entrance=Math.abs(lx)<=2&&lz<=0;

@@ -38,6 +38,8 @@ public final class FloorTravel {
     public static final ResourceKey<NoiseGeneratorSettings> UPPER_CITY_TEMPLATES_V2=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","upper_floors_city_templates_v2"));
     public static final ResourceKey<NoiseGeneratorSettings> FIRST_CITY_DISTRICTS=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","floor_one_city_districts"));
     public static final ResourceKey<NoiseGeneratorSettings> UPPER_CITY_DISTRICTS=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","upper_floors_city_districts"));
+    public static final ResourceKey<NoiseGeneratorSettings> FIRST_CITY_LANDMARKS=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","floor_one_city_landmarks"));
+    public static final ResourceKey<NoiseGeneratorSettings> UPPER_CITY_LANDMARKS=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao","upper_floors_city_landmarks"));
     private FloorTravel() {}
 
     public static boolean isAincrad(MinecraftServer server) { return isFirst(server.overworld()); }
@@ -46,8 +48,8 @@ public final class FloorTravel {
         return level != null && level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen && gen.generatorSettings().is(key);
     }
 
-    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE) || uses(level,FIRST_LIVING)||uses(level,FIRST_CITY)||uses(level,FIRST_CITY_DETAIL)||uses(level,FIRST_CITY_TEMPLATES)||uses(level,FIRST_CITY_TEMPLATES_V2)||uses(level,FIRST_CITY_DISTRICTS); }
-    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE) || uses(level,UPPER_LIVING)||uses(level,UPPER_CITY)||uses(level,UPPER_CITY_DETAIL)||uses(level,UPPER_CITY_TEMPLATES)||uses(level,UPPER_CITY_TEMPLATES_V2)||uses(level,UPPER_CITY_DISTRICTS); }
+    private static boolean isFirst(ServerLevel level) { return uses(level,FIRST_SETTINGS) || uses(level,FIRST_CASTLE) || uses(level,FIRST_LIVING)||uses(level,FIRST_CITY)||uses(level,FIRST_CITY_DETAIL)||uses(level,FIRST_CITY_TEMPLATES)||uses(level,FIRST_CITY_TEMPLATES_V2)||uses(level,FIRST_CITY_DISTRICTS)||uses(level,FIRST_CITY_LANDMARKS); }
+    private static boolean isUpper(ServerLevel level) { return uses(level,UPPER_SETTINGS) || uses(level,UPPER_CASTLE) || uses(level,UPPER_LIVING)||uses(level,UPPER_CITY)||uses(level,UPPER_CITY_DETAIL)||uses(level,UPPER_CITY_TEMPLATES)||uses(level,UPPER_CITY_TEMPLATES_V2)||uses(level,UPPER_CITY_DISTRICTS)||uses(level,UPPER_CITY_LANDMARKS); }
 
     public static long currentFloor(ServerLevel level, int x, int z) {
         if (level.dimension().equals(Level.OVERWORLD) && isFirst(level)) return 1;
