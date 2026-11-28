@@ -32,6 +32,7 @@ public final class CityNpc extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DISPLAY_LEVEL=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> MENU_SESSION=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
     private static final EntityDataAccessor<String> MENU_DETAIL=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Integer> COMBAT_POSE=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
     private static final Occupation[] ROLES=Occupation.values();
     private NpcMenuReview pendingMenu;
     private long pendingMenuUntil,nextMenuAt;
@@ -53,6 +54,7 @@ public final class CityNpc extends PathfinderMob {
         builder.define(DISPLAY_LEVEL,0);
         builder.define(MENU_SESSION,0);
         builder.define(MENU_DETAIL,"");
+        builder.define(COMBAT_POSE,0);
     }
     /** Read-only projection of authoritative role and RPG progression, including after migration. */
     public Occupation displayOccupation(){
@@ -60,6 +62,8 @@ public final class CityNpc extends PathfinderMob {
     }
     public int displayLevel(){return entityData.get(DISPLAY_LEVEL);}
     public int menuSession(){return entityData.get(MENU_SESSION);}
+    public int combatPose(){return entityData.get(COMBAT_POSE);}
+    public void setCombatPose(int pose){if(!level().isClientSide)entityData.set(COMBAT_POSE,pose);}
     public String menuDetail(){return entityData.get(MENU_DETAIL);}
     public int menuAge(){return NpcMenuReview.age(menuSession(),level().getGameTime());}
     public boolean menuOpen(){return menuAge()>=0;}
