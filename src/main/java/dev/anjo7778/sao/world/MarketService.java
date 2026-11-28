@@ -58,7 +58,13 @@ public final class MarketService {
             if(level.players().stream().anyMatch(p->!p.isSpectator()&&p.distanceToSqr(c.x()+pos.x()+.5,CityPlan.GROUND+1,c.z()+pos.z()+.5)<=100*100))return false;
         }
         boolean purchased=pop.purchase(floor,id,seller.profile().id(),j.visiting()?j.target():null,desiredPlan.destination(),time,epoch,observed);
-        if(purchased)RpgEvents.npcService(level,seller.profile(),pop.shop(seller.profile()).sold());
+        if(purchased){
+            RpgEvents.npcService(level,seller.profile(),pop.shop(seller.profile()).sold());
+            if(b instanceof CityNpc client){
+                var n=pop.state(floor,id).needs();
+                client.reviewMenu(new NpcMenuReview(NpcMenuReview.Kind.PURCHASE,"Supplies "+n.supplies()+"/100|Condition "+n.equipment()+"/100"));
+            }
+        }
         return purchased;
     }
 }

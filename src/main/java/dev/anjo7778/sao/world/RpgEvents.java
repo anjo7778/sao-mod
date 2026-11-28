@@ -1,6 +1,7 @@
 package dev.anjo7778.sao.world;
 
 import dev.anjo7778.sao.simulation.*;
+import dev.anjo7778.sao.entity.CityNpc;
 import dev.anjo7778.sao.simulation.CharacterProgress.*;
 import dev.anjo7778.sao.simulation.NpcRoster.*;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -82,23 +83,23 @@ public final class RpgEvents {
         int count=NpcPopulationData.get(level.getServer()).wallet(p).huntKills();
         long xp=combatXp(p.currentFloor(),data.state(owner).level());
         if(data.award(owner,Source.COMBAT,count,xp,m,xp)){
-            data.awardNext(owner,Source.QUEST,10,null,0);allocateNpc(data,p);
+            data.awardNext(owner,Source.QUEST,10,null,0);allocateNpc(level.getServer(),data,p);
         }
     }
     public static void npcScouting(MinecraftServer server,Profile p){
         var data=CharacterProgressData.get(server);
-        if(data.awardNext(npc(p),Source.QUEST,15,Mastery.EXPLORATION,8))allocateNpc(data,p);
+        if(data.awardNext(npc(p),Source.QUEST,15,Mastery.EXPLORATION,8))allocateNpc(server,data,p);
     }
     public static void npcDiscovery(MinecraftServer server,Profile p,RegionalSettlements.Kind kind){
         var data=CharacterProgressData.get(server);
-        if(data.discover(npc(p),p.currentFloor(),1+kind.ordinal()))allocateNpc(data,p);
+        if(data.discover(npc(p),p.currentFloor(),1+kind.ordinal()))allocateNpc(server,data,p);
     }
     public static void npcService(ServerLevel level,Profile p,int count){
         var data=CharacterProgressData.get(level.getServer());
         Mastery m=p.occupation()==Occupation.BLACKSMITH?Mastery.BLACKSMITHING:Mastery.COMMERCE;
-        if(data.award(npc(p),Source.TRADE,count,4,m,6))allocateNpc(data,p);
+        if(data.award(npc(p),Source.TRADE,count,4,m,6))allocateNpc(level.getServer(),data,p);
     }
-    private static void allocateNpc(CharacterProgressData data,Profile p){
+    private static void allocateNpc(MinecraftServer server,CharacterProgressData data,Profile p){
         var owner=npc(p);long points=data.state(owner).unspent();if(points==0)return;
         Attribute primary,secondary;
         if(p.occupation()==Occupation.ADVENTURER){
@@ -117,5 +118,8 @@ public final class RpgEvents {
         long first=points-points/3;
         data.allocate(owner,primary,first);
         if(points>first)data.allocate(owner,secondary,points-first);
+        var level=p.currentFloor()==1?server.overworld():server.getLevel(FloorTravel.UPPER);
+        if(level!=null&&level.getEntity(p.id()) instanceof CityNpc npc&&npc.boundAdventurer())
+            npc.reviewMenu(new NpcMenuReview(NpcMenuReview.Kind.ATTRIBUTES,primary.name()+" +"+first+(points>first?"|"+secondary.name()+" +"+(points-first):"")));
     }
 }

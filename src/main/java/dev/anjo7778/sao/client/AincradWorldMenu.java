@@ -1,5 +1,7 @@
 package dev.anjo7778.sao.client;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import dev.anjo7778.sao.entity.CityNpc;
+import dev.anjo7778.sao.simulation.NpcMenuReview;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -13,10 +15,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-/** Translucent world geometry anchored near the player's forward shoulder; real projected pointer mapping. */
+/** Bounded observer-only NPC menu geometry. The owner always uses the full local screen. */
 @EventBusSubscriber(modid="sao",value=Dist.CLIENT)
 public final class AincradWorldMenu {
     private static final MultiBufferSource.BufferSource BUFFERS=MultiBufferSource.immediate(new ByteBufferBuilder(65536));
@@ -24,37 +25,38 @@ public final class AincradWorldMenu {
     private AincradWorldMenu(){}
     @SubscribeEvent public static void render(RenderLevelStageEvent event){
         if(event.getStage()!=RenderLevelStageEvent.Stage.AFTER_LEVEL)return;
-        var c=Minecraft.getInstance();
-        if(!(c.screen instanceof AincradMenu menu)||c.player==null)return;
-        menu.resetWorld();if(!menu.useWorld()||menu.summoning())return;
-        var player=c.player;var camera=event.getCamera();var cam=camera.getPosition();
+        var c=Minecraft.getInstance();MenuPreferences.load();
+        if(!MenuPreferences.npcMenus||c.player==null||c.level==null||c.options.hideGui)return;
+        var camera=event.getCamera();var cam=camera.getPosition();
         float partial=event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        var right=new Vector3f(1,0,0).rotate(camera.rotation());
-        double yaw=Math.toRadians(Mth.rotLerp(partial,player.yBodyRotO,player.yBodyRot));
-        double px=Mth.lerp(partial,player.xOld,player.getX()),py=Mth.lerp(partial,player.yOld,player.getY()),pz=Mth.lerp(partial,player.zOld,player.getZ());
-        double ax=px-Math.sin(yaw)*.8+right.x*1.15,ay=py+1.42,az=pz+Math.cos(yaw)*.8+right.z*1.15;
-        double distance=Math.sqrt((ax-cam.x)*(ax-cam.x)+(ay-cam.y)*(ay-cam.y)+(az-cam.z)*(az-cam.z));
-        float scale=(float)Math.max(.0025,Math.min(.009,distance*.00165))*menu.reveal();
-        var matrix=new Matrix4f(event.getModelViewMatrix()).translate((float)(ax-cam.x),(float)(ay-cam.y),(float)(az-cam.z))
-            .rotate(camera.rotation()).scale(scale,-scale,scale).translate(-AincradMenu.W/2f,-AincradMenu.H/2f,0);
-        var clip=new Matrix4f(event.getProjectionMatrix()).mul(matrix);
-        var a=project(clip,0,0,c);var b=project(clip,AincradMenu.W,AincradMenu.H,c);
-        if(a==null||b==null||b[0]-a[0]<70||b[1]-a[1]<38||a[0]<2||a[1]<2||b[0]>c.getWindow().getGuiScaledWidth()-2||b[1]>c.getWindow().getGuiScaledHeight()-2)return;
-        var hit=new AincradMenu.WorldHit(a[0],a[1],(b[0]-a[0])/AincradMenu.W,(b[1]-a[1])/AincradMenu.H,System.nanoTime());
-        double mx=c.mouseHandler.xpos()*c.getWindow().getGuiScaledWidth()/c.getWindow().getScreenWidth();
-        double my=c.mouseHandler.ypos()*c.getWindow().getGuiScaledHeight()/c.getWindow().getScreenHeight();
-        // The event matrix is the intended eye-space transform. The shader already
-        // applies RenderSystem's active model-view matrix; remove it from submitted
-        // vertices to avoid applying the camera rotation twice.
-        var submitted=new Matrix4f(RenderSystem.getModelViewMatrix()).invert().mul(matrix);
-        c.getMainRenderTarget().bindWrite(false);
-        RenderSystem.setShaderColor(1,1,1,1);
-        menu.draw(new WorldPainter(c.font,submitted),hit.x(mx),hit.y(my));
-        BUFFERS.endBatch();menu.worldRendered(hit);
-    }
-    private static float[] project(Matrix4f clip,float x,float y,Minecraft c){
-        var v=clip.transform(new Vector4f(x,y,0,1));if(v.w<=.02f||!Float.isFinite(v.w))return null;
-        return new float[]{(v.x/v.w+1)*.5f*c.getWindow().getGuiScaledWidth(),(1-v.y/v.w)*.5f*c.getWindow().getGuiScaledHeight()};
+        var visible=new java.util.ArrayList<CityNpc>();
+        for(var e:c.level.entitiesForRendering())if(e instanceof CityNpc npc&&npc.isAlive()&&npc.menuAge()>=NpcMenuReview.SUMMON
+            &&npc.distanceToSqr(cam.x,cam.y,cam.z)<=18*18&&!npc.isInvisibleTo(c.player))visible.add(npc);
+        visible.sort(java.util.Comparator.comparingDouble(n->n.distanceToSqr(cam.x,cam.y,cam.z)));
+        if(visible.isEmpty())return;
+        c.getMainRenderTarget().bindWrite(false);RenderSystem.setShaderColor(1,1,1,1);
+        var inverse=new Matrix4f(RenderSystem.getModelViewMatrix()).invert();
+        int drawn=0;
+        for(var npc:visible){
+            if(drawn>=4)break;
+            int age=npc.menuAge();var kind=NpcMenuReview.kind(npc.menuSession());if(kind==null)continue;
+            float reveal=NpcMenuReview.reveal(age);if(reveal<=0)continue;
+            double yaw=Math.toRadians(Mth.rotLerp(partial,npc.yBodyRotO,npc.yBodyRot));
+            double px=Mth.lerp(partial,npc.xOld,npc.getX()),py=Mth.lerp(partial,npc.yOld,npc.getY()),pz=Mth.lerp(partial,npc.zOld,npc.getZ());
+            // Front-of-body anchor with modest side offset; billboard for readable observers.
+            double ax=px-Math.sin(yaw)*.85-Math.cos(yaw)*.42,ay=py+1.45,az=pz+Math.cos(yaw)*.85-Math.sin(yaw)*.42;
+            var anchor=new net.minecraft.world.phys.Vec3(ax,ay,az);
+            if(c.level.clip(new net.minecraft.world.level.ClipContext(cam,anchor,net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,c.player)).getType()!=net.minecraft.world.phys.HitResult.Type.MISS)continue;
+            float scale=.0045f*reveal;
+            var matrix=new Matrix4f(event.getModelViewMatrix()).translate((float)(ax-cam.x),(float)(ay-cam.y),(float)(az-cam.z))
+                .rotate(camera.rotation()).scale(scale,-scale,scale).translate(-AincradMenu.W/2f,-AincradMenu.H/2f,0);
+            var clip=new Matrix4f(event.getProjectionMatrix()).mul(matrix);
+            var point=clip.transform(new Vector4f(AincradMenu.W/2f,AincradMenu.H/2f,0,1));
+            if(point.w<=.05f||Math.abs(point.x/point.w)>1.3||Math.abs(point.y/point.w)>1.3)continue;
+            var submitted=new Matrix4f(inverse).mul(matrix);
+            AincradMenu.drawNpc(new WorldPainter(c.font,submitted),npc,kind);BUFFERS.endBatch();drawn++;
+        }
     }
     private static final class WorldPainter implements AincradMenu.Painter{
         private final Font font;private final Matrix4f matrix;private int layer;

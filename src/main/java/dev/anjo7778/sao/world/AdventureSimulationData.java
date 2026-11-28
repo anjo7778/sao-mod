@@ -178,6 +178,8 @@ public final class AdventureSimulationData extends SavedData {
             }
             if(CityRules.hasLandmarks(level))next=next.withGoal(AdventurerGoals.update(s,previous,next,epoch));
             floors.get(s.profile().birthFloor()).put(id,next);setDirty();
+            if(actor instanceof CityNpc npc&&npc.isAlive()&&npc.originFloor()==cursorFloor&&npc.atScheduledDestination())
+                npc.reviewMenu(NpcMenuReview.fromTransition(s,previous,next,desired,true));
             if(transition.began()){
                 var n=s.needs();
                 population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-ScoutingTrip.SUPPLY_COST,

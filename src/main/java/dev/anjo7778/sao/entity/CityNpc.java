@@ -30,7 +30,11 @@ import static dev.anjo7778.sao.simulation.NpcDailyPlan.*;
 public final class CityNpc extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DISPLAY_ROLE=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DISPLAY_LEVEL=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> MENU_SESSION=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.INT);
+    private static final EntityDataAccessor<String> MENU_DETAIL=SynchedEntityData.defineId(CityNpc.class,EntityDataSerializers.STRING);
     private static final Occupation[] ROLES=Occupation.values();
+    private NpcMenuReview pendingMenu;
+    private long pendingMenuUntil,nextMenuAt;
     private long floor;
     private Profile profile;
     private Plan plan;
@@ -45,12 +49,44 @@ public final class CityNpc extends PathfinderMob {
         super.defineSynchedData(builder);
         builder.define(DISPLAY_ROLE,-1);
         builder.define(DISPLAY_LEVEL,0);
+        builder.define(MENU_SESSION,0);
+        builder.define(MENU_DETAIL,"");
     }
     /** Read-only projection of authoritative role and RPG progression, including after migration. */
     public Occupation displayOccupation(){
         int i=entityData.get(DISPLAY_ROLE);return i>=0&&i<ROLES.length?ROLES[i]:null;
     }
     public int displayLevel(){return entityData.get(DISPLAY_LEVEL);}
+    public int menuSession(){return entityData.get(MENU_SESSION);}
+    public String menuDetail(){return entityData.get(MENU_DETAIL);}
+    public int menuAge(){return NpcMenuReview.age(menuSession(),level().getGameTime());}
+    public boolean menuOpen(){return menuAge()>=0;}
+    /** Called by successful authoritative actions, never by idle random animation. */
+    public void reviewMenu(NpcMenuReview review){
+        if(review==null||!(level() instanceof ServerLevel server)||!boundAdventurer()||!isAlive()
+            ||!CityRules.hasRegionalSettlements(server))return;
+        long now=server.getGameTime();
+        if(menuOpen()||now<nextMenuAt)return;
+        if(pendingMenu!=null&&pendingMenu.kind()==NpcMenuReview.Kind.ATTRIBUTES)return;
+        pendingMenu=review;pendingMenuUntil=now+200;
+    }
+    private void closeMenu(){
+        if(menuSession()!=0){entityData.set(MENU_SESSION,0);entityData.set(MENU_DETAIL,"");}
+    }
+    private boolean tickMenu(ServerLevel server){
+        long now=server.getGameTime();
+        if(!CityRules.isSafeZone(server,getBlockX(),getBlockZ())||hurtTime>0||isUsingItem()||getTarget()!=null||isInWater()||conversationPartner()!=null){
+            closeMenu();return false;
+        }
+        if(menuOpen()){getNavigation().stop();getLookControl().setLookAt(getX()-Math.sin(Math.toRadians(yBodyRot)),getEyeY()-.18,getZ()+Math.cos(Math.toRadians(yBodyRot)),20,20);return true;}
+        closeMenu();
+        if(pendingMenu==null)return false;
+        if(now>pendingMenuUntil){pendingMenu=null;return false;}
+        if(now<nextMenuAt||plan==null||plan.activity()==Activity.REST||!atScheduledDestination()||!getNavigation().isDone())return false;
+        entityData.set(MENU_DETAIL,pendingMenu.detail());entityData.set(MENU_SESSION,pendingMenu.encode(now));
+        pendingMenu=null;nextMenuAt=now+120;
+        getNavigation().stop();return true;
+    }
     private void refreshDisplayProgress(ServerLevel server){
         if(profile==null)return;
         var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.NPC,profile.id());
@@ -108,7 +144,7 @@ public final class CityNpc extends PathfinderMob {
     public boolean canConverse(){
         return profile!=null&&isAlive()&&plan!=null&&
             (plan.activity()==Activity.SOCIALIZE||plan.activity()==Activity.PREPARE)
-            &&level().getGameTime()>=conversationUntil;
+            &&!menuOpen()&&level().getGameTime()>=conversationUntil;
     }
     public UUID conversationPartner(){return level().getGameTime()<conversationUntil?conversationPeer:null;}
     public void beginConversation(CityNpc other){
@@ -167,7 +203,7 @@ public final class CityNpc extends PathfinderMob {
             if(state==null){discard();return;}
             Plan next=AdventureSimulationData.plan(level,state);
             if(!next.equals(plan)){
-                endConversation();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
+                endConversation();closeMenu();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
             }
             var c=FloorLayout.center(floor);
             if(plan.activity()==Activity.REST&&distanceToSqr(c.x()+plan.destination().x()+.5,CityPlan.GROUND+1,c.z()+plan.destination().z()+.5)<16){
@@ -178,7 +214,7 @@ public final class CityNpc extends PathfinderMob {
                     setHealth(getMaxHealth()*nextHp/100f);
                 }
             }
-            if(plan.activity()==Activity.TRAIN&&atScheduledDestination()&&getNavigation().isDone()&&getRandom().nextInt(3)==0&&!getMainHandItem().isEmpty()){
+            if(!menuOpen()&&plan.activity()==Activity.TRAIN&&atScheduledDestination()&&getNavigation().isDone()&&getRandom().nextInt(3)==0&&!getMainHandItem().isEmpty()){
                 if(CityRules.hasLandmarks(level)){
                     var venue=CityCourts.at(floor,plan.destination().x(),plan.destination().z());
                     if(venue!=null&&venue.kind()==CityCourts.Kind.TRAINING_YARD)
@@ -187,7 +223,7 @@ public final class CityNpc extends PathfinderMob {
                 swing(InteractionHand.MAIN_HAND);
             }
         }
-        if(HuntService.tick(this,level,trip))return;
+        if(HuntService.tick(this,level,trip)){closeMenu();return;}
         if(isUsingItem())stopUsingItem();
         if(conversationPeer!=null){
             if(level.getGameTime()<conversationUntil&&level.getEntity(conversationPeer) instanceof CityNpc peer
@@ -199,6 +235,7 @@ public final class CityNpc extends PathfinderMob {
             }
             endConversation();
         }
+        if(tickMenu(level))return;
         if(level.getGameTime()<nextPath)return;
         nextPath=level.getGameTime()+20;
         var center=FloorLayout.center(floor);

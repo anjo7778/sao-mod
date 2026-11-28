@@ -1,6 +1,8 @@
 package dev.anjo7778.sao.client;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import dev.anjo7778.sao.entity.CityNpc;
+import dev.anjo7778.sao.simulation.NpcMenuReview;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
@@ -14,6 +16,12 @@ import net.neoforged.neoforge.client.event.RenderHandEvent;
 public final class MenuGesture {
     private MenuGesture(){}
     public static float progress(float partial){return Minecraft.getInstance().screen instanceof AincradMenu m&&m.summoning()?m.gesture(partial):-1;}
+    public static float npcPitch(CityNpc npc,float partial){
+        int age=npc.menuAge();if(age<0)return Float.NaN;
+        if(age<NpcMenuReview.SUMMON)return armPitch((age+partial)/NpcMenuReview.SUMMON);
+        if(age>=NpcMenuReview.SUMMON+NpcMenuReview.HOLD)return -.82f*(NpcMenuReview.DURATION-age-partial)/NpcMenuReview.CLOSE;
+        return -.82f;
+    }
     private static float smooth(float t){t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);}
     public static float armPitch(float t){
         if(t<.35f)return -1.9f*smooth(t/.35f);

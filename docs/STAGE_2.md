@@ -184,3 +184,7 @@ V2 client test passed input and profile but screenshot review found invisible wo
 ## v0.2.31 world entity indicator and equipment panel candidate
 
 Add synced NPC role/level projection, depth-tested nearby NPC/targeted enemy diamonds, contextual HUD, and real equipped item summary with a vanilla inventory fallback. v0.2.30 compile error corrected; its separate client verification is ongoing. Archery probe client-side death-event assertion restricted to server events and rerun; no production combat change. Tests pending.
+
+## v0.2.32 NPC menu presence candidate
+
+[v0.2.31 build](https://github.com/anjo7778/sao-mod/actions/runs/46100234695), [v0.2.30 client](https://github.com/anjo7778/sao-mod/actions/runs/46100101367), [corrected archery](https://github.com/anjo7778/sao-mod/actions/runs/46100118474) passed. User clarified owner full-screen in all perspectives, NPC observer-only floating panels; no multiplayer synchronization now. Committed real observed ledger and RPG transaction review triggers, transient entity projection/gesture and bounded world rendering. New build and autonomous graphical acceptance pending. See AINCRAD_UI.md.

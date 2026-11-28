@@ -576,4 +576,22 @@ public final class FoundationTests {
         helper.assertTrue(npc.displayOccupation()==s.profile().occupation()&&npc.displayLevel()==state.state(owner).level(),"Display matches authoritative data");
         npc.discard();helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void npcMenuReviewTransitions(GameTestHelper helper){
+        var s=dev.anjo7778.sao.simulation.NpcRoster.generate(42,1).stream().filter(v->v.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).findFirst().orElseThrow();
+        var before=dev.anjo7778.sao.simulation.AdventureProgress.start(1);
+        var after=dev.anjo7778.sao.simulation.AdventureProgress.advance(before,2,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PREPARE,false);
+        var plan=dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,1000);
+        var review=dev.anjo7778.sao.simulation.NpcMenuReview.fromTransition(s,before,after,plan,true);
+        helper.assertTrue(review!=null&&review.kind()==dev.anjo7778.sao.simulation.NpcMenuReview.Kind.PREPARE&&review.detail().contains("Supplies "+s.needs().supplies()),"Real preparation review");
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.fromTransition(s,before,after,plan,false)==null,"Offscreen activity is not projected");
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.fromTransition(s,after,after,plan,true)==null,"No replay on identical ledger");
+        long now=(1L<<28)-2;int session=review.encode(now);
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.kind(session)==review.kind(),"Synced kind");
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.age(session,now+15)==15,"Time wrap handled");
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.age(session,now+66)==-1,"Session expires");
+        helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.reveal(5)==0&&dev.anjo7778.sao.simulation.NpcMenuReview.reveal(25)==1,"Summon precedes projection");
+        helper.succeed();
+    }
 }
