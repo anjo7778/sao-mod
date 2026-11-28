@@ -19,8 +19,14 @@ while ((SECONDS<deadline)); do
         grep 'SAO_ARCHERY_' "$log"
         exit 0
     fi
-    if ! kill -0 "$pid" 2>/dev/null; then tail -n 150 "$log"; exit 1; fi
+    if ! kill -0 "$pid" 2>/dev/null; then
+        grep -E 'SAO_|Exception|Caused by:|FATAL|ERROR|Description:' "$log" | tail -n 100 || true
+        find run-archery/crash-reports -name '*.txt' -print -exec head -n 90 {} \; 2>/dev/null || true
+        tail -n 100 "$log"; exit 1
+    fi
     sleep 2
 done
-tail -n 150 "$log"
+grep -E 'SAO_|Exception|Caused by:|FATAL|ERROR|Description:' "$log" | tail -n 100 || true
+find run-archery/crash-reports -name '*.txt' -print -exec head -n 90 {} \; 2>/dev/null || true
+tail -n 100 "$log"
 exit 1
