@@ -47,7 +47,7 @@ public final class ForgeService {
         }
         return Optional.empty();
     }
-    private static boolean take(List<ItemStack> stacks,Predicate<ItemStack> matches,int count){
+    static boolean take(List<ItemStack> stacks,Predicate<ItemStack> matches,int count){
         for(var stack:stacks){
             if(count==0)return true;
             if(!stack.isEmpty()&&matches.test(stack)){

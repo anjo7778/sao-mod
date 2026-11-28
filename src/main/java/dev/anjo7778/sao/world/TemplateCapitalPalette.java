@@ -34,7 +34,9 @@ final class TemplateCapitalPalette{
             case 'H'->Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING,true);
             case 'B'->Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING,Direction.UP);
             case 'C'->Blocks.CRAFTING_TABLE.defaultBlockState();
-            case 'F'->Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.FACING,Direction.EAST);
+            case 'F'->plot!=null&&plot.role()==CityPlan.Role.FORGE
+                ?Blocks.BLAST_FURNACE.defaultBlockState().setValue(BlastFurnaceBlock.FACING,Direction.EAST)
+                :Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.FACING,Direction.EAST);
             case 'A'->Blocks.ANVIL.defaultBlockState().setValue(AnvilBlock.FACING,Direction.NORTH);
             case 'T'->Blocks.SPRUCE_PLANKS.defaultBlockState();
             case 'L'->Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING,Direction.EAST);

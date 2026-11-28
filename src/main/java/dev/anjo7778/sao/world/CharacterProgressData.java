@@ -25,7 +25,8 @@ public final class CharacterProgressData extends SavedData {
     private final Map<Owner,EnumMap<Mastery,WorkWindow>> workWindows=new HashMap<>();
     /** Capped, save-backed progression. Only called by authenticated completed actions. */
     public boolean profession(Owner owner,long day,Mastery mastery){
-        if(owner.kind()!=Kind.PLAYER||day<0||(mastery!=Mastery.MINING&&mastery!=Mastery.METALLURGY))return false;
+        if(day<0||(mastery!=Mastery.MINING&&mastery!=Mastery.METALLURGY)
+            ||owner.kind()==Kind.NPC&&mastery!=Mastery.METALLURGY)return false;
         var windows=workWindows.computeIfAbsent(owner,k->new EnumMap<>(Mastery.class));
         var before=windows.get(mastery);int limit=mastery==Mastery.MINING?32:16;
         if(before!=null&&(day<before.day()||day==before.day()&&before.operations()>=limit))return false;
@@ -123,7 +124,6 @@ public final class CharacterProgressData extends SavedData {
                 }
             }
             if(schema>=3&&n.contains("workWindows",Tag.TAG_COMPOUND)){
-                if(key.kind()!=Kind.PLAYER)throw new IllegalArgumentException("Invalid profession owner");
                 var saved=n.getCompound("workWindows");var windows=new EnumMap<Mastery,WorkWindow>(Mastery.class);
                 for(String name:saved.getAllKeys()){
                     var mastery=Mastery.valueOf(name);

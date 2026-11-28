@@ -223,6 +223,8 @@ public final class CityNpc extends PathfinderMob {
                 swing(InteractionHand.MAIN_HAND);
             }
         }
+        if(profile.occupation()==Occupation.BLACKSMITH&&tickCount%40==Math.floorMod(profile.id().hashCode(),40))
+            NpcForgeWorkshop.tick(this,level);
         if(HuntService.tick(this,level,trip)){closeMenu();return;}
         if(isUsingItem())stopUsingItem();
         if(conversationPeer!=null){
