@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 public final class GateWoodlandFeature {
     private GateWoodlandFeature(){}
     public static int place(WorldGenLevel level,long floor,int ox,int oz){
+        if(floor<1||floor>10)return 0;
         int placed=0;
         var center=FloorLayout.center(floor);
         for(var gate:ScoutingTrip.Gate.values())for(var site:GateWoodlandPlan.sites(floor,gate)){
@@ -19,7 +20,9 @@ public final class GateWoodlandFeature {
                 ||RegionalSettlements.inDecorationBuffer(floor,x-center.x(),z-center.z()))continue;
             for(int y=CityPlan.GROUND+18;y>=CityPlan.GROUND-18;y--){
                 var p=new BlockPos(x,y,z);var below=level.getBlockState(p.below());
-                if(!level.getBlockState(p.below(2)).isFaceSturdy(level,p.below(2),Direction.UP)
+                var marker=level.getBlockState(p.below(2));
+                if(!(marker.is(Blocks.STONE)||marker.is(Blocks.DIRT)||marker.is(Blocks.GRASS_BLOCK)||marker.is(Blocks.COARSE_DIRT)||marker.is(Blocks.DEEPSLATE))
+                    ||!marker.isFaceSturdy(level,p.below(2),Direction.UP)
                     ||!level.getFluidState(p.below(2)).isEmpty()||level.getBlockEntity(p.below(2))!=null
                     ||!level.getBlockState(p).isAir()||!level.getBlockState(p.above()).isAir()
                     ||!level.getFluidState(p).isEmpty()||!level.getFluidState(p.below()).isEmpty()
