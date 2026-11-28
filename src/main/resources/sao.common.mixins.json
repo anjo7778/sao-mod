@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.anjo7778.sao.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SwordAttackChargeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
