@@ -71,6 +71,10 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
                     if(y==0&&symbol=='.'){
                         boolean entrance=Math.abs(lx)<=2&&lz<=0;
                         state=detail.state(districts?surface:entrance?CityArchitecture.Piece.ROAD:CityArchitecture.Piece.GRASS,building);
+                    }else if(regional&&building.role()==CityPlan.Role.FORGE&&symbol=='F'&&lx==-6&&lz==-3&&y==1){
+                        // The fixed blueprint already has two adjacent furnaces; keep the
+                        // primary blast furnace and dedicate the secondary to native charcoal.
+                        state=Blocks.FURNACE.defaultBlockState().setValue(net.minecraft.world.level.block.FurnaceBlock.FACING,net.minecraft.core.Direction.EAST);
                     }else state=templatePalette.state(symbol,building);
                 }else if(districts&&y==0)state=detail.state(surface,null);
                 else if(districts&&y==1&&surface!=CityArchitecture.Piece.GRASS&&CityArchitecture.piece(col,y)==CityArchitecture.Piece.FLOWER)
