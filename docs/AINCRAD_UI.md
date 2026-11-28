@@ -31,3 +31,7 @@ Non-pausing screen-space prototype, translucent panels, circular navigation, ora
 ## Verified v0.2.26 functionality
 
 [Graphical runtime probe 46097100943](https://github.com/anjo7778/sao-mod/actions/runs/46097100943) passed: actual capital discovery and four player-attributed hostile kills produced 100 XP, level 2, sword 80 XP; native M key and LMB+RMB downward movement opened the real interface; world time advanced; attribute click changed server Strength to 11 and points to 2; saved state round trip passed; Escape closed. [Four screenshot artifacts](https://github.com/anjo7778/sao-mod/actions/runs/46097100943/artifacts/15244031104) captured but visual appearance not reviewed. Hand animations and 3D projection remain pending.
+
+## v0.2.28 menu V2 candidate
+
+User feedback: circular nodes must be smooth and menu more anime-faithful. Five main icon groups, separate pale summary/submenu/detail windows, amber highlights, original supersampled filtered art. Default M key only; optional both or gesture-only, three sensitivities, optional recent attack/hurt/use lock; persistent settings. Both inputs share raise/downstroke timeline with local player third-person pose and provisional first-person arm rendering. World geometry near forward shoulder, projected pointer mapping and Tab flat fallback. No separate finger joints on vanilla model, no networked NPC gesture yet. Build/runtime/visual tests pending; no claim of pixel-perfect anime fidelity.

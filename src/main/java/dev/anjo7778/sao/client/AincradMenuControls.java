@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW;
 public final class AincradMenuControls {
     private static final KeyMapping MENU=new KeyMapping("key.sao.menu",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_M,"key.categories.sao");
     private static ClientLevel lastLevel;
-    private static int ticks,armedAt;
+    private static int ticks,armedAt,lastCombat=-10000;
     private static boolean armed,latched;
     private static double startX,startY;
     private static float startPitch;
@@ -43,30 +43,34 @@ public final class AincradMenuControls {
     }
     @SubscribeEvent public static void interaction(InputEvent.InteractionKeyMappingTriggered event){
         var c=Minecraft.getInstance();
-        if(c.screen==null&&allowed(c)&&chord(c)&&(event.isAttack()||event.isUseItem())){
+        if(c.screen==null&&allowed(c)&&MenuPreferences.mode.gesture()&&!combatBlocked(c)&&chord(c)&&(event.isAttack()||event.isUseItem())){
             event.setCanceled(true);event.setSwingHand(false);
-        }
+        }else if(c.screen==null&&event.isAttack()&&c.hitResult instanceof net.minecraft.world.phys.EntityHitResult)lastCombat=ticks;
+    }
+    private static boolean combatBlocked(Minecraft c){
+        return MenuPreferences.combatGuard&&c.player!=null&&(ticks-lastCombat<60||c.player.isUsingItem());
     }
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
-        var c=Minecraft.getInstance();ticks++;
+        MenuPreferences.load();var c=Minecraft.getInstance();ticks++;
         if(c.level!=lastLevel){
             lastLevel=c.level;ProfileNetwork.clearClient();armed=false;latched=false;
-            ticks=0;
+            ticks=0;lastCombat=-10000;
         }
         if(c.player==null||c.level==null||c.getConnection()==null)return;
+        if(c.player.hurtTime>0)lastCombat=ticks;
         if(ticks%80==0||ticks==1||ProfileNetwork.clientSnapshot()==null&&ticks%20==0)ProfileNetwork.request();
         boolean pressed=MENU.consumeClick();while(MENU.consumeClick())pressed=true;
         boolean both=chord(c);
         if(!both){armed=false;latched=false;}
         if(c.screen!=null){armed=false;if(both)latched=true;return;}
-        if(!allowed(c)){armed=false;return;}
-        if(pressed){open(c);return;}
-        if(!both||latched)return;
+        if(!allowed(c)||combatBlocked(c)){armed=false;return;}
+        if(pressed&&MenuPreferences.mode.key()){open(c);return;}
+        if(!MenuPreferences.mode.gesture()||!both||latched){armed=false;return;}
         if(!armed){
             armed=true;armedAt=ticks;startX=c.mouseHandler.xpos();startY=c.mouseHandler.ypos();startPitch=c.player.getXRot();return;
         }
         if(ticks-armedAt>20){armed=false;latched=true;return;}
         double dx=c.mouseHandler.xpos()-startX,dy=c.mouseHandler.ypos()-startY;
-        if(dy>=42&&Math.abs(dx)<=dy*.8||c.player.getXRot()-startPitch>=12&&Math.abs(dx)<=65)open(c);
+        if(dy>=MenuPreferences.sensitivity.pixels&&Math.abs(dx)<=dy*.8||c.player.getXRot()-startPitch>=MenuPreferences.sensitivity.pitch&&Math.abs(dx)<=65)open(c);
     }
 }
