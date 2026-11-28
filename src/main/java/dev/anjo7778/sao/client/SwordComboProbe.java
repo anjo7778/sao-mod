@@ -120,7 +120,7 @@ public final class SwordComboProbe {
                 clickMenu(c,259,97);phase=7;ticks=0;
             }
             case 7->{
-                if(snapshot==null||snapshot.selectedSkill()!=SwordActions.Skill.HORIZONTAL_SQUARE.ordinal())return;
+                if(ticks<4||snapshot==null||snapshot.selectedSkill()!=SwordActions.Skill.HORIZONTAL_SQUARE.ordinal())return;
                 LOG.info("SAO_SWORD_TREE_SELECT_OK");
                 clickMenu(c,328,131);phase=8;ticks=0;
             }
