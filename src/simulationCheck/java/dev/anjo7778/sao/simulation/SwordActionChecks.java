@@ -79,6 +79,39 @@ public final class SwordActionChecks {
         }
         check(SwordPose.sample(SwordPose.Kind.HORIZONTAL,5).y()<0&&SwordPose.sample(SwordPose.Kind.HORIZONTAL,9).y()>0,"Horizontal crosses actual pose axis");
         System.out.println("PASS: confirmed three-hit combos, failure/expiry reset, mastery, cooldown, timestamp and authored poses");
+        for(var selected:SwordActions.Skill.values()){
+            var action=new SwordActions();
+            check(!action.skill(0,selected.mastery-1,selected)&&action.stamina()==100,"Locked skill costs nothing");
+            check(action.skill(0,selected.mastery,selected)&&action.move()==selected.move,"Actual mastery unlock");
+            check(action.stamina()==100-selected.move.cost,"Skill-specific cost");
+            check(!action.claimHit(selected.move.windup-1)&&action.claimHit(selected.move.windup),"Skill-specific hit window");
+            check(action.confirmHit(selected.move.windup,true)&&!action.claimHit(selected.move.windup),"Only one hit per current skill");
+            check(SwordPose.kind(action.visualCode(selected.move.windup,selected.move.windup))==SwordPose.Kind.valueOf(selected.name()),"Skill-specific pose");
+            action.advance(selected.move.windup+selected.move.recovery);
+            check(!action.skill(selected.move.windup+selected.move.recovery,selected.mastery,selected),"Individual cooldown");
+        }
+        var shared=new SwordActions();
+        check(shared.skill(0,7,SwordActions.Skill.SLANT),"Initial skill");
+        shared.advance(18);
+        check(!shared.skill(18,7,SwordActions.Skill.VERTICAL)&&shared.skillCooldown(SwordActions.Skill.VERTICAL,18)==12,"Switching skill cannot bypass shared delay");
+        shared.advance(30);
+        check(shared.skill(30,7,SwordActions.Skill.VERTICAL)&&shared.skillCooldown(SwordActions.Skill.SLANT,30)==60,"Independent timers survive other skill activation");
+        var durable=new SwordActions();
+        check(durable.skill(100,7,SwordActions.Skill.SONIC_LEAP),"Save during windup");
+        var saved=durable.save(102);
+        var reload=SwordActions.restore(saved,102);
+        check(reload.stamina()==66&&reload.phase()==RECOVERY&&reload.visualCode(102,102)==0,"Reload cancels active pose and retains stamina/recovery");
+        check(reload.skillCooldown(SwordActions.Skill.SONIC_LEAP,102)==158&&!reload.claimHit(109),"Reload cannot replay pending strike");
+        reload.advance(129);
+        check(reload.phase()==IDLE&&!reload.skill(129,7,SwordActions.Skill.SONIC_LEAP),"Reload keeps independent cooldown");
+        var elapsed=SwordActions.restore(saved,260);
+        check(elapsed.stamina()==100&&elapsed.phase()==IDLE&&elapsed.skillCooldown(SwordActions.Skill.SONIC_LEAP,260)==0,"Elapsed world ticks allow bounded recovery");
+        var rollback=SwordActions.restore(saved,98);
+        check(rollback.stamina()==66&&rollback.skillCooldown(SwordActions.Skill.SONIC_LEAP,98)==158,"Clock rollback cannot grant free stamina or shorter cooldown");
+        boolean invalid=false;
+        try{new SwordActions.Saved(101,0,0,0,java.util.List.of(0,0,0,0));}catch(IllegalArgumentException expected){invalid=true;}
+        check(invalid,"Invalid checkpoint rejected");
+        System.out.println("PASS: all four skill gates, distinct timings and poses, shared cooldown, reload recovery and rollback protection");
     }
     private static void check(boolean value,String message){if(!value)throw new AssertionError(message);}
 }
