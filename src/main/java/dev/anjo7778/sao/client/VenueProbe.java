@@ -105,9 +105,10 @@ public final class VenueProbe {
     }
     private static void observe(ServerPlayer p){
         var level=p.serverLevel();require(level.getGameTime()-began<3000,"Venue arrival/credit timeout");
-        require(level.getEntity(id) instanceof CityNpc,"NPC projection disappeared");
+        require(level.getEntity(id) instanceof CityNpc,"NPC projection disappeared; player="+p.position()+" ledger="+AdventureSimulationData.get(level.getServer()).ledger(1,id));
         var npc=(CityNpc)level.getEntity(id);
         var ledger=AdventureSimulationData.get(level.getServer()).ledger(1,id);
+        if((level.getGameTime()-began)%200<20)LOG.info("SAO_VENUE_TRACE pos={} activity={} atDestination={} ledger={}",npc.position(),npc.activity(),npc.atScheduledDestination(),ledger);
         if(!arrived&&npc.activity().equals("TRAIN")&&npc.atScheduledDestination()
             &&CityCourts.at(1,npc.getBlockX(),npc.getBlockZ())!=null){
             arrived=true;LOG.info("SAO_VENUE_ARRIVAL_OK position={} elapsed={}",npc.position(),level.getGameTime()-began);

@@ -106,7 +106,12 @@ public final class AdventureSimulationData extends SavedData {
             if(previous.trip().active()){
                 mode=previous.trip().phase()==ScoutingTrip.Phase.SURVEY&&(offscreen||reached)?Mode.SCOUT:Mode.TRAVEL;
             }
-            var transition=ScoutingTrip.advance(s,previous,epoch,level.getDayTime(),offscreen,reached);
+            // A mastery/contact objective is not randomly interrupted by a new
+            // scouting expedition. Existing trips still finish and urgent needs retain priority.
+            boolean deferScout=CityRules.hasLandmarks(level)&&!previous.trip().active()
+                &&(previous.goal().kind()==AdventurerGoals.Kind.PRACTICE||previous.goal().kind()==AdventurerGoals.Kind.CONNECT);
+            var transition=deferScout?new ScoutingTrip.Result(previous.trip(),false):
+                ScoutingTrip.advance(s,previous,epoch,level.getDayTime(),offscreen,reached);
             Ledger next=AdventureProgress.advance(previous,epoch,mode,offscreen).withTrip(transition.trip());
             if(next.trip().completed()==previous.trip().completed()+1){
                 boolean observed=next.trip().observed()==previous.trip().observed()+1;
