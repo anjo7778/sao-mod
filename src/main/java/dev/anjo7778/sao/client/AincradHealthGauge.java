@@ -41,7 +41,7 @@ final class AincradHealthGauge {
     }
     private static void label(GuiGraphics g,String value,int x,int y,int max,boolean centered){
         var font=Minecraft.getInstance().font;
-        var text=AincradType.component(value).withStyle(ChatFormatting.BOLD);
+        var text=AincradType.component(value).copy().withStyle(ChatFormatting.BOLD);
         int natural=Math.max(1,font.width(text));
         float sx=Math.min(.94f,max/(float)natural);
         // Tall lettering and independently fitted width: no truncation of numerical HP.
