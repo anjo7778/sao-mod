@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": {
+    "item": "sao:steel_bloom"
+  },
+  "result": {
+    "id": "sao:steel_ingot",
+    "count": 1
+  },
+  "experience": 0.4,
+  "cookingtime": 100
+}

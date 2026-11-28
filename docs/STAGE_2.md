@@ -200,3 +200,7 @@ v0.2.32 build and graphical probe passed (46101134885, 46101111905); observed NP
 ## v0.2.35 interface completion candidate
 
 Corrected native inventory and articulated mesh tests passed individually in 46101898101, but edge-positioned NPC menu fell outside its fixed screenshot sampling region. Record actual bounded projection coordinates for visual testing. Correct detached first-person arm and package five original UI audio resources; confirmation on authoritative allocation response. Full client verification pending. Combat after interface acceptance.
+
+## v0.2.36 materials foundation candidate
+
+User approved ore and material design before the first native one-handed sword. Establish actual steel bloom and blast-furnace refining with original items, independent material/quality/rarity rules, future floor-band metadata and native furnace GameTest. No placeholder ores, fake crafting XP, or new combat modifications. v0.2.35 production build passed; prior graphical test decoded and requested all five actual sounds, inventory pixels/transactions and player/NPC finger geometry passed, but NPC projected-bounds assertion failed (46102778608), so graphical gate remains open separately.

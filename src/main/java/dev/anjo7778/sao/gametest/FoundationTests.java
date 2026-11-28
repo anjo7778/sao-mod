@@ -594,4 +594,47 @@ public final class FoundationTests {
         helper.assertTrue(dev.anjo7778.sao.simulation.NpcMenuReview.reveal(5)==0&&dev.anjo7778.sao.simulation.NpcMenuReview.reveal(25)==1,"Summon precedes projection");
         helper.succeed();
     }
+
+    @GameTest(template="empty",timeoutTicks=180)
+    public static void steelRefiningAndMaterialIdentity(GameTestHelper helper){
+        var level=helper.getLevel();
+        var steel=dev.anjo7778.sao.simulation.MaterialRules.Material.STEEL;
+        var iron=dev.anjo7778.sao.simulation.MaterialRules.Material.IRON;
+        var mithril=dev.anjo7778.sao.simulation.MaterialRules.Material.MITHRIL;
+        var adamantite=dev.anjo7778.sao.simulation.MaterialRules.Material.ADAMANTITE;
+        helper.assertTrue(steel.properties.durability()>iron.properties.durability(),"Steel has distinct material properties");
+        helper.assertTrue(mithril.properties.mass()<iron.properties.mass()&&adamantite.properties.mass()>iron.properties.mass(),"Material tradeoffs");
+        helper.assertTrue(mithril.intendedDeposit(10)&&mithril.intendedDeposit(25)&&!mithril.intendedDeposit(9)&&!mithril.intendedDeposit(26),"Intended natural floor band");
+        helper.assertFalse(steel.intendedDeposit(1),"Alloys are never natural ore");
+        var standard=dev.anjo7778.sao.simulation.MaterialRules.CraftQuality.STANDARD;
+        var common=new dev.anjo7778.sao.simulation.MaterialRules.EquipmentMaterial(steel,dev.anjo7778.sao.simulation.MaterialRules.Rarity.COMMON,standard);
+        var unique=new dev.anjo7778.sao.simulation.MaterialRules.EquipmentMaterial(steel,dev.anjo7778.sao.simulation.MaterialRules.Rarity.UNIQUE,standard);
+        helper.assertTrue(common.effective().equals(unique.effective()),"Rarity is not a hidden stat multiplier");
+        var masterwork=new dev.anjo7778.sao.simulation.MaterialRules.EquipmentMaterial(steel,dev.anjo7778.sao.simulation.MaterialRules.Rarity.COMMON,dev.anjo7778.sao.simulation.MaterialRules.CraftQuality.MASTERWORK);
+        helper.assertTrue(masterwork.effective().durability()>common.effective().durability()&&masterwork.effective().mass()==common.effective().mass(),"Craftsmanship separate from rarity and base mass");
+        var items=net.minecraft.world.item.Items.IRON_INGOT;
+        var carbon=net.minecraft.world.item.Items.CHARCOAL;
+        var bloom=dev.anjo7778.sao.item.SaoItems.STEEL_BLOOM.get();
+        var ingot=dev.anjo7778.sao.item.SaoItems.STEEL_INGOT.get();
+        helper.assertTrue(ingot instanceof dev.anjo7778.sao.item.RefinedMetalItem metal&&metal.metal()==steel,"Native steel material identity");
+        var input=net.minecraft.world.item.crafting.CraftingInput.of(2,1,java.util.List.of(new net.minecraft.world.item.ItemStack(items),new net.minecraft.world.item.ItemStack(carbon)));
+        var recipe=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,input,level).orElseThrow();
+        var output=recipe.value().assemble(input,level.registryAccess());
+        helper.assertTrue(output.is(bloom)&&output.getCount()==1,"One iron plus carbon makes one bloom");
+        var single=new net.minecraft.world.item.crafting.SingleRecipeInput(output);
+        var blast=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.BLASTING,single,level).orElseThrow();
+        helper.assertTrue(blast.value().assemble(single,level.registryAccess()).is(ingot),"Blast furnace recipe resolves actual steel");
+        helper.assertFalse(level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.SMELTING,single,level).isPresent(),"Ordinary furnace cannot refine the steel bloom");
+        var pos=helper.absolutePos(new net.minecraft.core.BlockPos(0,1,0));
+        level.setBlockAndUpdate(pos,net.minecraft.world.level.block.Blocks.BLAST_FURNACE.defaultBlockState());
+        var furnace=(net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity)level.getBlockEntity(pos);
+        helper.assertTrue(furnace!=null,"Actual blast furnace block entity");
+        furnace.setItem(0,new net.minecraft.world.item.ItemStack(bloom));
+        furnace.setItem(1,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL));
+        helper.runAfterDelay(115,()->{
+            helper.assertTrue(furnace.getItem(0).isEmpty()&&furnace.getItem(1).isEmpty(),"Input and fuel consumed");
+            helper.assertTrue(furnace.getItem(2).is(ingot)&&furnace.getItem(2).getCount()==1,"Exactly one real finished steel ingot");
+            helper.succeed();
+        });
+    }
 }

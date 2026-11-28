@@ -8,5 +8,11 @@
   "subtitles.sao.menu_select": "Aincrad menu selection",
   "subtitles.sao.menu_confirm": "Aincrad action confirmed",
   "subtitles.sao.menu_close": "Aincrad menu closes",
-  "subtitles.sao.level_up": "Aincrad level up"
+  "subtitles.sao.level_up": "Aincrad level up",
+  "item.sao.steel_bloom": "Unrefined Steel Bloom",
+  "item.sao.steel_ingot": "Steel Ingot",
+  "tooltip.sao.refined_metal": "Refined alloy · relative to iron",
+  "tooltip.sao.metal_edge": "Edge performance: %s%%",
+  "tooltip.sao.metal_weight": "Relative weight: %s%%",
+  "tooltip.sao.metal_durability": "Relative durability: %s%%"
 }
