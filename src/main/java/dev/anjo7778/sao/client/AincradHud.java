@@ -77,6 +77,10 @@ public final class AincradHud {
             }else if(phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
                 text(g,phase.name(),x+4,info+1,WHITE,w-8);info+=12;
             }
+            var active=dev.anjo7778.sao.simulation.SwordActions.Move.values()[combat.move()];
+            if(active.hits>1&&phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
+                text(g,"STRIKES "+combat.landedHits()+"/"+active.hits,x+4,info+1,BLUE,w-8);info+=12;
+            }
             if(combat.combo()>0){
                 text(g,"CHAIN "+combat.combo()+"/3",x+4,info+1,AMBER,w-8);info+=12;
             }
