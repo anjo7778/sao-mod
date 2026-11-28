@@ -59,7 +59,8 @@ public final class CityNpc extends PathfinderMob {
     @Override public boolean hurt(DamageSource source,float amount){
         if(!(level() instanceof ServerLevel server)||!HuntService.canRetaliate(this,server,source)||!Float.isFinite(amount)||amount<=0)return false;
         // Prototype retreat: keep at least one HP, never create a permanent NPC death or free revival.
-        float bounded=Math.min(amount,Math.max(0,getHealth()-1));
+        var style=HuntStyle.of(profile.combatClass());
+        float bounded=Math.min((float)(amount*style.incoming),Math.max(0,getHealth()-1));
         if(bounded<=0)return false;
         setInvulnerable(false);
         try{
@@ -162,6 +163,7 @@ public final class CityNpc extends PathfinderMob {
             }
         }
         if(HuntService.tick(this,level,trip))return;
+        if(isUsingItem())stopUsingItem();
         if(conversationPeer!=null){
             if(level.getGameTime()<conversationUntil&&level.getEntity(conversationPeer) instanceof CityNpc peer
                 &&peer.isAlive()&&distanceToSqr(peer)<=49&&hasLineOfSight(peer)

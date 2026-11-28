@@ -21,7 +21,8 @@ public record HuntContract(long floor,long surveySince,UUID quarry,Status status
     public static boolean melee(Profile p){
         return p.occupation()==Occupation.ADVENTURER&&(p.combatClass()==CombatClass.SWORDSMAN||p.combatClass()==CombatClass.KNIGHT||p.combatClass()==CombatClass.ASSASSIN);
     }
+    public static boolean supported(Profile p){return p.occupation()==Occupation.ADVENTURER&&HuntStyle.of(p.combatClass())!=null;}
     public static boolean ready(State s){
-        return melee(s.profile())&&s.needs().health()>=70&&s.needs().equipment()>=40&&s.needs().supplies()>=25;
+        return supported(s.profile())&&s.needs().health()>=70&&s.needs().equipment()>=40&&s.needs().supplies()>=25;
     }
 }

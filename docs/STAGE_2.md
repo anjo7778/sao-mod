@@ -136,3 +136,11 @@ Standing guild reconnaissance commission: 10 Col per newly completed existing sc
 ## v0.2.21 real monster hunt candidate
 
 First physical quest slice: eligible projected melee adventurers at a scouting survey can select one existing nearby zombie, husk, spider or skeleton; no spawning, no credit for abstract travel, no boss/guardian targeting and no combat in safe zones. A bounded three-epoch survey hunt window, vanilla melee damage, restricted retaliation and durable health/retreat (nonlethal clamp, no permanent death), actual matching death attribution, a 10 Col treasury-funded bounty and 2 equipment wear. One contract per survey, one active claimant per quarry, saved status and wallet counters in population schema 6; old saves remain compatible. No fake loot, combat levels, real player quest board, custom models, ranged/magic classes or remote combat yet. Verify real kill, actual damage, rejection of unrelated kills and restart before acceptance. Pure GameTest fixture exercises only settlement/persistence, not physical combat.
+
+## v0.2.21 verified melee hunt
+
+[Build 46091946304](https://github.com/anjo7778/sao-mod/actions/runs/46091946304) and [client 46092023142](https://github.com/anjo7778/sao-mod/actions/runs/46092023142) passed. Controlled reduced-HP husk and projected scout fixture; actual melee death, real mob-attributed injury (85 then 70 health), one 10 Col treasury debit, condition wear, duplicate rejection, saved-state round trip. No full restart or natural population encounter coverage yet.
+
+## v0.2.22 combat classes (candidate)
+
+Separate sword, knight and assassin attack cadence/reach/base attributes and knight damage reduction. Archer support with actual vanilla arrow, draw state, visible launch, one supply point charged only for a successfully spawned arrow, reserve of 15, no collectible ammo. Contract-bound damage guard validates exact target and current arena; tagged projectiles expire when owner, contract or arena invalid or after 100 ticks. No ranged reward without actual death attribution; same persisted bounty and health system, no new schema. Test actual ranged kill and supply debit, wrong-target denial, melee regressions and save/load. Mage/healer combat and custom monster assets remain pending.

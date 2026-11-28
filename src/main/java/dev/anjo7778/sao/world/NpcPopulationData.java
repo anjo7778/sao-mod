@@ -42,15 +42,24 @@ public final class NpcPopulationData extends SavedData {
     /** Exact live death attribution is checked by HuntService before this atomic transaction. */
     public boolean finishHunt(long floor,UUID actor,long surveySince,UUID quarry){
         var h=hunts.get(actor);var capital=floors.get(floor);var state=capital==null?null:capital.get(actor);
-        if(state==null||!HuntContract.melee(state.profile())||h==null||!h.active()||h.floor()!=floor
+        if(state==null||!HuntContract.supported(state.profile())||h==null||!h.active()||h.floor()!=floor
             ||h.surveySince()!=surveySince||!h.quarry().equals(quarry)||!actor.equals(quarryClaims.get(quarry)))return false;
         var reward=AdventurerMarket.huntReward(wallet(state.profile()),treasury(floor));
         wallets.put(actor,reward.wallet());treasuries.put(floor,reward.treasury());
         capital.put(actor,state.withNeeds(AdventurerMarket.wear(state.needs(),2)));
         hunts.put(actor,h.close(HuntContract.Status.KILLED));quarryClaims.remove(quarry,actor);setDirty();return true;
     }
+    /** A real launched arrow consumes one existing abstract supply unit. No new collectible items. */
+    public boolean spendHuntArrow(long floor,UUID id,long since,UUID quarry){
+        var state=state(floor,id);var h=hunts.get(id);
+        if(state==null||state.profile().combatClass()!=CombatClass.ARCHER||h==null||!h.active()||h.floor()!=floor
+            ||h.surveySince()!=since||!h.quarry().equals(quarry)||!id.equals(quarryClaims.get(quarry))
+            ||state.needs().supplies()<=HuntStyle.ARROW_RESERVE)return false;
+        var n=state.needs();
+        return updateNeeds(floor,id,new Needs(n.health(),n.supplies()-HuntStyle.ARROW_SUPPLY_COST,n.equipment(),n.partyReadiness(),n.danger()));
+    }
     public void recordHuntHealth(long floor,UUID id,int health){
-        var state=state(floor,id);if(state==null||!HuntContract.melee(state.profile()))return;
+        var state=state(floor,id);if(state==null||!HuntContract.supported(state.profile()))return;
         var n=state.needs();
         updateNeeds(floor,id,new Needs(Math.max(1,Math.min(n.health(),health)),n.supplies(),n.equipment(),n.partyReadiness(),n.danger()));
     }
@@ -282,7 +291,7 @@ public final class NpcPopulationData extends SavedData {
             wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed"),w.getInt("huntKills"),w.getInt("paidHunts")));
         }
         if(b.contains("hunt",Tag.TAG_COMPOUND)){
-            if(!HuntContract.melee(p))throw new IllegalArgumentException("Invalid hunt profile");
+            if(!HuntContract.supported(p))throw new IllegalArgumentException("Invalid hunt profile");
             var h=b.getCompound("hunt");
             var hunt=new HuntContract(h.getLong("floor"),h.getLong("since"),h.getUUID("quarry"),HuntContract.Status.valueOf(h.getString("status")));
             if(hunt.quarry().equals(p.id())||hunt.floor()>p.currentFloor()||hunt.floor()<p.birthFloor()

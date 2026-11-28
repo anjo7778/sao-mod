@@ -453,4 +453,24 @@ public final class FoundationTests {
         helper.assertTrue(restored.settleScouting(1,p.id(),0,1)==10&&restored.wallet(p).col()==120,"Separate actual hunt and scouting rewards");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void archerHuntSupplyPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var archer=pop.roster(1).stream().filter(s->s.profile().combatClass()==dev.anjo7778.sao.simulation.NpcRoster.CombatClass.ARCHER).findFirst().orElseThrow();
+        var p=archer.profile();var id=p.id();var quarry=new java.util.UUID(65,66);
+        helper.assertTrue(dev.anjo7778.sao.simulation.HuntContract.ready(archer),"Archer eligible");
+        helper.assertTrue(pop.openHunt(1,id,4,quarry),"Archer contract");
+        helper.assertFalse(pop.spendHuntArrow(1,id,3,quarry),"Wrong survey cannot consume supplies");
+        helper.assertFalse(pop.spendHuntArrow(1,id,4,new java.util.UUID(67,68)),"Wrong quarry refused");
+        helper.assertTrue(pop.spendHuntArrow(1,id,4,quarry),"One real launch debit fixture");
+        helper.assertTrue(pop.state(1,id).needs().supplies()==archer.needs().supplies()-1,"Supply debit");
+        var regs=helper.getLevel().registryAccess();var saved=dev.anjo7778.sao.world.NpcPopulationData.load(pop.save(new CompoundTag(),regs),regs);
+        helper.assertTrue(saved.hunt(id).equals(pop.hunt(id))&&saved.state(1,id).equals(pop.state(1,id)),"Active ranged contract and cost persist");
+        helper.assertTrue(saved.finishHunt(1,id,4,quarry),"Exact archer bounty settlement fixture");
+        helper.assertFalse(saved.spendHuntArrow(1,id,4,quarry),"Closed contract cannot shoot");
+        var n=saved.state(1,id).needs();
+        saved.updateNeeds(1,id,new dev.anjo7778.sao.simulation.AdventurerMind.Needs(n.health(),15,n.equipment(),n.partyReadiness(),n.danger()));
+        helper.assertFalse(saved.openHunt(1,id,6,quarry),"Insufficient preparation");
+        helper.succeed();
+    }
 }

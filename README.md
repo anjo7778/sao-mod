@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.21 |
+| Mod version | 0.2.22 |
 
 ## Local builds (optional)
 
@@ -121,7 +121,7 @@ New Aincrad worlds use a versioned landmark layout with four fixed public-space 
 
 In landmark worlds adventurers choose persistent practice, scouting or social-contact objectives based on ambition and feasibility. Goals progress from real ledger changes or accepted reciprocal friendly conversations only; deadlines/cooldowns allow replanning. Practice and social goals bias discretionary schedules, not rest, emergency preparation or active trips. A subset visits training yards, guild squares, market courts or gardens. Venue-specific routes use existing connectors, and training actors look toward targets. Loaded activity credit requires actual matching plan and arrival; off-screen routines use the same decisions. No combat XP, fake rewards, trade or guild membership. Old worlds retain existing schedules; old ledgers load with empty goals. Tests and actual client verification required.
 
-## v0.2.21 upward migration prototype
+## v0.2.22 upward migration prototype
 Eligible offscreen adventurers in landmark worlds can independently relocate once to the next already discovered and unlocked capital after completing a personal goal and scout trip. Bound source and destination population; retain stable identity, needs, memories, goal/practice history, and separate local scouting journals. The lifetime ledger stays keyed to birthplace; residence is saved in the population file. No new unlock, physical portal animation, or generated terrain from migration. This is a one-way initial slice, not unrestricted floor travel. Nearby training routes avoid plaza detours; active practice/social objectives defer new scouting starts. Runtime acceptance pending.
 
 ## v0.2.15 regional settlements
@@ -130,7 +130,7 @@ Fresh Aincrad worlds add four regional hubs to every supported floor: Crossroads
 
 ## Experimental Stage 2 regional settlements
 
-New v0.2.21 Aincrad worlds include four regional settlements per floor using the existing v2 template library. A 32-block decoration-free biome buffer is intended to protect the settlement edge from nearby vanilla world generation without extending the combat safe zone. Existing saves retain their serialized biome-source setting and are not regenerated. Regional runtime acceptance is pending; see [Stage 2](docs/STAGE_2.md).
+New v0.2.22 Aincrad worlds include four regional settlements per floor using the existing v2 template library. A 32-block decoration-free biome buffer is intended to protect the settlement edge from nearby vanilla world generation without extending the combat safe zone. Existing saves retain their serialized biome-source setting and are not regenerated. Regional runtime acceptance is pending; see [Stage 2](docs/STAGE_2.md).
 
 Visited regional settlements now have separate save-backed residents, one per building, with local home/work/rest/social schedules and loaded-only humanoid projections. Merchants, innkeepers and smiths are local characters, not a working transaction economy yet. Regional population and runtime verification are pending.
 
@@ -141,3 +141,5 @@ NPC economy prototype: 100 starting Col per adventurer, finite shop stock, paid 
 NPC guild economy extension: each discovered capital has a finite 1,200 Col treasury and wholesale reserves of 256 supply packs and 128 repair units. A newly completed reconnaissance earns 10 Col if the treasury can fund it; an exhausted shop can buy up to six reserve units with its own receipts when a buyer arrives. These are simulation units and a finite bootstrap reserve, not farmed or crafted Minecraft items. No retroactive rewards or free restocking. Income from combat, player transactions, renewable goods and actual quest contracts are still pending.
 
 Physical melee hunt prototype: prepared projected swordsmen, knights and assassins on a real scouting survey may accept one nearby vanilla hostile monster as a guild quarry. The actual attributed death pays 10 Col from the same finite treasury, with durable condition wear and bounded nonlethal injury/retreat. No simulated kill, generated hunt mob, custom model, boss unlock, combat XP, permanent death or player quest UI yet. Runtime verification pending.
+
+Class combat candidate: distinct melee intervals/reach, knight damage reduction, and archers using actual noncollectible vanilla arrows, charged against existing supply points. Arrows are restricted to their live quarry contract, expire after the encounter or owner unload, and cannot intentionally damage other actors. No magic, custom monsters or item-based ammunition yet. Runtime acceptance pending.

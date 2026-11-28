@@ -54,6 +54,8 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(CityRules::spawn);
         NeoForge.EVENT_BUS.addListener(CityRules::spawnCheck);
         NeoForge.EVENT_BUS.addListener(CityRules::damage);
+        NeoForge.EVENT_BUS.addListener(HuntService::damage);
+        NeoForge.EVENT_BUS.addListener(HuntService::projectileTick);
         NeoForge.EVENT_BUS.addListener(NpcPopulationData::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(NpcPresence::tick);
         NeoForge.EVENT_BUS.addListener(AdventureSimulationData::onTick);
