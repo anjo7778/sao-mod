@@ -569,9 +569,7 @@ public final class FoundationTests {
         var level=helper.getLevel();
         var npc=dev.anjo7778.sao.entity.SaoEntities.CITY_NPC.get().create(level);
         helper.assertTrue(npc!=null&&npc.displayOccupation()==null&&npc.displayLevel()==0,"Unbound NPC has no invented role or level");
-        var roster=dev.anjo7778.sao.world.NpcPopulationData.get(level.getServer());
-        roster.discover(1,level.getServer().overworld().getSeed());
-        var s=roster.roster(1).stream().filter(v->v.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).findFirst().orElseThrow();
+        var s=dev.anjo7778.sao.simulation.NpcRoster.generate(42,1).stream().filter(v->v.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).findFirst().orElseThrow();
         var state=dev.anjo7778.sao.world.CharacterProgressData.get(level.getServer());
         var owner=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.NPC,s.profile().id());
         npc.bind(s);
