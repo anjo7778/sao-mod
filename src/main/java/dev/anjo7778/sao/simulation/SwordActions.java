@@ -18,10 +18,15 @@ public final class SwordActions {
     private int stamina=MAX_STAMINA,nextCombo;
     private Phase phase=Phase.IDLE;
     private Move move=Move.BASIC;
+    private SwordPose.Kind pose;
     private long last=-1,start,activeAt,end,counterUntil=-1,comboUntil=-1,skillReady,claimTick=-1;
     public int stamina(){return stamina;}
     public Phase phase(){return phase;}
     public Move move(){return move;}
+    public int visualCode(long clockNow,long levelTime){
+        if(pose==null||phase==Phase.IDLE||clockNow<start||clockNow>=end)return 0;
+        return SwordPose.encode(pose,levelTime-(clockNow-start));
+    }
     /** Number of successfully chained ordinary strikes, not client input count. */
     public int combo(){return nextCombo;}
     public int skillCooldown(long now){return (int)Math.max(0,Math.min(HORIZONTAL_COOLDOWN,skillReady-now));}
@@ -31,7 +36,7 @@ public final class SwordActions {
         if(nextCombo!=0&&now>=comboUntil)breakCombo();
         if(phase==Phase.WINDUP&&now>=activeAt+2){phase=Phase.RECOVERY;breakCombo();}
         if((phase==Phase.GUARD||phase==Phase.DODGE)&&now>=activeAt)phase=Phase.RECOVERY;
-        if(phase!=Phase.IDLE&&now>=end)phase=Phase.IDLE;
+        if(phase!=Phase.IDLE&&now>=end){phase=Phase.IDLE;pose=null;}
         if(now>last&&phase==Phase.IDLE&&last>=0)stamina=Math.min(MAX_STAMINA,stamina+2);
         last=now;
     }
@@ -47,7 +52,7 @@ public final class SwordActions {
     }
     private boolean begin(long now,Move selected){
         if(phase!=Phase.IDLE||stamina<selected.cost)return false;
-        stamina-=selected.cost;move=selected;phase=Phase.WINDUP;start=now;
+        stamina-=selected.cost;move=selected;pose=SwordPose.Kind.valueOf(selected.name());phase=Phase.WINDUP;start=now;
         activeAt=now+selected.windup;end=activeAt+selected.recovery;
         counterUntil=-1;claimTick=-1;breakCombo();return true;
     }
@@ -70,13 +75,13 @@ public final class SwordActions {
     public boolean guard(long now){
         advance(now);
         if(phase!=Phase.IDLE||stamina<GUARD_COST)return false;
-        stamina-=GUARD_COST;phase=Phase.GUARD;start=now;activeAt=now+8;end=activeAt+6;
+        stamina-=GUARD_COST;pose=SwordPose.Kind.GUARD;phase=Phase.GUARD;start=now;activeAt=now+8;end=activeAt+6;
         counterUntil=-1;breakCombo();return true;
     }
     public boolean dodge(long now){
         advance(now);
         if(phase!=Phase.IDLE||stamina<DODGE_COST)return false;
-        stamina-=DODGE_COST;phase=Phase.DODGE;start=now;activeAt=now+5;end=activeAt+13;
+        stamina-=DODGE_COST;pose=SwordPose.Kind.DODGE;phase=Phase.DODGE;start=now;activeAt=now+5;end=activeAt+13;
         counterUntil=-1;breakCombo();return true;
     }
     /** Caller validates source type, direction, equipment and real dodge displacement. */
@@ -85,7 +90,7 @@ public final class SwordActions {
         if(phase==Phase.DODGE&&moved){phase=Phase.RECOVERY;return Defense.EVADE;}
         if(phase!=Phase.GUARD||!frontal)return Defense.NONE;
         if(now-start<3){
-            phase=Phase.IDLE;end=now;counterUntil=now+12;return Defense.PARRY;
+            phase=Phase.IDLE;pose=null;end=now;counterUntil=now+12;return Defense.PARRY;
         }
         if(stamina<8){phase=Phase.RECOVERY;return Defense.NONE;}
         stamina-=8;phase=Phase.RECOVERY;return Defense.BLOCK;
@@ -94,6 +99,6 @@ public final class SwordActions {
     public void cancel(long now){
         advance(now);
         if(phase!=Phase.IDLE){phase=Phase.RECOVERY;end=Math.max(end,now+6);}
-        claimTick=-1;counterUntil=-1;breakCombo();
+        claimTick=-1;counterUntil=-1;pose=null;breakCombo();
     }
 }
