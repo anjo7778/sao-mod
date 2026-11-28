@@ -277,6 +277,7 @@ public final class NpcResourceService {
         if(!deposit(contents,cargo))return false;
         // Single server-thread transfer: never create cargo offscreen or deliver it twice.
         NpcForgeWorkshop.apply(barrel,contents);data.store(npc.getUUID(),cargo.emptied());
+        NpcPopulationData.get(level.getServer()).settleMaterials(npc.originFloor(),npc.getUUID(),cargo);
         npc.getNavigation().stop();npc.swing(InteractionHand.MAIN_HAND);
         return true;
     }
