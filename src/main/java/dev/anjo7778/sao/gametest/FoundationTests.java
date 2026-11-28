@@ -352,4 +352,44 @@ public final class FoundationTests {
         helper.assertTrue(!legacy.journey(s).active()&&legacy.journey(s).completed()==0,"Legacy save has no invented visit");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void marketPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);pop.discover(2,42);
+        var roster=pop.roster(1);
+        var buyer=roster.stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER
+            &&!dev.anjo7778.sao.simulation.NpcRoutine.resting(s.profile(),6000)).findFirst().orElseThrow();
+        var seller=roster.stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.MERCHANT
+            &&dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,6000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.WORK).findFirst().orElseThrow();
+        var b=buyer.profile();var v=seller.profile();var n=buyer.needs();
+        var needs=new dev.anjo7778.sao.simulation.AdventurerMind.Needs(n.health(),10,20,n.partyReadiness(),n.danger());
+        pop.updateNeeds(1,b.id(),needs);
+        var dest=dev.anjo7778.sao.simulation.NpcDailyPlan.at(seller,6000).destination();
+        helper.assertFalse(pop.purchase(1,b.id(),v.id(),null,new dev.anjo7778.sao.simulation.NpcDailyPlan.Point(0,0),6000,1,false),"Wrong location refused");
+        helper.assertFalse(pop.purchase(1,b.id(),v.id(),null,dest,23000,1,false),"Closed shop refused");
+        helper.assertTrue(pop.purchase(1,b.id(),v.id(),null,dest,6000,2,false),"Supply sale");
+        helper.assertTrue(pop.wallet(b).col()==88&&pop.shop(v).remaining()==23&&pop.shop(v).till()==12,"Conserved money and stock");
+        helper.assertTrue(pop.state(1,b.id()).needs().supplies()==34&&pop.state(1,b.id()).needs().equipment()==20,"Supplies only");
+        helper.assertFalse(pop.purchase(1,b.id(),v.id(),null,dest,6000,2,false),"Duplicate epoch refused");
+        var kind=dev.anjo7778.sao.simulation.RegionalSettlements.Kind.CRAFTS_VILLAGE;pop.discoverRegional(1,kind,42);
+        var smith=pop.regionalRoster(1,kind).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.BLACKSMITH).findFirst().orElseThrow();
+        long t=0;while(t<24000&&(dev.anjo7778.sao.simulation.NpcRoutine.resting(b,t)||dev.anjo7778.sao.simulation.NpcDailyPlan.at(smith,t).activity()!=dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.WORK))t+=100;
+        if(t<24000){
+            var sd=dev.anjo7778.sao.simulation.NpcDailyPlan.at(smith,t).destination();
+            helper.assertFalse(pop.purchase(1,b.id(),smith.profile().id(),null,sd,t,3,false),"Wrong site refused");
+            helper.assertTrue(pop.purchase(1,b.id(),smith.profile().id(),kind,sd,t,3,true),"Regional repair sale");
+            helper.assertTrue(pop.wallet(b).col()==70&&pop.wallet(b).observedOrders()==1&&pop.shop(smith.profile()).till()==18&&pop.state(1,b.id()).needs().equipment()==45,"Repair and receipts");
+        }
+        var regs=helper.getLevel().registryAccess();var tag=pop.save(new CompoundTag(),regs);
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(tag,regs);
+        helper.assertTrue(restored.wallet(b).equals(pop.wallet(b))&&restored.shop(v).equals(pop.shop(v))&&restored.shop(smith.profile()).equals(pop.shop(smith.profile())),"Saved balances and stock");
+        helper.assertTrue(restored.state(1,b.id()).equals(pop.state(1,b.id())),"Saved needs");
+        helper.assertFalse(restored.purchase(1,b.id(),v.id(),null,dest,6000,2,false),"No replay after reload");
+        var w=dev.anjo7778.sao.simulation.AdventurerMarket.NEW_WALLET;
+        var market=dev.anjo7778.sao.simulation.AdventurerMarket.Service.SUPPLIES;
+        var full=new dev.anjo7778.sao.simulation.AdventurerMarket.Shop(market,market.initialStock());
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.buy(needs,w,full,1,false)==null,"Stock cannot be negative");
+        var poor=new dev.anjo7778.sao.simulation.AdventurerMarket.Wallet(8,0,8,0);
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.buy(needs,poor,new dev.anjo7778.sao.simulation.AdventurerMarket.Shop(market,0),9,false)==null,"No credit or free supplies");
+        helper.succeed();
+    }
 }

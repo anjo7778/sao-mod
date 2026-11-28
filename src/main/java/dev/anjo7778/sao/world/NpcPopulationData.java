@@ -17,6 +17,32 @@ public final class NpcPopulationData extends SavedData {
     private final NavigableMap<Long,LinkedHashMap<UUID,State>> floors=new TreeMap<>();
     private record Region(long floor,RegionalSettlements.Kind kind){}
     private final Map<Region,LinkedHashMap<UUID,State>> regions=new LinkedHashMap<>();
+    private final Map<UUID,AdventurerMarket.Wallet> wallets=new HashMap<>();
+    private final Map<UUID,AdventurerMarket.Shop> shops=new HashMap<>();
+    public AdventurerMarket.Wallet wallet(Profile p){
+        if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Not an adventurer");
+        return wallets.getOrDefault(p.id(),AdventurerMarket.NEW_WALLET);
+    }
+    public AdventurerMarket.Shop shop(Profile p){
+        var service=AdventurerMarket.forRole(p.occupation());
+        if(service==null)throw new IllegalArgumentException("Not a shopkeeper");
+        return shops.getOrDefault(p.id(),new AdventurerMarket.Shop(service,0));
+    }
+    /** Server-thread atomic update; MarketService establishes physical presence or an abstract local visit. */
+    public boolean purchase(long floor,UUID buyer,UUID seller,RegionalSettlements.Kind region,NpcDailyPlan.Point destination,long time,long epoch,boolean observed){
+        var capital=floors.get(floor);
+        var local=region==null?capital:regions.get(new Region(floor,region));
+        if(capital==null||local==null||epoch<0)return false;
+        var b=capital.get(buyer);var s=local.get(seller);
+        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||buyer.equals(seller)
+            ||NpcRoutine.resting(b.profile(),time)||AdventurerMarket.forRole(s.profile().occupation())==null)return false;
+        var sellerPlan=NpcDailyPlan.at(s,time);
+        if(sellerPlan.activity()!=NpcDailyPlan.Activity.WORK||!sellerPlan.destination().equals(destination))return false;
+        var sale=AdventurerMarket.buy(b.needs(),wallet(b.profile()),shop(s.profile()),epoch,observed);
+        if(sale==null)return false;
+        capital.put(buyer,b.withNeeds(sale.needs()));
+        wallets.put(buyer,sale.wallet());shops.put(seller,sale.shop());setDirty();return true;
+    }
     public boolean discoverRegional(long floor,RegionalSettlements.Kind kind,long seed){
         var key=new Region(floor,kind);
         if(regions.containsKey(key))return false;
@@ -107,7 +133,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -118,6 +144,7 @@ public final class NpcPopulationData extends SavedData {
             for(int k=0;k<list.size();k++){
                 var s=readState(list.getCompound(k),floor,schema);
                 if(s.profile().regionalHome()!=null||!identities.add(s.profile().id())||roster.put(s.profile().id(),s)!=null)throw new IllegalArgumentException("Invalid capital identity");
+                if(schema>=4)d.readEconomy(list.getCompound(k),s.profile());
             }
             d.floors.put(floor,roster);
         }
@@ -137,6 +164,7 @@ public final class NpcPopulationData extends SavedData {
                     var s=readState(list.getCompound(k),floor,schema);var p=s.profile();
                     if(!site.equals(p.regionalHome())||!homes.add(List.of(p.homeX(),p.homeZ()))||!identities.add(p.id())||roster.put(p.id(),s)!=null)
                         throw new IllegalArgumentException("Invalid regional identity");
+                    if(schema>=4)d.readEconomy(list.getCompound(k),p);
                 }
                 d.regions.put(key,roster);
             }
@@ -144,7 +172,7 @@ public final class NpcPopulationData extends SavedData {
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",3);ListTag capitals=new ListTag();
+        root.putInt("schema",4);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
             ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
@@ -159,7 +187,7 @@ public final class NpcPopulationData extends SavedData {
         });
         root.put("regions",regional);return root;
     }
-    private static CompoundTag writeState(State s){
+    private CompoundTag writeState(State s){
         var p=s.profile();var n=s.needs();var t=p.personality();
         CompoundTag b=new CompoundTag();b.putUUID("id",p.id());b.putString("name",p.name());
         b.putLong("birthFloor",p.birthFloor());b.putLong("relocatedAt",p.relocatedAt());
@@ -171,7 +199,26 @@ public final class NpcPopulationData extends SavedData {
         for(var m:s.memories()){
             CompoundTag q=new CompoundTag();q.putUUID("event",m.eventId());q.putUUID("actor",m.actor());q.putLong("day",m.day());q.putString("type",m.type().name());memories.add(q);
         }
-        b.put("memories",memories);return b;
+        b.put("memories",memories);
+        var wallet=wallets.get(p.id());
+        if(wallet!=null){
+            var w=new CompoundTag();w.putInt("supply",wallet.supplyOrders());w.putInt("repair",wallet.repairOrders());
+            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());b.put("wallet",w);
+        }
+        var shop=shops.get(p.id());if(shop!=null)b.putInt("sold",shop.sold());
+        return b;
+    }
+    private void readEconomy(CompoundTag b,Profile p){
+        if(b.contains("wallet",Tag.TAG_COMPOUND)){
+            if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Wallet role mismatch");
+            var w=b.getCompound("wallet");
+            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed")));
+        }
+        if(b.contains("sold",Tag.TAG_INT)){
+            var service=AdventurerMarket.forRole(p.occupation());
+            if(service==null)throw new IllegalArgumentException("Shop role mismatch");
+            shops.put(p.id(),new AdventurerMarket.Shop(service,b.getInt("sold")));
+        }
     }
     private static State readState(CompoundTag b,long floor,int schema){
         int[] pos=b.getIntArray("destinations"),t=b.getIntArray("traits"),n=b.getIntArray("needs");

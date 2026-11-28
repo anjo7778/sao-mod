@@ -82,6 +82,25 @@ public final class SaoCommands {
                     }
                     return 1;
                 })))
+            .then(Commands.literal("economy").then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                var server=ctx.getSource().getServer();long floor=LongArgumentType.getLong(ctx,"floor");
+                if(!SaoWorldData.get(server).isUnlocked(floor)){ctx.getSource().sendFailure(Component.literal("Unlocked floor required."));return 0;}
+                var pop=NpcPopulationData.get(server);
+                int purchases=0,observed=0,funds=0,sold=0,till=0;
+                var local=new java.util.ArrayList<>(pop.roster(floor));
+                for(var kind:dev.anjo7778.sao.simulation.RegionalSettlements.Kind.values())local.addAll(pop.regionalRoster(floor,kind));
+                for(var state:local){
+                    var profile=state.profile();
+                    if(profile.occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER){
+                        var w=pop.wallet(profile);purchases+=w.orders();observed+=w.observedOrders();funds+=w.col();
+                    }else if(dev.anjo7778.sao.simulation.AdventurerMarket.forRole(profile.occupation())!=null){
+                        var shop=pop.shop(profile);sold+=shop.sold();till+=shop.till();
+                    }
+                }
+                final int a=purchases,b=observed,c=funds,d=sold,e=till;
+                ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+" | "+a+" buyer purchases ("+b+" observed) | "+c+" Col in adventurer wallets | "+d+" local shop sales | "+e+" Col in local tills (NPC simulation units)"),false);
+                return 1;
+            })))
             .then(Commands.literal("journeys")
                 .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
                     var server=ctx.getSource().getServer();long floor=LongArgumentType.getLong(ctx,"floor");

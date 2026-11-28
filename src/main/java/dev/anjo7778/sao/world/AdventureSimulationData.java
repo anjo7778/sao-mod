@@ -59,11 +59,13 @@ public final class AdventureSimulationData extends SavedData {
         if(!CityRules.hasCities(level))return NpcDailyPlan.at(state,level.getDayTime());
         var simulation=get(level.getServer());
         var ledger=state.profile().occupation()==Occupation.ADVENTURER?simulation.ledger(state):null;
+        var base=CityVenueRoutine.plan(state,level.getDayTime(),ledger,CityRules.hasLandmarks(level));
         if(CityRules.hasRegionalSettlements(level)){
             var journey=simulation.journey(state);
-            if(journey.visiting())return RegionalJourney.visitPlan(state.profile(),journey);
+            if(journey.visiting())base=RegionalJourney.visitPlan(state.profile(),journey);
+            return MarketService.plan(level,state,journey,base);
         }
-        return CityVenueRoutine.plan(state,level.getDayTime(),ledger,CityRules.hasLandmarks(level));
+        return base;
     }
     public boolean update(long floor,UUID id,long epoch,Mode mode,boolean offscreen){
         if(!FloorLayout.supported(floor)||id==null||epoch<0)throw new IllegalArgumentException("Invalid simulation target");
@@ -119,7 +121,7 @@ public final class AdventureSimulationData extends SavedData {
             State s=roster.get(cursorIndex);UUID id=s.profile().id();
             var previous=ledger(s);
             if(previous!=null&&previous.epoch()>=epoch)continue;
-            var desired=CityVenueRoutine.plan(s,level.getDayTime(),previous,CityRules.hasLandmarks(level));
+            var desired=plan(level,s);
             var actor=level.getEntity(id);
             // Visible actors earn only sampled activity at their actual destination, not abstract work.
             boolean offscreen=actor==null;
@@ -130,6 +132,10 @@ public final class AdventureSimulationData extends SavedData {
             if(previous==null){update(s.profile().birthFloor(),id,epoch,mode,offscreen);continue;}
             if(CityRules.hasRegionalSettlements(level)){
                 var current=journey(s);
+                if(!previous.trip().active()&&MarketService.transact(level,s,current,desired,epoch)){
+                    floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,Mode.PREPARE,offscreen));
+                    setDirty();continue;
+                }
                 // Regional legs and local scouting are mutually exclusive. A represented NPC
                 // never departs via the abstract simulator or earns unobserved travel credit.
                 var regional=RegionalJourney.advance(s,previous,current,epoch,level.getDayTime(),offscreen);
@@ -141,6 +147,7 @@ public final class AdventureSimulationData extends SavedData {
                         population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-RegionalJourney.supplyCost(cursorFloor),n.equipment(),n.partyReadiness(),n.danger()));
                     }
                     if(regional.arrived())population.discoverRegional(cursorFloor,next.target(),server.overworld().getSeed());
+                    if(next.completed()>current.completed())population.updateNeeds(cursorFloor,id,AdventurerMarket.wear(s.needs(),2));
                     Mode regionalMode=offscreen&&(current.phase()==RegionalJourney.Phase.OUTBOUND||current.phase()==RegionalJourney.Phase.RETURNING||regional.began())?Mode.TRAVEL:Mode.IDLE;
                     floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,regionalMode,offscreen));setDirty();
                     continue;
@@ -168,6 +175,8 @@ public final class AdventureSimulationData extends SavedData {
                 var n=s.needs();
                 population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-ScoutingTrip.SUPPLY_COST,
                     n.equipment(),n.partyReadiness(),n.danger()));
+            }else if(CityRules.hasRegionalSettlements(level)&&next.trip().completed()>previous.trip().completed()){
+                population.updateNeeds(cursorFloor,id,AdventurerMarket.wear(s.needs(),4));
             }else if(CityRules.hasLandmarks(level)&&offscreen&&FloorMigration.eligible(s,next,epoch,level.getDayTime())
                 &&tryMigration(server,population,s,epoch)){
                 migrated++;
