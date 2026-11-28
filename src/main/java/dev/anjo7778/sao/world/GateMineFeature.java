@@ -55,6 +55,37 @@ public final class GateMineFeature {
                 if(level.setBlock(pos,block.defaultBlockState(),2))changed++;
             }
         }
+        return changed+placeCrosscut(level,floor,ox,oz);
+    }
+    private static int placeCrosscut(WorldGenLevel level,long floor,int ox,int oz){
+        int changed=0;var center=FloorLayout.center(floor);
+        for(var gate:ScoutingTrip.Gate.values()){
+            for(var p:GateMineExtension.crosscut(floor,gate)){
+                if(!own(p.x(),p.z(),ox,oz)||CityPlan.inside(floor,p.x()-center.x(),p.z()-center.z())
+                    ||RegionalSettlements.inDecorationBuffer(floor,p.x()-center.x(),p.z()-center.z()))continue;
+                var feet=new BlockPos(p.x(),p.y(),p.z());
+                boolean safe=true;
+                for(int y=-1;y<=2;y++){
+                    var at=feet.above(y);
+                    if(!natural(level.getBlockState(at))||!level.getFluidState(at).isEmpty()||level.getBlockEntity(at)!=null){safe=false;break;}
+                }
+                if(!safe)continue;
+                if(level.setBlock(feet.below(),Blocks.STONE.defaultBlockState(),2))changed++;
+                for(int y=0;y<=2;y++)if(!level.getBlockState(feet.above(y)).isAir()
+                    &&level.setBlock(feet.above(y),Blocks.AIR.defaultBlockState(),2))changed++;
+            }
+            for(var v:GateMineExtension.veins(floor,gate)){
+                var p=v.point();
+                if(!own(p.x(),p.z(),ox,oz)||CityPlan.inside(floor,p.x()-center.x(),p.z()-center.z())
+                    ||RegionalSettlements.inDecorationBuffer(floor,p.x()-center.x(),p.z()-center.z()))continue;
+                var at=new BlockPos(p.x(),p.y(),p.z());var old=level.getBlockState(at);
+                if(!old.is(Blocks.STONE)&&!old.is(Blocks.DEEPSLATE))continue;
+                boolean deep=old.is(Blocks.DEEPSLATE);
+                var ore=v.resource()==GateProspects.Resource.IRON?(deep?Blocks.DEEPSLATE_IRON_ORE:Blocks.IRON_ORE)
+                    :(deep?Blocks.DEEPSLATE_COAL_ORE:Blocks.COAL_ORE);
+                if(level.setBlock(at,ore.defaultBlockState(),2))changed++;
+            }
+        }
         return changed;
     }
 }
