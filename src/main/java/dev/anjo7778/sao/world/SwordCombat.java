@@ -29,7 +29,7 @@ public final class SwordCombat {
     private static final Map<LivingEntity,Session> SESSIONS=new WeakHashMap<>();
     private static final double REACH=WeaponRules.Family.SWORD.reach;
     private static final class Session {
-        final SwordActions clock=new SwordActions();
+        final SwordActions clock;
         ServerLevel level;
         ItemStack main=ItemStack.EMPTY,off=ItemStack.EMPTY;
         UUID target,comboTarget,resolvingTarget;
@@ -40,6 +40,10 @@ public final class SwordCombat {
         boolean resolving,shown;
         long lastIntent=-100;
         int lastPose;
+        Session(SwordCombatData.Entry saved,long now){
+            clock=SwordActions.restore(saved==null?null:saved.clock(),now);
+            if(saved!=null)selected=saved.selected();
+        }
         void capture(LivingEntity actor,ServerLevel world){
             level=world;main=actor.getMainHandItem().copy();off=actor.getOffhandItem().copy();
         }
@@ -63,7 +67,14 @@ public final class SwordCombat {
     private static boolean eligible(ServerPlayer p){
         return !p.isCreative()&&!p.isSpectator()&&!p.isPassenger()&&scope(p,p.serverLevel());
     }
-    private static Session session(LivingEntity e){return SESSIONS.computeIfAbsent(e,k->new Session());}
+    private static SwordCombatData.Key key(LivingEntity e){return new SwordCombatData.Key(e instanceof CityNpc,e.getUUID());}
+    private static Session session(LivingEntity e){
+        var level=(ServerLevel)e.level();
+        return SESSIONS.computeIfAbsent(e,k->new Session(SwordCombatData.get(level.getServer()).entry(key(e)),now(level)));
+    }
+    private static void persist(Session s,LivingEntity e,ServerLevel level){
+        SwordCombatData.get(level.getServer()).store(key(e),new SwordCombatData.Entry(s.clock.save(now(level)),s.selected));
+    }
     private static void advance(Session s,LivingEntity actor,ServerLevel level){
         long time=now(level);s.clock.advance(time);
         if(s.level!=null&&!s.same(actor,level)){
@@ -164,7 +175,7 @@ public final class SwordCombat {
         if(s==null)s=session(p);
         event.setCanceled(true);
         if(!p.isUsingItem())begin(s,p,victim,p.serverLevel(),null);
-        sync(p,s,true);
+        persist(s,p,p.serverLevel());sync(p,s,true);
     }
     public static void playerTick(PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer p))return;
@@ -187,6 +198,7 @@ public final class SwordCombat {
             // The native hit may have changed real durability. Recovery still applies.
             s.capture(p,level);
         }
+        persist(s,p,level);
         if(available&&(p.tickCount%5==0||!s.shown||s.lastPose!=s.clock.visualCode(now(level),level.getGameTime()))||!available&&s.shown){
             sync(p,s,available);
         }
@@ -226,7 +238,7 @@ public final class SwordCombat {
                 p.setDeltaMovement(dx*.65,Math.max(0,p.getDeltaMovement().y),dz*.65);p.hurtMarked=true;
             }
         }
-        sync(p,s,true);
+        persist(s,p,level);sync(p,s,true);
     }
     /** Called by the existing actual NPC quarry controller, not a second source of damage. */
     public static void npcStrike(CityNpc npc,ServerLevel level,Mob victim,HuntStyle style,NpcPopulationData pop){
@@ -282,6 +294,7 @@ public final class SwordCombat {
                 s.clock.cancel(now(level));s.target=null;s.dodgeStart=null;
             }
         }
+        persist(s,npc,level);
         npc.setCombatPose(s.clock.visualCode(now(level),level.getGameTime()));
     }
     public static void damage(LivingIncomingDamageEvent event){
@@ -305,6 +318,7 @@ public final class SwordCombat {
         if(!s.same(actor,level))return;
         boolean moved=s.dodgeStart!=null&&actor.position().distanceToSqr(s.dodgeStart)>=.25*.25;
         var result=s.clock.defend(now(level),facing(actor,attacker,.25),moved);
+        if(result!=SwordActions.Defense.NONE)persist(s,actor,level);
         switch(result){
             case PARRY->event.setCanceled(true);
             case BLOCK->event.setAmount(event.getAmount()*.4f);
