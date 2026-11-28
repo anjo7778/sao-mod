@@ -306,3 +306,11 @@ tasks.register('verifySurveyJournals', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.SurveyJournalChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifySurveyJournals') }
+
+tasks.register('verifyCityArchitecture', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.CityArchitectureChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyCityArchitecture') }
