@@ -20,6 +20,7 @@ public final class AincradMenuControls {
     private static final KeyMapping MENU=new KeyMapping("key.sao.menu",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_M,"key.categories.sao");
     private static final KeyMapping GUARD=new KeyMapping("key.sao.guard",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_G,"key.categories.sao");
     private static final KeyMapping DODGE=new KeyMapping("key.sao.dodge",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_V,"key.categories.sao");
+    private static final KeyMapping SKILL=new KeyMapping("key.sao.sword_skill",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_R,"key.categories.sao");
     private static ClientLevel lastLevel;
     private static int ticks,armedAt,lastCombat=-10000;
     private static boolean armed,latched;
@@ -28,7 +29,7 @@ public final class AincradMenuControls {
     private AincradMenuControls(){}
     @EventBusSubscriber(modid="sao",value=Dist.CLIENT,bus=EventBusSubscriber.Bus.MOD)
     public static final class Keys {
-        @SubscribeEvent public static void register(RegisterKeyMappingsEvent event){event.register(MENU);event.register(GUARD);event.register(DODGE);}
+        @SubscribeEvent public static void register(RegisterKeyMappingsEvent event){event.register(MENU);event.register(GUARD);event.register(DODGE);event.register(SKILL);}
     }
     private static boolean allowed(Minecraft c){
         var s=ProfileNetwork.clientSnapshot();
@@ -59,9 +60,10 @@ public final class AincradMenuControls {
             lastLevel=c.level;ProfileNetwork.clearClient();CombatNetwork.clear();armed=false;latched=false;
             ticks=0;lastCombat=-10000;
         }
-        boolean guard=GUARD.consumeClick(),dodge=DODGE.consumeClick();
+        boolean guard=GUARD.consumeClick(),dodge=DODGE.consumeClick(),skill=SKILL.consumeClick();
         while(GUARD.consumeClick())guard=true;
         while(DODGE.consumeClick())dodge=true;
+        while(SKILL.consumeClick())skill=true;
         if(c.player==null||c.level==null||c.getConnection()==null)return;
         var combat=CombatNetwork.snapshot();
         if(c.screen==null&&allowed(c)&&combat!=null&&combat.available()&&combat.owner().equals(c.player.getUUID())){
@@ -69,6 +71,8 @@ public final class AincradMenuControls {
             else if(dodge){
                 int direction=c.options.keyLeft.isDown()?1:c.options.keyRight.isDown()?2:c.options.keyUp.isDown()?3:0;
                 CombatNetwork.intent(1,direction);
+            }else if(skill&&combat.skillUnlocked()&&combat.skillCooldown()==0&&c.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit){
+                CombatNetwork.intent(2,hit.getEntity().getId());lastCombat=ticks;
             }
         }
         if(c.player.hurtTime>0)lastCombat=ticks;
