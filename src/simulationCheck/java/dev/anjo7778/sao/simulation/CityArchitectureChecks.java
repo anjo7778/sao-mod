@@ -28,11 +28,14 @@ public final class CityArchitectureChecks{
                 int heads=0,feet=0;
                 for(int dx=-p.width();dx<=p.width();dx++)for(int dz=-p.depth();dz<=p.depth();dz++){
                     var c=CityPlan.column(floor,p.x()+dx,p.z()+dz);
+                    // The original lot envelope may touch the reserved plaza at an inner corner.
+                    // The plaza takes precedence; test roof continuity only on actual lot columns.
+                    if(!p.equals(c.plot()))continue;
                     var bottom=piece(c,1);
                     if(bottom==Piece.BED_HEAD){heads++;check(piece(CityPlan.column(floor,c.x(),c.z()-1),1)==Piece.BED_FOOT,"Bed partner");}
                     if(bottom==Piece.BED_FOOT)feet++;
                     var top=piece(c,roofY(p,dx,dz));
-                    check(top==Piece.ROOF||top==Piece.CHIMNEY||top.name().startsWith("ROOF_"),"Roof continuity");
+                    check(top==Piece.ROOF||top==Piece.CHIMNEY||top.name().startsWith("ROOF_"),"Roof continuity at "+floor+" / "+p+" / "+dx+","+dz);
                     if(top.name().startsWith("ROOF_"))roofs++;
                     check(roofY(p,dx,dz)+4<=MAX_HEIGHT,"Height bound");
                 }
