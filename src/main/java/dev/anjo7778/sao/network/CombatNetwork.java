@@ -48,6 +48,7 @@ public final class CombatNetwork {
             boolean valid=switch(payload.action()){
                 case 0,3,4->payload.direction()==0;
                 case 1->payload.direction()>=0&&payload.direction()<=3;
+                case 5->SwordActions.Skill.fromIndex(payload.direction())!=null;
                 default->false;
             };
             if(context.player() instanceof ServerPlayer p&&valid)SwordCombat.intent(p,payload.action(),payload.direction());
