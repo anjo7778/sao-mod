@@ -80,6 +80,12 @@ neoForge {
             systemProperty 'sao.supplyProbe', 'true'
         }
 
+        swordComboProbe {
+            client()
+            gameDirectory = project.file('run-sword-combo')
+            systemProperty 'sao.swordComboProbe', 'true'
+        }
+
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
@@ -387,3 +393,5 @@ tasks.register('verifySwordActions', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.SwordActionChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifySwordActions') }
+
+tasks.named('jar') { exclude('**/SwordComboProbe.class') }
