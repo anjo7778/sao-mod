@@ -4,11 +4,24 @@ package dev.anjo7778.sao.simulation;
 public final class SwordActions {
     public static final int MAX_STAMINA=100, ATTACK_COST=12, GUARD_COST=8, DODGE_COST=24;
     public static final int HORIZONTAL_MASTERY=3, HORIZONTAL_COOLDOWN=100;
+    public static final int MAX_SKILL_COOLDOWN=160, GLOBAL_SKILL_DELAY=30;
+    /** Mastery unlocks are independent of character level. Single-target skills only. */
+    public enum Skill {
+        HORIZONTAL(Move.HORIZONTAL,3,100),
+        SLANT(Move.SLANT,4,90),
+        VERTICAL(Move.VERTICAL,5,120),
+        SONIC_LEAP(Move.SONIC_LEAP,7,160);
+        public final Move move;
+        public final int mastery,cooldown;
+        Skill(Move move,int mastery,int cooldown){this.move=move;this.mastery=mastery;this.cooldown=cooldown;}
+        public boolean unlocked(long level){return level>=mastery;}
+        public static Skill fromIndex(int index){return index>=0&&index<values().length?values()[index]:null;}
+    }
     public enum Phase { IDLE, WINDUP, RECOVERY, GUARD, DODGE }
     public enum Defense { NONE, BLOCK, PARRY, EVADE }
     public enum Move {
         BASIC(12,4,10,1.0), FOLLOW_UP(14,4,10,1.10),
-        FINISHER(18,5,13,1.25), COUNTER(8,2,10,1.0), HORIZONTAL(26,7,16,1.60);
+        FINISHER(18,5,13,1.25), COUNTER(8,2,10,1.0), HORIZONTAL(26,7,16,1.60), SLANT(20,5,13,1.40), VERTICAL(32,10,18,1.85), SONIC_LEAP(34,9,20,1.55);
         public final int cost,windup,recovery;
         public final double damage;
         Move(int cost,int windup,int recovery,double damage){
@@ -19,7 +32,8 @@ public final class SwordActions {
     private Phase phase=Phase.IDLE;
     private Move move=Move.BASIC;
     private SwordPose.Kind pose;
-    private long last=-1,start,activeAt,end,counterUntil=-1,comboUntil=-1,skillReady,claimTick=-1;
+    private long last=-1,start,activeAt,end,counterUntil=-1,comboUntil=-1,globalSkillReady,claimTick=-1;
+    private final long[] skillReady=new long[Skill.values().length];
     public int stamina(){return stamina;}
     public Phase phase(){return phase;}
     public Move move(){return move;}
@@ -29,7 +43,10 @@ public final class SwordActions {
     }
     /** Number of successfully chained ordinary strikes, not client input count. */
     public int combo(){return nextCombo;}
-    public int skillCooldown(long now){return (int)Math.max(0,Math.min(HORIZONTAL_COOLDOWN,skillReady-now));}
+    public int skillCooldown(long now){return skillCooldown(Skill.HORIZONTAL,now);}
+    public int skillCooldown(Skill skill,long now){
+        return (int)Math.max(0,Math.min(MAX_SKILL_COOLDOWN,Math.max(globalSkillReady,skillReady[skill.ordinal()])-now));
+    }
     public void advance(long now){
         if(now<0||now<last)throw new IllegalArgumentException("Non-monotonic combat clock");
         if(claimTick>=0&&now>claimTick){claimTick=-1;breakCombo();}
@@ -46,9 +63,13 @@ public final class SwordActions {
         return begin(now,selected);
     }
     public boolean horizontal(long now,long swordMastery){
+        return skill(now,swordMastery,Skill.HORIZONTAL);
+    }
+    public boolean skill(long now,long swordMastery,Skill skill){
         advance(now);
-        if(swordMastery<HORIZONTAL_MASTERY||now<skillReady||!begin(now,Move.HORIZONTAL))return false;
-        skillReady=now+HORIZONTAL_COOLDOWN;return true;
+        if(skill==null||!skill.unlocked(swordMastery)||skillCooldown(skill,now)>0||!begin(now,skill.move))return false;
+        skillReady[skill.ordinal()]=now+skill.cooldown;
+        globalSkillReady=now+GLOBAL_SKILL_DELAY;return true;
     }
     private boolean begin(long now,Move selected){
         if(phase!=Phase.IDLE||stamina<selected.cost)return false;
