@@ -378,3 +378,11 @@ tasks.named('check') { dependsOn tasks.named('verifyRegionalSettlements') }
 tasks.named('jar') { exclude('**/DeepMineProbe.class') }
 
 tasks.named('jar') { exclude('**/SupplyProbe.class') }
+
+tasks.register('verifySwordActions', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.SwordActionChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifySwordActions') }
