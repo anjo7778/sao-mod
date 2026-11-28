@@ -1,6 +1,5 @@
 {
-  "parent": "minecraft:item/handheld",
-  "gui_light": "front",
+  "gui_light": "side",
   "textures": {
     "metal": "sao:item/steel_blade",
     "edge": "sao:item/steel_edge",
@@ -625,8 +624,8 @@
     },
     "gui": {
       "rotation": [
-        0,
-        0,
+        12,
+        -25,
         -42
       ],
       "translation": [
@@ -673,6 +672,24 @@
         0.9,
         0.9
       ]
+    },
+    "head": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0,
+        0,
+        0
+      ]
     }
-  }
+  },
+  "ambientocclusion": false
 }
