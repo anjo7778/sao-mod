@@ -14,5 +14,12 @@
   "tooltip.sao.refined_metal": "Refined alloy · relative to iron",
   "tooltip.sao.metal_edge": "Edge performance: %s%%",
   "tooltip.sao.metal_weight": "Relative weight: %s%%",
-  "tooltip.sao.metal_durability": "Relative durability: %s%%"
+  "tooltip.sao.metal_durability": "Relative durability: %s%%",
+  "block.sao.tin_ore": "Tin Ore",
+  "block.sao.deepslate_tin_ore": "Deepslate Tin Ore",
+  "item.sao.raw_tin": "Raw Tin",
+  "item.sao.tin_ingot": "Tin Ingot",
+  "item.sao.bronze_blend": "Bronze Blend",
+  "item.sao.bronze_ingot": "Bronze Ingot",
+  "tooltip.sao.pure_metal": "Metal · relative to iron"
 }

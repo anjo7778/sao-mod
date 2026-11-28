@@ -16,7 +16,7 @@ public final class RefinedMetalItem extends Item {
     @Override public void appendHoverText(ItemStack stack,TooltipContext context,List<Component> tooltip,TooltipFlag flag){
         super.appendHoverText(stack,context,tooltip,flag);
         var p=metal.properties;
-        tooltip.add(Component.translatable("tooltip.sao.refined_metal").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(metal.origin==MaterialRules.Origin.REFINED_ALLOY?"tooltip.sao.refined_metal":"tooltip.sao.pure_metal").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("tooltip.sao.metal_edge",percent(p.edge())).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("tooltip.sao.metal_weight",percent(p.mass())).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("tooltip.sao.metal_durability",percent(p.durability())).withStyle(ChatFormatting.GRAY));

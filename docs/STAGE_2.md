@@ -204,3 +204,7 @@ Corrected native inventory and articulated mesh tests passed individually in 461
 ## v0.2.36 materials foundation candidate
 
 User approved ore and material design before the first native one-handed sword. Establish actual steel bloom and blast-furnace refining with original items, independent material/quality/rarity rules, future floor-band metadata and native furnace GameTest. No placeholder ores, fake crafting XP, or new combat modifications. v0.2.35 production build passed; prior graphical test decoded and requested all five actual sounds, inventory pixels/transactions and player/NPC finger geometry passed, but NPC projected-bounds assertion failed (46102778608), so graphical gate remains open separately.
+
+## v0.2.37 Tin/bronze candidate
+
+v0.2.36 steel tests all passed (28). Introduce actual tin ore, raw/refined items, copper-tin alloy chain, native assets, safe bounded floor-aware worldgen and recipe/drop definitions. Add tests for deterministic plan, floor range, protection, recipes and tags. Runtime chunk evidence, harvest/drop verification, professions and more ores remain pending.

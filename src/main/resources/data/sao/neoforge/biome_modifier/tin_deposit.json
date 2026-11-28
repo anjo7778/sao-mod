@@ -1,0 +1,20 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:plains",
+    "minecraft:forest",
+    "minecraft:flower_forest",
+    "minecraft:windswept_hills",
+    "minecraft:taiga",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:dark_forest",
+    "minecraft:swamp",
+    "minecraft:birch_forest",
+    "minecraft:desert",
+    "minecraft:snowy_plains",
+    "minecraft:badlands",
+    "minecraft:meadow"
+  ],
+  "features": "sao:tin_deposit",
+  "step": "underground_ores"
+}

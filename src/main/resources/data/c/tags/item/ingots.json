@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "sao:steel_ingot"
+    "sao:steel_ingot",
+    "sao:tin_ingot",
+    "sao:bronze_ingot"
   ]
 }

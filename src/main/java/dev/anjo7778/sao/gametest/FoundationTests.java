@@ -637,4 +637,34 @@ public final class FoundationTests {
             helper.succeed();
         });
     }
+
+    @GameTest(template="empty")
+    public static void tinDepositBoundaries(GameTestHelper helper){
+        var plan=dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,256,256);
+        helper.assertTrue(!plan.isEmpty()&&plan.size()<=24,"Bounded natural deposits");
+        helper.assertTrue(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,256,256)),"Seed deterministic");
+        helper.assertFalse(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(43,1,256,256)),"Seed affects deposits");
+        for(var point:plan)helper.assertTrue(point.x()>=256&&point.x()<272&&point.z()>=256&&point.z()<272&&point.y()>=6,"Chunk local and underground");
+        helper.assertTrue(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,0,0).isEmpty(),"Capital protected");
+        helper.assertTrue(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,4096,4096).isEmpty(),"Void protected");
+        for(long floor=2;floor<=9;floor++){
+            var c=dev.anjo7778.sao.simulation.FloorLayout.center(floor);
+            var p=dev.anjo7778.sao.simulation.TinDeposits.plan(42,floor,c.x()+256,c.z()+256);
+            helper.assertTrue((floor<=8)==!p.isEmpty(),"Intended tin floor limit "+floor);
+        }
+        helper.assertTrue(dev.anjo7778.sao.item.SaoItems.TIN_ORE.get() instanceof net.minecraft.world.item.BlockItem,"Actual ore block item");
+        var level=helper.getLevel();
+        var input=new net.minecraft.world.item.crafting.SingleRecipeInput(new net.minecraft.world.item.ItemStack(dev.anjo7778.sao.item.SaoItems.RAW_TIN.get()));
+        var smelt=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.SMELTING,input,level).orElseThrow();
+        helper.assertTrue(smelt.value().assemble(input,level.registryAccess()).is(dev.anjo7778.sao.item.SaoItems.TIN_INGOT.get()),"Raw tin smelts");
+        var copper=net.minecraft.world.item.Items.COPPER_INGOT;
+        var mix=net.minecraft.world.item.crafting.CraftingInput.of(2,2,java.util.List.of(new net.minecraft.world.item.ItemStack(copper),new net.minecraft.world.item.ItemStack(copper),new net.minecraft.world.item.ItemStack(copper),new net.minecraft.world.item.ItemStack(dev.anjo7778.sao.item.SaoItems.TIN_INGOT.get())));
+        var craft=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,mix,level).orElseThrow().value().assemble(mix,level.registryAccess());
+        helper.assertTrue(craft.is(dev.anjo7778.sao.item.SaoItems.BRONZE_BLEND.get())&&craft.getCount()==4,"Three copper and one tin yield four blend");
+        var blend=new net.minecraft.world.item.crafting.SingleRecipeInput(craft.copyWithCount(1));
+        var result=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.BLASTING,blend,level).orElseThrow().value().assemble(blend,level.registryAccess());
+        helper.assertTrue(result.is(dev.anjo7778.sao.item.SaoItems.BRONZE_INGOT.get())&&result.getCount()==1,"Blend refines one to one");
+        helper.assertTrue(dev.anjo7778.sao.block.SaoBlocks.TIN_ORE.get().defaultBlockState().is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE),"Ore mining tool tag");
+        helper.succeed();
+    }
 }

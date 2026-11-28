@@ -48,6 +48,7 @@ public final class SaoMod {
         BIOMES.register("floor_biomes",()->FloorBiomeSource.CODEC);
         DENSITIES.register("city_blend",()->CityDensity.MAP_CODEC);
         FEATURES.register("capital",CapitalFeature::new);
+        FEATURES.register("tin_deposit",dev.anjo7778.sao.world.TinDepositFeature::new);
     }
 
     public SaoMod(IEventBus modBus) {
@@ -55,7 +56,9 @@ public final class SaoMod {
         BIOMES.register(modBus);
         FEATURES.register(modBus);
         SaoEntities.register(modBus);
+        dev.anjo7778.sao.block.SaoBlocks.register(modBus);
         SaoItems.register(modBus);
+        modBus.addListener(SaoItems::creativeTabs);
         modBus.addListener(ProfileNetwork::register);
         NeoForge.EVENT_BUS.addListener(BoarSpawns::tick);
         NeoForge.EVENT_BUS.addListener(RpgEvents::discover);
