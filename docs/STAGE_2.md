@@ -81,3 +81,9 @@ Build 46087116462 passed 13 GameTests, 135,360 layer cells over v1 and v2, all m
 
 ## v0.2.11 compact district experiment (pending tests)
 Versioned city_districts generator adds exact unchanged v2 cottage/townhouse infill in gaps between original primary plot columns, with deterministic open courts, narrow paving strips and side alleys. Preserve city envelope, main gates/plaza, all canonical plot coordinates and NPC destinations. Primary and extra footprints must not overlap or be clipped; cross streets remain clear and all existing waypoints and doors must connect to the central plaza. Extra homes are scenery until real lodging assignment exists; no inflated NPC counts. Reuse verified templates rather than expand the library prematurely. Actual city density and paths require client regression test. Keep all older generator keys unchanged.
+
+## v0.2.11 structural verification
+Build 46087584955 passed 13 GameTests, 316 primary plots + 266 infill across seven sampled capitals, 1,141,532 connected positions and 3,560 existing route waypoints. Starting city 184 buildings; floor 2 65. Runtime district acceptance tracked in run 46087660868.
+
+## v0.2.12 district landmarks (candidate)
+Four fixed public-space layouts reuse deliberate empty infill courts without modifying existing v2 buildings. Residential garden, market awnings, guild monument/lecterns, target yard. All fixtures have explicit states and supports; no simulated shop transactions or XP rewards. New city_landmarks generator keys; legacy city_districts keys unchanged. Structural acceptance checks all site boundaries, supported furniture, canopy support, connected walking positions and existing NPC routes. Actual Minecraft block-state, path and visual inspection still required. Region towns, long-term adventurer goals and migration remain Stage 2 work.

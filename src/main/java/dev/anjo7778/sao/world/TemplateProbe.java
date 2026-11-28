@@ -34,7 +34,8 @@ public final class TemplateProbe {
     private static final boolean ENABLED=Boolean.getBoolean("sao.templateProbe");
     private static final List<CityPlan.Plot> plots=representatives();
     private static CompletableFuture<Void> pending;
-    private static int phase,index,ticks;
+    private static int phase,index,ticks,courtIndex;
+    private static final List<CityCourts.Site> courts=courtRepresentatives(1);
     private TemplateProbe(){}
     private static List<CityPlan.Plot> representatives(){
         var map=new EnumMap<CityArchitecture.Style,CityPlan.Plot>(CityArchitecture.Style.class);
@@ -43,6 +44,15 @@ public final class TemplateProbe {
             map.merge(CityArchitecture.style(p),p,(a,b)->a.x()*a.x()+a.z()*a.z()<=b.x()*b.x()+b.z()*b.z()?a:b);
         }
         return List.copyOf(map.values());
+    }
+    private static List<CityCourts.Site> courtRepresentatives(long floor){
+        var out=new EnumMap<CityCourts.Kind,CityCourts.Site>(CityCourts.Kind.class);
+        int n=CityPlan.half(floor)/CityPlan.LOT;
+        for(int gap=-n;gap<=n;gap++)for(int row=-n;row<=n;row++){
+            var site=CityCourts.site(floor,gap,row);
+            if(site!=null)out.merge(site.kind(),site,(a,b)->a.x()*a.x()+a.z()*a.z()<=b.x()*b.x()+b.z()*b.z()?a:b);
+        }
+        return List.copyOf(out.values());
     }
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!ENABLED||phase==8)return;
@@ -111,9 +121,27 @@ public final class TemplateProbe {
                         require(level.getBlockState(pos).getCollisionShape(level,pos).isEmpty(),"Obstructed cross street at "+pos);
                     }
                     LOG.info("SAO_DISTRICT_STREET_OK");
-                    exterior(p,plots.get(index));
+                    require(courts.size()==4,"Missing four district court types");
+                    courtOverview(p,courts.get(courtIndex));
                 });
-                phase=3;
+                phase=15;
+            }
+            case 15 -> {
+                var site=courts.get(courtIndex);
+                capture(c,"court-"+site.kind().name().toLowerCase(Locale.ROOT)+"-overview");
+                action(c,p->camera(p,site.x()+.5,97.1,site.z()-7.5,site.x()+.5,98.5,site.z()+3.5));
+                phase=16;
+            }
+            case 16 -> {
+                var site=courts.get(courtIndex);
+                capture(c,"court-"+site.kind().name().toLowerCase(Locale.ROOT)+"-walk");
+                courtIndex++;
+                if(courtIndex<courts.size()){
+                    var next=courts.get(courtIndex);
+                    action(c,p->courtOverview(p,next));phase=15;
+                }else{
+                    action(c,p->exterior(p,plots.get(index)));phase=3;
+                }
             }
             case 3 -> {
                 var plot=plots.get(index);var style=CityArchitecture.style(plot);
@@ -179,6 +207,9 @@ public final class TemplateProbe {
                     require(extra!=null,"Missing upper boulevard infill");
                     verify(upper,2,extra);
                     LOG.info("SAO_DISTRICT_INFILL_OK floor=2 x={} z={}",extra.x(),extra.z());
+                    var upperCourts=courtRepresentatives(2);
+                    require(!upperCourts.isEmpty(),"No upper court");
+                    verifyCourt(upper,2,upperCourts.getFirst());
                     LOG.info("SAO_TEMPLATE_UPPER_OK");
                     LOG.info("SAO_TEMPLATE_PROBE_PASS");
                 });phase=9;
@@ -189,6 +220,35 @@ public final class TemplateProbe {
             }
             default -> {}
         }
+    }
+    private static void courtOverview(ServerPlayer p,CityCourts.Site s){
+        var level=p.serverLevel();
+        // Use the generated site, not a fixture or a reconstructed image.
+        verifyCourt(level,1,s);
+        camera(p,s.x()+.5,112,s.z()-9.5,s.x()+.5,97.5,s.z()+.5);
+    }
+    private static void verifyCourt(ServerLevel level,long floor,CityCourts.Site s){
+        var center=FloorLayout.center(floor);
+        int x0=center.x()+s.x(),z0=center.z()+s.z(),ground=CityPlan.GROUND;
+        int hw=CityCourts.HALF_X,hd=CityCourts.HALF_Z;
+        for(int cx=(x0-hw-3)>>4;cx<=(x0+hw+3)>>4;cx++)
+            for(int cz=(z0-hd-3)>>4;cz<=(z0+hd+3)>>4;cz++)level.getChunk(cx,cz);
+        int compared=0,fixtures=0;
+        for(int x=-hw;x<=hw;x++)for(int z=-hd;z<=hd;z++)for(int y=0;y<=CityCourts.HEIGHT;y++){
+            char symbol=CityCourts.cell(s.kind(),x,y,z);
+            var pos=new BlockPos(x0+x,ground+y,z0+z);
+            var state=level.getBlockState(pos);
+            require(state.equals(CourtPalette.state(symbol)),"Court block-state mismatch "+s.kind()+" "+pos+" "+state);
+            if(symbol=='f'||symbol=='l')require(state.canSurvive(level,pos),"Unsupported court fixture "+pos);
+            if(y>0&&symbol!='.')fixtures++;
+            compared++;
+        }
+        var npc=SaoEntities.CITY_NPC.get().create(level);
+        require(npc!=null,"NPC type missing");
+        npc.moveTo(x0+.5,ground+1,z0-hd+.5,0,0);npc.setOnGround(true);
+        var path=npc.getNavigation().createPath(new BlockPos(x0,ground+1,z0+hd-1),0);
+        require(path!=null&&path.canReach(),"Court through-route failed "+s.kind());
+        LOG.info("SAO_COURT_OK floor={} kind={} x={} z={} cells={} fixtures={} path=true",floor,s.kind(),s.x(),s.z(),compared,fixtures);
     }
     private static void exterior(ServerPlayer p,CityPlan.Plot plot){
         var b=BuildingTemplates.forPlot(plot);
@@ -206,7 +266,7 @@ public final class TemplateProbe {
         p.setDeltaMovement(0,0,0);p.fallDistance=0;
     }
     private static void verify(ServerLevel level,long floor,CityPlan.Plot plot){
-        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_DISTRICTS:FloorTravel.UPPER_CITY_DISTRICTS),"Wrong template generator");
+        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_LANDMARKS:FloorTravel.UPPER_CITY_LANDMARKS),"Wrong template generator");
         var model=BuildingTemplates.forPlot(plot);
         var center=FloorLayout.center(floor);
         int x0=center.x()+plot.x(),z0=center.z()+plot.z(),y0=CityPlan.GROUND;

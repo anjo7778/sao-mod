@@ -19,9 +19,13 @@ while ((SECONDS<deadline)); do
         grep -q 'SAO_DISTRICT_INFILL_OK floor=1' "$log"
         grep -q 'SAO_DISTRICT_INFILL_OK floor=2' "$log"
         grep -q 'SAO_DISTRICT_STREET_OK' "$log"
+        for court in RESIDENTIAL_GARDEN MARKET_COURT GUILD_SQUARE TRAINING_YARD; do
+            grep -q "SAO_COURT_OK floor=1 kind=$court " "$log"
+        done
+        grep -q 'SAO_COURT_OK floor=2' "$log"
         test -s run-templates/template-probe/inn-sleeping-alcove.png
-        test "$(find run-templates/template-probe -name '*.png' | wc -l)" -eq 21
-        grep 'SAO_TEMPLATE_' "$log"
+        test "$(find run-templates/template-probe -name '*.png' | wc -l)" -eq 29
+        grep -E 'SAO_(TEMPLATE|DISTRICT|COURT)_' "$log"
         exit 0
     fi
     if ! kill -0 "$pid" 2>/dev/null; then tail -n 150 "$log"; exit 1; fi
