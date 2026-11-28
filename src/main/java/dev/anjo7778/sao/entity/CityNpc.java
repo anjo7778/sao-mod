@@ -106,7 +106,8 @@ public final class CityNpc extends PathfinderMob {
             discard();return;
         }
         var centerCheck=FloorLayout.center(floor);
-        var trip=AdventureSimulationData.get(level.getServer()).trip(floor,getUUID());
+        var ledgerNow=AdventureSimulationData.get(level.getServer()).ledger(profile);
+        var trip=ledgerNow==null?null:ledgerNow.trip();
         if(!CityRules.isCity(level,getBlockX(),getBlockZ())&&
             (trip==null||!trip.active()||!ScoutingTrip.inRange(floor,getBlockX()-centerCheck.x(),getBlockZ()-centerCheck.z()))){
             discard();return;
@@ -197,7 +198,7 @@ public final class CityNpc extends PathfinderMob {
         var data=NpcPopulationData.get(p.serverLevel().getServer());var state=data.state(floor,getUUID());
         if(state==null)return InteractionResult.PASS;
         String line=NpcDialogue.greetingText(state,p.getUUID(),plan.activity());
-        var ledger=AdventureSimulationData.get(p.serverLevel().getServer()).ledger(floor,getUUID());
+        var ledger=AdventureSimulationData.get(p.serverLevel().getServer()).ledger(profile);
         if(ledger!=null&&plan.activity()==Activity.SOCIALIZE&&state.relationship(p.getUUID()).trust()>=50){
             var journal=ledger.journal();
             if(journal.surveyed()!=0)line+=" I've surveyed the "+SurveyJournal.directions(journal.surveyed())+" gate approaches.";

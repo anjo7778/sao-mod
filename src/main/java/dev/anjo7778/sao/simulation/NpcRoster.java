@@ -10,11 +10,19 @@ public final class NpcRoster {
     public enum CombatClass { NONE, SWORDSMAN, KNIGHT, ARCHER, ASSASSIN, MAGE, HEALER }
     public enum Ambition { STABLE_LIFE, MASTERY, WEALTH, DISCOVERY, FRIENDSHIP, LEADERSHIP }
     public record Profile(UUID id,String name,long originFloor,Occupation occupation,CombatClass combatClass,
-                          Ambition ambition,int homeX,int homeZ,int workX,int workZ,Personality personality) {
+                          Ambition ambition,int homeX,int homeZ,int workX,int workZ,Personality personality,long birthFloor,long relocatedAt) {
+        public Profile(UUID id,String name,long originFloor,Occupation occupation,CombatClass combatClass,Ambition ambition,
+                       int homeX,int homeZ,int workX,int workZ,Personality personality){
+            this(id,name,originFloor,occupation,combatClass,ambition,homeX,homeZ,workX,workZ,personality,originFloor,0);
+        }
+        // originFloor is the current capital (legacy accessor); birthFloor never changes.
+        public long currentFloor(){return originFloor;}
         public Profile {
             Objects.requireNonNull(id);Objects.requireNonNull(name);Objects.requireNonNull(occupation);
             Objects.requireNonNull(combatClass);Objects.requireNonNull(ambition);Objects.requireNonNull(personality);
-            if(!FloorLayout.supported(originFloor)||name.isBlank()||name.length()>80)throw new IllegalArgumentException("Invalid identity");
+            if(!FloorLayout.supported(originFloor)||!FloorLayout.supported(birthFloor)||name.isBlank()||name.length()>80
+                ||relocatedAt<0||birthFloor!=originFloor&&(occupation!=Occupation.ADVENTURER||birthFloor+1!=originFloor||relocatedAt==0)
+                ||birthFloor==originFloor&&relocatedAt!=0)throw new IllegalArgumentException("Invalid identity");
             if(!CityPlan.inside(originFloor,homeX,homeZ)||!CityPlan.inside(originFloor,workX,workZ))throw new IllegalArgumentException("Invalid capital destination");
             if((occupation==Occupation.ADVENTURER)!=(combatClass!=CombatClass.NONE))throw new IllegalArgumentException("Invalid class");
         }

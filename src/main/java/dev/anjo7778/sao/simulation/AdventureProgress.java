@@ -7,7 +7,11 @@ public final class AdventureProgress {
     public static final int EPOCH_TICKS=600, MAX=1_000_000_000;
     public enum Mode { IDLE, PRACTICE, REST, PREPARE, SOCIALIZE, TRAVEL, SCOUT }
     public record Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,
-                         int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal,AdventurerGoals.Goal goal){
+                         int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal,AdventurerGoals.Goal goal,long journalFloor,long priorJournalFloor,SurveyJournal priorJournal){
+        public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last,
+                      ScoutingTrip.Trip trip,SurveyJournal journal,AdventurerGoals.Goal goal){
+            this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,goal,0,0,SurveyJournal.EMPTY);
+        }
         public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal){
             this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,AdventurerGoals.EMPTY);
         }
@@ -17,12 +21,28 @@ public final class AdventureProgress {
         public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last){
             this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,ScoutingTrip.idle(epoch));
         }
-        public Ledger withTrip(ScoutingTrip.Trip t){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,t,journal,goal);}
-        public Ledger withJournal(SurveyJournal j){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,j,goal);}
-        public Ledger withGoal(AdventurerGoals.Goal g){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,g);}
+        public Ledger withTrip(ScoutingTrip.Trip t){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,t,journal,goal,journalFloor,priorJournalFloor,priorJournal);}
+        public Ledger withJournal(SurveyJournal j){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,j,goal,journalFloor,priorJournalFloor,priorJournal);}
+        public Ledger withGoal(AdventurerGoals.Goal g){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,g,journalFloor,priorJournalFloor,priorJournal);}
+        public SurveyJournal journalFor(long floor){
+            if(floor==journalFloor)return journal;
+            if(floor==priorJournalFloor&&floor!=0)return priorJournal;
+            return SurveyJournal.EMPTY;
+        }
+        public Ledger onFloor(long floor){
+            if(!FloorLayout.supported(floor))throw new IllegalArgumentException("Invalid journal floor");
+            if(journalFloor==floor)return this;
+            if(journalFloor==0)return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,goal,floor,0,SurveyJournal.EMPTY);
+            if(priorJournalFloor!=0&&priorJournalFloor!=floor)throw new IllegalStateException("Only two journal locations supported");
+            return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,
+                journalFor(floor),goal,floor,journalFloor,journal);
+        }
         public Ledger{
             if(epoch<0||practice<0||practice>MAX||fatigue<0||fatigue>100||preparations<0||preparations>MAX
-                ||restSessions<0||restSessions>MAX||updates<0||updates>MAX||abstractUpdates<0||abstractUpdates>updates||last==null||trip==null||journal==null||goal==null)
+                ||restSessions<0||restSessions>MAX||updates<0||updates>MAX||abstractUpdates<0||abstractUpdates>updates||last==null||trip==null||journal==null||goal==null||priorJournal==null||journalFloor<0||priorJournalFloor<0
+                ||journalFloor!=0&&!FloorLayout.supported(journalFloor)||priorJournalFloor!=0&&!FloorLayout.supported(priorJournalFloor)
+                ||priorJournalFloor!=0&&(journalFloor==0||journalFloor==priorJournalFloor)
+                ||priorJournalFloor==0&&!priorJournal.equals(SurveyJournal.EMPTY))
                 throw new IllegalArgumentException("Invalid adventurer progress");
         }
         public int practiceRank(){return 1+practice/20;}
@@ -64,7 +84,7 @@ public final class AdventureProgress {
         }
         int count=inc(before.updates(),1);
         return new Ledger(epoch,practice,fatigue,prep,rest,count,
-            offscreen?inc(before.abstractUpdates(),1):before.abstractUpdates(),mode,before.trip(),before.journal(),before.goal());
+            offscreen?inc(before.abstractUpdates(),1):before.abstractUpdates(),mode,before.trip(),before.journal(),before.goal(),before.journalFloor(),before.priorJournalFloor(),before.priorJournal());
     }
     private static int inc(int v,int delta){return Math.min(MAX,v+delta);}
 }

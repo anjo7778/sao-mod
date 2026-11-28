@@ -274,4 +274,30 @@ public final class FoundationTests {
         helper.assertTrue(!migrated.ledger(1,a.profile().id()).goal().active(),"Old ledger has no invented goal");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void migrationPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();
+        pop.discover(1,42);pop.discover(2,42);
+        var old=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).findFirst().orElseThrow();
+        var id=old.profile().id();var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        data.update(1,id,1,dev.anjo7778.sao.simulation.AdventureProgress.Mode.IDLE,true);
+        data.update(1,id,2,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE,true);
+        var r=helper.getLevel().registryAccess();var tag=data.save(new CompoundTag(),r);
+        var entry=tag.getList("capitals",10).getCompound(0).getList("npcs",10).getCompound(0);
+        entry.putIntArray("journal",new int[]{1,1,0});
+        data=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,r);
+        helper.assertFalse(pop.relocate(1,2,id,25,1),"Locked destination refused");
+        helper.assertTrue(pop.relocate(1,2,id,25,2),"Eligible transfer fixture");
+        var moved=pop.state(2,id);
+        helper.assertTrue(pop.state(1,id)==null&&moved.profile().birthFloor()==1&&moved.profile().currentFloor()==2,"One identity, new residence");
+        helper.assertTrue(moved.needs().equals(old.needs())&&moved.memories().equals(old.memories()),"State preserved");
+        helper.assertTrue(data.ledger(moved).practice()==1&&data.ledger(moved).journal().surveyed()==0
+            &&data.ledger(moved).journalFor(1).observed()==1,"Lifetime credit and scoped journals");
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(pop.save(new CompoundTag(),r),r);
+        var ledgers=dev.anjo7778.sao.world.AdventureSimulationData.load(data.save(new CompoundTag(),r),r);
+        helper.assertTrue(restored.state(2,id).equals(moved)&&restored.state(1,id)==null,"Migration saved once");
+        helper.assertTrue(ledgers.ledger(restored.state(2,id)).equals(data.ledger(moved)),"Ledger retained at birth key");
+        helper.assertFalse(restored.relocate(1,2,id,26,2),"No duplicate migration");
+        helper.succeed();
+    }
 }

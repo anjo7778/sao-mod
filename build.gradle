@@ -346,3 +346,11 @@ tasks.register('verifyAdventurerGoals', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.AdventurerGoalChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyAdventurerGoals') }
+
+tasks.register('verifyFloorMigration', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.FloorMigrationChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyFloorMigration') }

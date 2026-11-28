@@ -40,16 +40,16 @@ public final class SaoCommands {
                     var data=AdventureSimulationData.get(server);
                     long offscreen=0,practice=0,completed=0;int active=0;
                     for(var s:roster){
-                        var l=data.ledger(floor,s.profile().id());
+                        var l=data.ledger(s);
                         if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();completed+=l.trip().completed();if(l.trip().active())active++;}
                     }
                     final long total=offscreen,points=practice,trips=completed;final int travelling=active;
                     ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+": "+roster.size()+" adventurers, "+total+" abstract activity updates, "+points+" practice points; "+travelling+" scouting, "+trips+" completed scouting trips."),false);
                     roster.stream().sorted(java.util.Comparator.comparingInt((dev.anjo7778.sao.simulation.NpcRoster.State s)->{
-                        var l=data.ledger(floor,s.profile().id());return l==null?0:l.practice();
+                        var l=data.ledger(s);return l==null?0:l.practice();
                     }).reversed()).limit(5).forEach(s->{
-                        var l=data.ledger(floor,s.profile().id());
-                        ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | practice rank "+(l==null?1:l.practiceRank())+
+                        var l=data.ledger(s);
+                        ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | born floor "+s.profile().birthFloor()+" | practice rank "+(l==null?1:l.practiceRank())+
                             " | fatigue "+(l==null?0:l.fatigue())+" | trip "+(l==null?"IDLE":l.trip().phase().name())+" | last "+(l==null?"IDLE":l.last().name())+" | goal "+(l==null?"none":dev.anjo7778.sao.simulation.AdventurerGoals.description(l.goal()))),false);
                     });
                     return 1;
@@ -69,7 +69,7 @@ public final class SaoCommands {
                         int surveyed=0,observed=0,reports=0;
                         int bit=dev.anjo7778.sao.simulation.SurveyJournal.bit(gate);
                         for(var s:roster){
-                            var l=sim.ledger(floor,s.profile().id());
+                            var l=sim.ledger(s);
                             if(l==null)continue;
                             var journal=l.journal();
                             if(journal.surveyed(gate))surveyed++;
