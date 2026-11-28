@@ -28,3 +28,6 @@ side="BOTH"
 
 [[mixins]]
 config="sao.client.mixins.json"
+
+[[mixins]]
+config="sao.common.mixins.json"
