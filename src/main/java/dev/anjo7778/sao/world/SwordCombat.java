@@ -203,6 +203,25 @@ public final class SwordCombat {
             sync(p,s,available);
         }
     }
+    /** A skill can select the real hostile intersected by the server's view ray.
+     * This lets Sonic Leap aim beyond vanilla crosshair entity range without accepting a client hit claim. */
+    private static LivingEntity aimedTarget(ServerPlayer p,ServerLevel level,Skill skill){
+        double reach=skill==Skill.SONIC_LEAP?4.1:REACH;
+        Vec3 eye=p.getEyePosition(),delta=p.getViewVector(1).scale(reach),end=eye.add(delta);
+        var block=level.clip(new net.minecraft.world.level.ClipContext(eye,end,
+            net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,p));
+        double limit=block.getType()==net.minecraft.world.phys.HitResult.Type.MISS?reach*reach:eye.distanceToSqr(block.getLocation());
+        LivingEntity best=null;
+        for(var other:level.getEntitiesOfClass(LivingEntity.class,p.getBoundingBox().expandTowards(delta).inflate(1),
+                e->e!=p&&e.isAlive()&&e.isPickable()&&!e.isSpectator())){
+            var contact=other.getBoundingBox().inflate(.1).clip(eye,end);
+            if(contact.isEmpty())continue;
+            double dist=eye.distanceToSqr(contact.get());
+            if(dist>=limit)continue;
+            limit=dist;best=other;
+        }
+        return best!=null&&target(p,best,level,reach)?best:null;
+    }
     /** Direction is relative to server-owned look yaw: backward, left, right, forward.
      * Skill intent uses a target entity id. No client positions, stamina or hit claims are accepted. */
     public static void intent(ServerPlayer p,int action,int direction){
@@ -222,7 +241,11 @@ public final class SwordCombat {
             }
         }else if(action==0){
             if(s.clock.guard(now(level))){s.capture(p,level);s.target=null;}
+        }else if(action==4){
+            var victim=aimedTarget(p,level,s.selected);
+            if(victim!=null)begin(s,p,victim,level,s.selected);
         }else if(action==2){
+            // Legacy explicit target intent remains constrained by all begin/impact checks.
             if(direction>=0&&level.getEntity(direction) instanceof LivingEntity victim)begin(s,p,victim,level,s.selected);
         }else if(action==1&&direction>=0&&direction<=3&&p.onGround()&&!p.isInWater()){
             double yaw=Math.toRadians(p.getYRot()),x=-Math.sin(yaw),z=Math.cos(yaw);
