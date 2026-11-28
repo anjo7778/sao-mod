@@ -68,5 +68,6 @@
   "message.sao.forge_unavailable": "A working smith and forge are required: an anvil and nearby furnace in a safe settlement.",
   "key.sao.guard": "Sword Guard / Parry",
   "key.sao.dodge": "Sword Dodge",
-  "key.sao.sword_skill": "Sword Skill — Horizontal"
+  "key.sao.sword_skill": "Activate Selected Sword Skill",
+  "key.sao.cycle_sword_skill": "Select Next Learned Sword Skill"
 }
