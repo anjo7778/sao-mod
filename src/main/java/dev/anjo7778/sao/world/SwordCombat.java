@@ -33,7 +33,8 @@ public final class SwordCombat {
         ServerLevel level;
         ItemStack main=ItemStack.EMPTY,off=ItemStack.EMPTY;
         UUID target,comboTarget,resolvingTarget;
-        Move resolvingMove=Move.BASIC;
+        double resolvingDamage=1;
+        boolean resolvingHitSeen;
         Skill selected=Skill.HORIZONTAL;
         Vec3 leapStart;
         Vec3 dodgeStart;
@@ -153,14 +154,19 @@ public final class SwordCombat {
     }
     private static void confirm(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level,float before){
         boolean landed=remainingHealth(victim)<before;
-        s.clock.confirmHit(now(level),landed&&supports(actor));
+        s.clock.confirmHit(now(level),landed);
+        if(!supports(actor)||!victim.isAlive()){
+            if(s.clock.phase()==Phase.WINDUP)s.clock.cancel(now(level));
+            s.clock.breakCombo();
+        }
         s.comboTarget=s.clock.combo()>0&&victim.isAlive()?victim.getUUID():null;
         if(s.comboTarget==null)s.clock.breakCombo();
     }
     private static void startResolve(Session s,LivingEntity victim){
-        s.resolving=true;s.resolvingTarget=victim.getUUID();s.resolvingMove=s.clock.move();
+        s.resolvingDamage=s.clock.claimedDamage();
+        s.resolvingHitSeen=false;s.resolving=true;s.resolvingTarget=victim.getUUID();
     }
-    private static void endResolve(Session s){s.resolving=false;s.resolvingTarget=null;}
+    private static void endResolve(Session s){s.resolving=false;s.resolvingTarget=null;s.resolvingHitSeen=false;}
     private static void sync(ServerPlayer p,Session s,boolean available){
         int pose=available?s.clock.visualCode(now(p.serverLevel()),p.serverLevel().getGameTime()):0;
         CombatNetwork.send(p,available,s.clock.stamina(),s.clock.phase(),s.clock.move(),
@@ -193,7 +199,7 @@ public final class SwordCombat {
             s.target=null;s.dodgeStart=null;s.leapStart=null;
         }
         if(available&&s.target!=null&&s.clock.claimHit(now(level))){
-            var id=s.target;s.target=null;
+            var id=s.target;
             if(s.same(p,level)&&level.getEntity(id) instanceof LivingEntity victim&&impact(s,p,victim,level)&&!p.isUsingItem()){
                 float before=remainingHealth(victim);
                 startResolve(s,victim);
@@ -202,6 +208,7 @@ public final class SwordCombat {
             }else s.clock.confirmHit(now(level),false);
             // The native hit may have changed real durability. Recovery still applies.
             s.capture(p,level);
+            if(s.clock.phase()!=Phase.WINDUP)s.target=null;
         }
         persist(s,p,level);
         if(available&&(p.tickCount%5==0||!s.shown||s.lastPose!=s.clock.visualCode(now(level),level.getGameTime()))||!available&&s.shown){
@@ -273,7 +280,7 @@ public final class SwordCombat {
         var s=session(npc);advance(s,npc,level);
         long time=now(level);
         if(s.target!=null&&s.clock.claimHit(time)){
-            var id=s.target;s.target=null;
+            var id=s.target;
             if(id.equals(victim.getUUID())&&s.same(npc,level)&&impact(s,npc,victim,level)){
                 npc.getNavigation().stop();npc.swing(InteractionHand.MAIN_HAND);
                 var attack=npc.getAttribute(Attributes.ATTACK_DAMAGE);
@@ -289,7 +296,9 @@ public final class SwordCombat {
                 }
                 confirm(s,npc,victim,level,before);
             }else s.clock.confirmHit(time,false);
-            s.capture(npc,level);return;
+            s.capture(npc,level);
+            if(s.clock.phase()!=Phase.WINDUP)s.target=null;
+            return;
         }
         if(s.clock.phase()==Phase.WINDUP||s.clock.phase()==Phase.GUARD||s.clock.phase()==Phase.DODGE){
             npc.getNavigation().stop();return;
@@ -307,8 +316,9 @@ public final class SwordCombat {
         if(s.clock.phase()==Phase.IDLE&&npc.tickCount%4==0){
             // Prefer to finish an earned chain; trained adventurers sometimes choose Horizontal.
             boolean skill=s.clock.combo()==0&&s.clock.stamina()>=40&&npc.tickCount%12==0;
-            Skill chosen=Skill.values()[Math.floorMod(npc.getUUID().hashCode()+npc.tickCount/12,3)];
-            if(!skill||!begin(s,npc,victim,level,chosen))begin(s,npc,victim,level,null);
+            Skill[] choices={Skill.HORIZONTAL,Skill.SLANT,Skill.VERTICAL,Skill.HORIZONTAL_SQUARE,Skill.VERTICAL_SQUARE};
+            Skill chosen=choices[Math.floorMod(npc.getUUID().hashCode()+npc.tickCount/12,choices.length)];
+            if(!skill||s.clock.stamina()<chosen.move.cost+8||!begin(s,npc,victim,level,chosen))begin(s,npc,victim,level,null);
         }
     }
     /** Restore stamina during ordinary represented NPC rest, not only while in combat. */
@@ -333,8 +343,9 @@ public final class SwordCombat {
             var attack=SESSIONS.get(attacker);
             if(attack!=null&&attack.resolving){
                 // Only the selected hostile target receives this authored hit, never vanilla sweeping collateral.
-                if(!actor.getUUID().equals(attack.resolvingTarget)||!target(attacker,actor,level)){event.setCanceled(true);return;}
-                event.setAmount((float)(event.getAmount()*attack.resolvingMove.damage));
+                if(attack.resolvingHitSeen||!actor.getUUID().equals(attack.resolvingTarget)||!target(attacker,actor,level)){event.setCanceled(true);return;}
+                attack.resolvingHitSeen=true;
+                event.setAmount((float)(event.getAmount()*attack.resolvingDamage));
             }
         }
         if(!(actor instanceof ServerPlayer||actor instanceof CityNpc)||!outside(actor,level)||!supports(actor)
