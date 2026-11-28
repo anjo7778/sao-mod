@@ -29,6 +29,10 @@ public final class AdventurerGoalChecks {
                     venues.add(site.kind());venuePlans++;
                     check(CityCourts.clearAt(floor,next.destination().x(),next.destination().z(),1)
                         &&CityCourts.clearAt(floor,next.destination().x(),next.destination().z(),2),"Blocked venue destination");
+                    var localStart=new Point(site.x(),site.z()-CityCourts.HALF_Z-8);
+                    var local=CityVenueRoutine.route(floor,localStart,next.destination(),null,true);
+                    check(local.size()<=4&&local.getLast().equals(next.destination()),"Nearby venue detour");
+                    for(var v:local)check(Math.abs(v.x()-site.x())<=4,"Unnecessary central plaza detour");
                     var path=CityVenueRoutine.route(floor,new Point(0,0),next.destination(),null,true);
                     check(path.getLast().equals(next.destination()),"Court route missing");
                     for(var p:path){

@@ -64,9 +64,20 @@ public final class CityVenueRoutine {
             out.addAll(active?ScoutingTrip.route(floor,trip,cursor,to):NpcDailyPlan.route(floor,cursor,to));
             return List.copyOf(out);
         }
-        Point axis=new Point(0,connector(b).z());
-        out.addAll(NpcDailyPlan.route(floor,cursor,axis));
-        segment(out,axis,connector(b));segment(out,connector(b),entry(b));segment(out,entry(b),to);
+        Point link=connector(b);
+        // A character already approaching the court from its own street must not
+        // detour to the central axis. Same cross-street connectors can link directly.
+        if(Math.abs(cursor.x()-b.x())<=2&&cursor.z()>=link.z()-2&&cursor.z()<=entry(b).z()){
+            segment(out,cursor,entry(b));
+        }else if(Math.abs(cursor.z()-link.z())<=2){
+            Point cross=new Point(cursor.x(),link.z());
+            segment(out,cursor,cross);segment(out,cross,link);segment(out,link,entry(b));
+        }else{
+            Point axis=new Point(0,link.z());
+            out.addAll(NpcDailyPlan.route(floor,cursor,axis));
+            segment(out,axis,link);segment(out,link,entry(b));
+        }
+        segment(out,entry(b),to);
         return List.copyOf(out);
     }
     private static void segment(List<Point> out,Point a,Point b){
