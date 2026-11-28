@@ -18,6 +18,7 @@ import dev.anjo7778.sao.world.FloorBiomeSource;
 import dev.anjo7778.sao.world.FloorGuardian;
 import dev.anjo7778.sao.world.HuntService;
 import dev.anjo7778.sao.world.RpgEvents;
+import dev.anjo7778.sao.network.ProfileNetwork;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.neoforged.bus.api.EventPriority;
 import dev.anjo7778.sao.world.FloorRadialDensity;
@@ -55,6 +56,7 @@ public final class SaoMod {
         FEATURES.register(modBus);
         SaoEntities.register(modBus);
         SaoItems.register(modBus);
+        modBus.addListener(ProfileNetwork::register);
         NeoForge.EVENT_BUS.addListener(BoarSpawns::tick);
         NeoForge.EVENT_BUS.addListener(RpgEvents::discover);
         NeoForge.EVENT_BUS.addListener(RpgEvents::crafted);

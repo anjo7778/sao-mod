@@ -1,5 +1,7 @@
 {
   "generator.sao.aincrad": "Aincrad - Floor One (Prototype)",
   "entity.sao.frenzy_boar": "Frenzy Boar",
-  "item.sao.boar_tusk": "Boar Tusk"
+  "item.sao.boar_tusk": "Boar Tusk",
+  "key.sao.menu": "Open Aincrad Menu",
+  "key.categories.sao": "Aincrad"
 }

@@ -23,3 +23,7 @@ Primary external reference: [SAO Utils: Beta](https://store.steampowered.com/app
 ## Acceptance
 
 First menu test must open/close by real gesture and fallback key, not pause simulation, restore normal combat/use controls, show actual synchronized character state, handle scale/resolution and disable unsupported actions. Test first-person rendering and screenshot comparison to the chosen reference; separate visual approval from functional acceptance. Keep original Minecraft menus usable as fallback until each replacement is verified. No new mandatory dependencies. This is a design specification, not implemented UI.
+
+## v0.2.26 first native menu (candidate)
+
+Non-pausing screen-space prototype, translucent panels, circular navigation, orange selection, short opening animation, M fallback key, LMB+RMB downward movement chord (provisional raw-cursor/pitch threshold), normal-world eligibility from server, and escape close. Actual server profile snapshot includes character XP, level, attributes and independent weapon/profession masteries; + buttons send one-point allocation to the server with sequence protection. All other sections are labeled unavailable. No client-authoritative stats. The chord suppresses attack/use events while both buttons are down, but the first ordinary click may still have occurred before arming; full input/camera choreography, finger animation, world-space projection, draggable windows, authentic icon assets and accessibility are unfinished. Compilation, live gesture, input release, allocation and screenshot acceptance pending.
