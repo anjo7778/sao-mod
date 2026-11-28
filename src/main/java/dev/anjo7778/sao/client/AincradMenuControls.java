@@ -74,8 +74,8 @@ public final class AincradMenuControls {
             else if(dodge){
                 int direction=c.options.keyLeft.isDown()?1:c.options.keyRight.isDown()?2:c.options.keyUp.isDown()?3:0;
                 CombatNetwork.intent(1,direction);lastCombat=ticks;
-            }else if(skill&&combat.skillUnlocked()&&combat.skillCooldown()==0&&c.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit){
-                CombatNetwork.intent(2,hit.getEntity().getId());lastCombat=ticks;
+            }else if(skill&&combat.skillUnlocked()&&combat.skillCooldown()==0){
+                CombatNetwork.intent(4,0);lastCombat=ticks;
             }
         }
         if(c.player.hurtTime>0)lastCombat=ticks;
