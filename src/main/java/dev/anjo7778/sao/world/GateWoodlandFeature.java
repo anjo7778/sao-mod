@@ -19,11 +19,13 @@ public final class GateWoodlandFeature {
                 ||RegionalSettlements.inDecorationBuffer(floor,x-center.x(),z-center.z()))continue;
             for(int y=CityPlan.GROUND+18;y>=CityPlan.GROUND-18;y--){
                 var p=new BlockPos(x,y,z);var below=level.getBlockState(p.below());
-                if(!level.getBlockState(p).isAir()||!level.getBlockState(p.above()).isAir()
+                if(!level.getBlockState(p.below(2)).isFaceSturdy(level,p.below(2),Direction.UP)
+                    ||!level.getFluidState(p.below(2)).isEmpty()||level.getBlockEntity(p.below(2))!=null
+                    ||!level.getBlockState(p).isAir()||!level.getBlockState(p.above()).isAir()
                     ||!level.getFluidState(p).isEmpty()||!level.getFluidState(p.below()).isEmpty()
                     ||!(below.is(Blocks.GRASS_BLOCK)||below.is(Blocks.DIRT)||below.is(Blocks.COARSE_DIRT))
                     ||!below.isFaceSturdy(level,p.below(),Direction.UP))continue;
-                if(level.setBlock(p.below(),Blocks.ROOTED_DIRT.defaultBlockState(),2)){
+                if(level.setBlock(p.below(2),Blocks.ROOTED_DIRT.defaultBlockState(),2)){
                     if(level.setBlock(p,Blocks.OAK_SAPLING.defaultBlockState(),2))placed++;
                 }
                 break;
