@@ -519,4 +519,24 @@ public final class FoundationTests {
         helper.assertTrue(previous>1000,"No ordinary gameplay level cap");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void rpgDiscoveryCraftPersistence(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.CharacterProgressData();
+        var owner=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.PLAYER,new java.util.UUID(100,101));
+        var smith=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.BLACKSMITHING;
+        helper.assertTrue(data.discover(owner,1,0)&&data.discover(owner,1,1),"Two distinct locations");
+        helper.assertFalse(data.discover(owner,1,1),"No rediscovery reward");
+        helper.assertFalse(data.discover(owner,0,0),"Invalid floor");
+        for(int i=0;i<8;i++)helper.assertTrue(data.craft(owner,1,smith),"Completed craft fixture");
+        helper.assertFalse(data.craft(owner,1,smith),"Daily craft budget");
+        helper.assertTrue(data.state(owner).xp()==104&&data.state(owner).level()==2&&data.state(owner).masteryExperience(smith)==80,"Combined exploration and craft levels");
+        var reg=helper.getLevel().registryAccess();
+        var restored=dev.anjo7778.sao.world.CharacterProgressData.load(data.save(new CompoundTag(),reg),reg);
+        helper.assertTrue(restored.state(owner).equals(data.state(owner)),"XP persists");
+        helper.assertFalse(restored.discover(owner,1,0),"Saved discovery replay protection");
+        helper.assertFalse(restored.craft(owner,1,smith),"Saved craft budget");
+        helper.assertFalse(restored.craft(owner,0,smith),"No reverse-time craft credit");
+        helper.assertTrue(restored.craft(owner,2,smith),"New elapsed day budget");
+        helper.succeed();
+    }
 }

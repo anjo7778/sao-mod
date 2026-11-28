@@ -58,3 +58,7 @@ Shared CharacterProgress and CharacterProgressData store character XP, derived l
 ## Approved Aincrad interface reference
 
 See [AINCRAD_UI.md](AINCRAD_UI.md). Use SAO Utils as the primary visual/gesture reference. Develop a functional character-menu vertical slice alongside authenticated RPG progression, then add panels only as corresponding server-authoritative systems exist. v0.2.24 build [46096137503](https://github.com/anjo7778/sao-mod/actions/runs/46096137503) passed; actual gameplay XP event sources remain pending.
+
+## v0.2.25 XP event adapters
+
+Real server events and existing committed NPC action results now award character/mastery XP. Initial supported sources: player hostile kills, meaningful equipment crafting (eight rewarded operations per elapsed world day), first safe settlement visits, NPC actual hunt death, scouting completion, regional arrival and paid merchant/repair services. Weapon mastery only when attribution is known; unsupported player projectile families remain character XP only. No fictional crafting output or retroactive combat XP. Auto allocation for NPCs is a provisional profession/preference policy; character stats do not yet change damage or movement. Tests required for actual events, especially player crafting and kill attribution. Legacy saves retain existing progression; cross-file atomic crash recovery remains future work.

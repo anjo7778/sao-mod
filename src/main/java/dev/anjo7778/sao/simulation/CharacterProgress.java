@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Shared player/NPC RPG progression. No gameplay cap and no vanilla XP mutation.
  * Event producers must authenticate real actions and supply monotonically increasing
- * per-character, per-source sequences. No gameplay producers are enabled in this slice.
+ * per-character, per-source sequences; only authenticated server event adapters may award XP.
  */
 public final class CharacterProgress {
     public enum Source { COMBAT, QUEST, DISCOVERY, CRAFT, GATHER, COOK, HEAL, TRADE, FISH, TRAIN }

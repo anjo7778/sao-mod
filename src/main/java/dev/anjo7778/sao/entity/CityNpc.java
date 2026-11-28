@@ -219,6 +219,12 @@ public final class CityNpc extends PathfinderMob {
         lastGreeting=level().getGameTime();
         var data=NpcPopulationData.get(p.serverLevel().getServer());var state=data.state(floor,getUUID());
         if(state==null)return InteractionResult.PASS;
+        var progress=CharacterProgressData.get(p.serverLevel().getServer()).state(new CharacterProgressData.Owner(CharacterProgressData.Kind.NPC,getUUID()));
+        if(p.isShiftKeyDown()){
+            p.sendSystemMessage(Component.literal(profile.name()+" | RPG Lv. "+progress.level()+" | XP "+progress.xpIntoLevel()+"/"+progress.xpForNextLevel()+" | "+profile.occupation()));
+            for(var m:progress.masteryXp().keySet())p.sendSystemMessage(Component.literal(m.name()+" mastery "+progress.mastery(m)+" ("+progress.masteryExperience(m)+" XP)"));
+            return InteractionResult.CONSUME;
+        }
         String line=NpcDialogue.greetingText(state,p.getUUID(),plan.activity());
         var ledger=AdventureSimulationData.get(p.serverLevel().getServer()).ledger(profile);
         if(ledger!=null&&plan.activity()==Activity.SOCIALIZE&&state.relationship(p.getUUID()).trust()>=50){

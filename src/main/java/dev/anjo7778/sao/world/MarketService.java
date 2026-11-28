@@ -57,6 +57,8 @@ public final class MarketService {
             var c=FloorLayout.center(floor);var pos=desiredPlan.destination();
             if(level.players().stream().anyMatch(p->!p.isSpectator()&&p.distanceToSqr(c.x()+pos.x()+.5,CityPlan.GROUND+1,c.z()+pos.z()+.5)<=100*100))return false;
         }
-        return pop.purchase(floor,id,seller.profile().id(),j.visiting()?j.target():null,desiredPlan.destination(),time,epoch,observed);
+        boolean purchased=pop.purchase(floor,id,seller.profile().id(),j.visiting()?j.target():null,desiredPlan.destination(),time,epoch,observed);
+        if(purchased)RpgEvents.npcService(level,seller.profile(),pop.shop(seller.profile()).sold());
+        return purchased;
     }
 }

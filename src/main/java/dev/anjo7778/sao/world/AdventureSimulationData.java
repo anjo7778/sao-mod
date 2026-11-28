@@ -146,7 +146,10 @@ public final class AdventureSimulationData extends SavedData {
                         var n=s.needs();
                         population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-RegionalJourney.supplyCost(cursorFloor),n.equipment(),n.partyReadiness(),n.danger()));
                     }
-                    if(regional.arrived())population.discoverRegional(cursorFloor,next.target(),server.overworld().getSeed());
+                    if(regional.arrived()){
+                        population.discoverRegional(cursorFloor,next.target(),server.overworld().getSeed());
+                        RpgEvents.npcDiscovery(server,s.profile(),next.target());
+                    }
                     if(next.completed()>current.completed())population.updateNeeds(cursorFloor,id,AdventurerMarket.wear(s.needs(),2));
                     Mode regionalMode=offscreen&&(current.phase()==RegionalJourney.Phase.OUTBOUND||current.phase()==RegionalJourney.Phase.RETURNING||regional.began())?Mode.TRAVEL:Mode.IDLE;
                     floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,regionalMode,offscreen));setDirty();
@@ -180,7 +183,9 @@ public final class AdventureSimulationData extends SavedData {
                 population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-ScoutingTrip.SUPPLY_COST,
                     n.equipment(),n.partyReadiness(),n.danger()));
             }else if(CityRules.hasRegionalSettlements(level)&&next.trip().completed()>previous.trip().completed()){
+                int claimed=population.wallet(s.profile()).claimedThrough();
                 population.settleScouting(cursorFloor,id,previous.trip().completed(),next.trip().completed());
+                if(population.wallet(s.profile()).claimedThrough()>claimed)RpgEvents.npcScouting(server,s.profile());
             }else if(CityRules.hasLandmarks(level)&&offscreen&&FloorMigration.eligible(s,next,epoch,level.getDayTime())
                 &&tryMigration(server,population,s,epoch)){
                 migrated++;

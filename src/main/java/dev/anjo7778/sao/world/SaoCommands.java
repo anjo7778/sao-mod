@@ -1,6 +1,8 @@
 package dev.anjo7778.sao.world;
 
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import dev.anjo7778.sao.simulation.CharacterProgress.Attribute;
 import dev.anjo7778.sao.simulation.FloorCatalog;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -20,9 +22,23 @@ public final class SaoCommands {
                 if(!CityRules.hasRegionalSettlements(player.serverLevel())){ctx.getSource().sendFailure(Component.literal("Aincrad regional world required."));return 0;}
                 var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,player.getUUID());
                 var state=CharacterProgressData.get(player.serverLevel().getServer()).state(owner);
-                ctx.getSource().sendSuccess(()->Component.literal("RPG level "+state.level()+" | XP "+state.xpIntoLevel()+"/"+state.xpForNextLevel()+" | "+state.unspent()+" unspent attributes (foundation; XP sources pending)"),false);
+                ctx.getSource().sendSuccess(()->Component.literal("RPG level "+state.level()+" | XP "+state.xpIntoLevel()+"/"+state.xpForNextLevel()+" | "+state.unspent()+" unspent attributes"),false);
                 return 1;
             }))
+            .then(Commands.literal("allocate")
+                .then(Commands.argument("attribute",StringArgumentType.word())
+                .then(Commands.argument("points",LongArgumentType.longArg(1)).executes(ctx->{
+                    var p=ctx.getSource().getPlayerOrException();
+                    if(!CityRules.hasRegionalSettlements(p.serverLevel()))return 0;
+                    Attribute attr;
+                    try{attr=Attribute.valueOf(StringArgumentType.getString(ctx,"attribute").toUpperCase(java.util.Locale.ROOT));}
+                    catch(IllegalArgumentException bad){ctx.getSource().sendFailure(Component.literal("Unknown attribute."));return 0;}
+                    var data=CharacterProgressData.get(p.serverLevel().getServer());
+                    var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,p.getUUID());
+                    if(!data.allocate(owner,attr,LongArgumentType.getLong(ctx,"points"))){ctx.getSource().sendFailure(Component.literal("Not enough unspent points."));return 0;}
+                    ctx.getSource().sendSuccess(()->Component.literal(attr.name()+": "+data.state(owner).attribute(attr)+" | unspent "+data.state(owner).unspent()),false);
+                    return 1;
+                }))))
             .then(Commands.literal("population").executes(ctx->{
                 var p=ctx.getSource().getPlayerOrException();
                 if(!CityRules.isCity(p.serverLevel(),p.getBlockX(),p.getBlockZ())){

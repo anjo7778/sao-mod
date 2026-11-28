@@ -26,7 +26,7 @@ public final class HuntService {
     private static final String ARROW="sao_hunt_arrow";
     private HuntService(){}
     private static long epoch(ServerLevel level){return Math.max(0,level.getServer().overworld().getGameTime()/AdventureProgress.EPOCH_TICKS);}
-    private static boolean allowedType(EntityType<?> type){
+    public static boolean allowedType(EntityType<?> type){
         return type==EntityType.ZOMBIE||type==EntityType.HUSK||type==EntityType.SPIDER||type==EntityType.SKELETON||type==SaoEntities.FRENZY_BOAR.get();
     }
     private static boolean arena(ServerLevel level,long floor,ScoutingTrip.Trip trip,Entity e){
@@ -164,6 +164,9 @@ public final class HuntService {
         var t=trip(level,npc);
         if(!survey(t)||!arena(level,npc.originFloor(),t,npc)||!arena(level,npc.originFloor(),t,mob)
             ||epoch(level)-t.since()>=HuntContract.WINDOW_EPOCHS)return;
-        if(NpcPopulationData.get(level.getServer()).finishHunt(npc.originFloor(),npc.getUUID(),t.since(),mob.getUUID()))npc.getNavigation().stop();
+        if(NpcPopulationData.get(level.getServer()).finishHunt(npc.originFloor(),npc.getUUID(),t.since(),mob.getUUID())){
+            npc.getNavigation().stop();
+            RpgEvents.npcHunt(level,npc.boundProfile(),mob,event.getSource().getDirectEntity());
+        }
     }
 }

@@ -14,6 +14,35 @@ public final class CharacterProgressData extends SavedData {
     public record Owner(Kind kind,UUID id){public Owner{Objects.requireNonNull(kind);Objects.requireNonNull(id);}}
     private static final Factory<CharacterProgressData> FACTORY=new Factory<>(CharacterProgressData::new,CharacterProgressData::load,null);
     private final Map<Owner,State> records=new LinkedHashMap<>();
+    private final Map<Owner,Set<Long>> discoveries=new HashMap<>();
+    private record CraftWindow(long day,int operations){
+        private CraftWindow{if(day<0||operations<1||operations>8)throw new IllegalArgumentException("Invalid craft window");}
+    }
+    private final Map<Owner,CraftWindow> craftWindows=new HashMap<>();
+    public boolean awardNext(Owner owner,Source source,long xp,Mastery mastery,long masteryXp){
+        long before=state(owner).watermarks().getOrDefault(source,0L);
+        if(before==Long.MAX_VALUE)return false;
+        try{return award(owner,source,before+1,xp,mastery,masteryXp);}
+        catch(ArithmeticException exhausted){return false;} // explicit representational limit, never wrap or crash the world
+    }
+    /** Stable per-character, per-floor discovery IDs; 0 is the capital, 1–4 are regional sites. */
+    public boolean discover(Owner owner,long floor,int site){
+        if(!dev.anjo7778.sao.simulation.FloorLayout.supported(floor)||site<0||site>4)return false;
+        long key=floor*5+site;
+        var known=discoveries.get(owner);
+        if(known!=null&&known.contains(key))return false;
+        if(!awardNext(owner,Source.DISCOVERY,20,Mastery.EXPLORATION,12))return false;
+        discoveries.computeIfAbsent(owner,k->new HashSet<>()).add(key);setDirty();return true;
+    }
+    /** Reward only authenticated completed meaningful crafting; eight operations per elapsed world day. */
+    public boolean craft(Owner owner,long day,Mastery mastery){
+        if(owner.kind()!=Kind.PLAYER||day<0||(mastery!=Mastery.BLACKSMITHING&&mastery!=Mastery.ARMORSMITHING))return false;
+        var before=craftWindows.get(owner);
+        if(before!=null&&(day<before.day()||day==before.day()&&before.operations()>=8))return false;
+        if(!awardNext(owner,Source.CRAFT,8,mastery,10))return false;
+        craftWindows.put(owner,new CraftWindow(day,before!=null&&before.day()==day?before.operations()+1:1));
+        setDirty();return true;
+    }
     public static CharacterProgressData get(MinecraftServer server){return server.overworld().getDataStorage().computeIfAbsent(FACTORY,"sao_characters");}
     public State state(Owner owner){return records.getOrDefault(owner,CharacterProgress.EMPTY);}
     public boolean award(Owner owner,Source source,long sequence,long xp,Mastery mastery,long masteryXp){
@@ -38,21 +67,41 @@ public final class CharacterProgressData extends SavedData {
         return map;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",1);ListTag list=new ListTag();
+        root.putInt("schema",2);ListTag list=new ListTag();
         records.forEach((owner,state)->{
             var n=new CompoundTag();n.putString("kind",owner.kind().name());n.putUUID("id",owner.id());n.putLong("xp",state.xp());
-            n.put("attributes",writeMap(state.attributes()));n.put("mastery",writeMap(state.masteryXp()));n.put("watermarks",writeMap(state.watermarks()));list.add(n);
+            n.put("attributes",writeMap(state.attributes()));n.put("mastery",writeMap(state.masteryXp()));n.put("watermarks",writeMap(state.watermarks()));
+            var known=discoveries.get(owner);
+            if(known!=null)n.putLongArray("discoveries",known.stream().mapToLong(Long::longValue).sorted().toArray());
+            var craft=craftWindows.get(owner);
+            if(craft!=null){n.putLong("craftDay",craft.day());n.putInt("craftOperations",craft.operations());}
+            list.add(n);
         });
         root.put("characters",list);return root;
     }
     public static CharacterProgressData load(CompoundTag root,HolderLookup.Provider registries){
-        if(root.getInt("schema")!=1||!root.contains("characters",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown character progression schema");
+        int schema=root.getInt("schema");
+        if((schema!=1&&schema!=2)||!root.contains("characters",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown character progression schema");
         var data=new CharacterProgressData();var list=root.getList("characters",Tag.TAG_COMPOUND);
         for(int i=0;i<list.size();i++){
             var n=list.getCompound(i);var key=new Owner(Kind.valueOf(n.getString("kind")),n.getUUID("id"));
             var state=new State(n.getLong("xp"),readMap(n.getCompound("attributes"),Attribute.class),
                 readMap(n.getCompound("mastery"),Mastery.class),readMap(n.getCompound("watermarks"),Source.class));
             if(data.records.put(key,state)!=null)throw new IllegalArgumentException("Duplicate character");
+            if(schema>=2){
+                if(n.contains("discoveries",Tag.TAG_LONG_ARRAY)){
+                    var known=new HashSet<Long>();
+                    for(long location:n.getLongArray("discoveries")){
+                        if(location<5||!dev.anjo7778.sao.simulation.FloorLayout.supported(location/5)||!known.add(location))
+                            throw new IllegalArgumentException("Invalid discovery record");
+                    }
+                    data.discoveries.put(key,known);
+                }
+                if(n.contains("craftDay",Tag.TAG_LONG)){
+                    if(key.kind()!=Kind.PLAYER)throw new IllegalArgumentException("Invalid craft owner");
+                    data.craftWindows.put(key,new CraftWindow(n.getLong("craftDay"),n.getInt("craftOperations")));
+                }
+            }
         }
         return data;
     }
