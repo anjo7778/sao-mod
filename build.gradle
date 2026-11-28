@@ -71,6 +71,7 @@ neoForge {
             client()
             gameDirectory = project.file('run-deep-mine')
             systemProperty 'sao.deepMineProbe', 'true'
+            systemProperty 'sao.extendedMineProbe', (project.findProperty('extendedMineProbe') ?: 'false').toString()
         }
 
         supplyProbe {
