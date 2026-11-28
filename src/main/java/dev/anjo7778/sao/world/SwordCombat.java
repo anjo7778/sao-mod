@@ -54,6 +54,12 @@ public final class SwordCombat {
     }
     private SwordCombat(){}
     private static long now(ServerLevel level){return level.getServer().overworld().getGameTime();}
+    /** The common mixin must never grant charge to an ordinary attack or a client animation. */
+    public static boolean authorizedPlayerHit(net.minecraft.world.entity.player.Player player){
+        if(!(player instanceof ServerPlayer p))return false;
+        var s=SESSIONS.get(p);
+        return s!=null&&s.resolving&&s.resolvingTarget!=null&&eligible(p)&&supports(p);
+    }
     public static boolean supports(LivingEntity e){
         return WeaponItems.classify(e.getMainHandItem())==WeaponRules.Family.SWORD
             &&WeaponItems.resolve(e.getMainHandItem(),e.getOffhandItem()).style()==WeaponRules.Style.SINGLE;
