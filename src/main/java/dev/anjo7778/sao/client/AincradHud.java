@@ -80,7 +80,9 @@ public final class AincradHud {
             if(combat.combo()>0){
                 text(g,"CHAIN "+combat.combo()+"/3",x+4,info+1,AMBER,w-8);info+=12;
             }
-            String skill=combat.skillUnlocked()?(combat.skillCooldown()==0?"HORIZONTAL  READY":"HORIZONTAL  "+String.format(Locale.ROOT,"%.1fs",combat.skillCooldown()/20.0)):"HORIZONTAL  MASTERY 3";
+            var selected=dev.anjo7778.sao.simulation.SwordActions.Skill.fromIndex(combat.selectedSkill());
+            String name=selected.name().replace('_',' ');
+            String skill=combat.skillUnlocked()?(combat.skillCooldown()==0?name+"  READY":name+"  "+String.format(Locale.ROOT,"%.1fs",combat.skillCooldown()/20.0)):name+"  MASTERY "+selected.mastery;
             text(g,skill,x+4,info+1,combat.skillUnlocked()&&combat.skillCooldown()==0?BLUE:WHITE,w-8);info+=12;
         }
         int food=p.getFoodData().getFoodLevel();
