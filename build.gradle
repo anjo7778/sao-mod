@@ -58,6 +58,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        venueProbe {
+            client()
+            gameDirectory = project.file('run-venue')
+            systemProperty 'sao.venueProbe', 'true'
+        }
         server {
             server()
             programArgument '--nogui'
