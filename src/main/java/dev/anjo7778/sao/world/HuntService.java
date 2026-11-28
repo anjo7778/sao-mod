@@ -85,6 +85,8 @@ public final class HuntService {
                 npc.stopUsingItem();
                 if(npc.tickCount%20==0)npc.getNavigation().moveTo(mob,style.speed);
             }
+        }else if(SwordCombat.supports(npc)){
+            SwordCombat.npcStrike(npc,level,mob,style,pop);
         }else if(npc.tickCount%style.interval==0){
             if(distance<=style.reach*style.reach&&npc.hasLineOfSight(mob)){
                 npc.getNavigation().stop();npc.swing(InteractionHand.MAIN_HAND);
