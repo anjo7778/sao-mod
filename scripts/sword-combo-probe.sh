@@ -11,7 +11,7 @@ trap 'kill -TERM -- "-$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
 deadline=$((SECONDS+540))
 while ((SECONDS<deadline)); do
     if grep -q 'SAO_SWORD_COMBO_PROBE_PASS' "$log"; then
-        for mark in LOCKED_OK CHAIN_OK HORIZONTAL_OK COOLDOWN_OK SLANT_OK VERTICAL_OK LEAP_OK POSE_OK; do grep -q "SAO_SWORD_$mark" "$log"; done
+        for mark in LOCKED_OK CHAIN_OK HORIZONTAL_OK COOLDOWN_OK SLANT_OK VERTICAL_OK LEAP_OK POSE_OK HORIZONTAL_SQUARE_OK VERTICAL_SQUARE_OK HORIZONTAL_SQUARE_POSE_OK VERTICAL_SQUARE_POSE_OK SQUARE_INTERRUPT_OK; do grep -q "SAO_SWORD_$mark" "$log"; done
         grep 'SAO_SWORD_' "$log"
         exit 0
     fi
