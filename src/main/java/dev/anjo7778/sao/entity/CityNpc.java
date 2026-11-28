@@ -40,6 +40,8 @@ public final class CityNpc extends PathfinderMob {
     private Plan plan;
     private List<Point> route=List.of();
     private int waypoint,failedAttempts,awayTicks;
+    private boolean avoidLocalShortcuts;
+    private double lastPathDistance=Double.POSITIVE_INFINITY;
     private long nextPath,lastGreeting=-1000,conversationUntil;
     private UUID conversationPeer;
     public CityNpc(EntityType<? extends CityNpc> type,Level level){super(type,level);}
@@ -208,7 +210,8 @@ public final class CityNpc extends PathfinderMob {
             if(state==null){discard();return;}
             Plan next=AdventureSimulationData.plan(level,state);
             if(!next.equals(plan)){
-                endConversation();closeMenu();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;updateDisplayItem();
+                endConversation();closeMenu();plan=next;route=List.of();waypoint=0;getNavigation().stop();failedAttempts=0;
+                avoidLocalShortcuts=false;lastPathDistance=Double.POSITIVE_INFINITY;updateDisplayItem();
             }
             var c=FloorLayout.center(floor);
             if(plan.activity()==Activity.REST&&distanceToSqr(c.x()+plan.destination().x()+.5,CityPlan.GROUND+1,c.z()+plan.destination().z()+.5)<16){
@@ -264,16 +267,27 @@ public final class CityNpc extends PathfinderMob {
                 }
                 return;
             }
-            route=region==null?CityVenueRoutine.route(floor,here,plan.destination(),trip,CityRules.hasLandmarks(level)):RegionalNpcRoutine.route(region,here,plan.destination());waypoint=0;failedAttempts=0;
+            route=region==null?CityVenueRoutine.route(floor,here,plan.destination(),trip,CityRules.hasLandmarks(level),!avoidLocalShortcuts):RegionalNpcRoutine.route(region,here,plan.destination());waypoint=0;failedAttempts=0;lastPathDistance=Double.POSITIVE_INFINITY;
         }
         if(waypoint>=route.size())return;
         Point p=route.get(waypoint);
-        if(Math.hypot(here.x()-p.x(),here.z()-p.z())<2){waypoint++;failedAttempts=0;return;}
+        if(Math.hypot(here.x()-p.x(),here.z()-p.z())<2){waypoint++;failedAttempts=0;lastPathDistance=Double.POSITIVE_INFINITY;return;}
         if(!getNavigation().isDone())return;
         BlockPos step=ExpeditionGround.walkable(level,floor,center.x()+p.x(),center.z()+p.z());
-        if(step==null||!getNavigation().moveTo(step.getX()+.5,step.getY(),step.getZ()+.5,.9)){
-            if(++failedAttempts>=3){route=List.of();waypoint=0;nextPath+=120;}
-        }else failedAttempts=0;
+        // A partial vanilla path can report success without reaching its target.
+        // Count repeated attempts with no physical progress; let improving partial paths continue.
+        if(step==null)failedAttempts++;
+        else{
+            double remaining=Math.sqrt(distanceToSqr(step.getX()+.5,step.getY(),step.getZ()+.5));
+            if(remaining+.75<lastPathDistance)failedAttempts=0;
+            else if(Double.isFinite(lastPathDistance))failedAttempts++;
+            lastPathDistance=remaining;
+            if(!getNavigation().moveTo(step.getX()+.5,step.getY(),step.getZ()+.5,.9))failedAttempts++;
+        }
+        if(failedAttempts>=3){
+            getNavigation().stop();route=List.of();waypoint=0;nextPath+=120;
+            avoidLocalShortcuts=true;lastPathDistance=Double.POSITIVE_INFINITY;
+        }
     }
     private boolean canWalk(ServerLevel level,FloorLayout.Center c,Point p){
         var region=AdventureSimulationData.get(level.getServer()).localSite(profile);
