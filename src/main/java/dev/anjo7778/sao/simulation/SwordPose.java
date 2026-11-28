@@ -13,7 +13,9 @@ public final class SwordPose {
         DODGE(3,18,-.60f,-.30f,.35f,-.75f,-.20f,.28f),
         SLANT(5,18,-2.10f,-.75f,.72f,-.70f,.58f,-.62f),
         VERTICAL(10,28,-2.90f,.04f,.06f,-.25f,.02f,-.12f),
-        SONIC_LEAP(9,29,-.95f,-.25f,.08f,-1.58f,.05f,.02f);
+        SONIC_LEAP(9,29,-.95f,-.25f,.08f,-1.58f,.05f,.02f),
+        HORIZONTAL_SQUARE(8,68,-1.05f,-1.10f,.40f,-1.10f,1.10f,-.55f),
+        VERTICAL_SQUARE(10,72,-2.30f,-.65f,.45f,-.45f,.60f,-.45f);
         public final int impact,duration;
         final float wx,wy,wz,hx,hy,hz;
         Kind(int impact,int duration,float wx,float wy,float wz,float hx,float hy,float hz){
@@ -35,8 +37,28 @@ public final class SwordPose {
     private static float lerp(float a,float b,float t){return a+(b-a)*t;}
     public static Frame sample(Kind kind,float elapsed){
         if(kind==null||!Float.isFinite(elapsed)||elapsed<0||elapsed>=kind.duration)return new Frame(0,0,0,0);
+        if(kind==Kind.HORIZONTAL_SQUARE||kind==Kind.VERTICAL_SQUARE)return square(kind,elapsed);
         float strike=smooth((elapsed-(kind.impact-1f))/2f);
         float blend=smooth(elapsed/Math.max(1f,kind.impact-1f))*(1-smooth((elapsed-kind.impact-1f)/Math.max(1f,kind.duration-kind.impact-1f)));
         return new Frame(lerp(kind.wx,kind.hx,strike),lerp(kind.wy,kind.hy,strike),lerp(kind.wz,kind.hz,strike),blend);
+    }
+    /** Alternating attack directions, with recovery after each of the four scheduled impacts. */
+    private static Frame square(Kind kind,float elapsed){
+        boolean horizontal=kind==Kind.HORIZONTAL_SQUARE;
+        float first=kind.impact;
+        float[] x=horizontal?new float[]{-1.05f,-1.05f,-1.20f,-1.15f,-.85f}
+            :new float[]{-2.30f,-.45f,-2.20f,-.45f,-2.60f};
+        float[] y=horizontal?new float[]{-1.10f,1.10f,-1.10f,1.10f,-1.25f}
+            :new float[]{-.65f,.65f,-.65f,.65f,-.08f};
+        float[] z=horizontal?new float[]{.40f,-.55f,.55f,-.55f,.60f}
+            :new float[]{.45f,-.45f,.45f,-.45f,.10f};
+        float weight=smooth(elapsed/Math.max(1,first-2))*(1-smooth((elapsed-(first+42+2))/(kind.duration-first-44)));
+        float px=x[0],py=y[0],pz=z[0];
+        for(int i=0;i<4;i++){
+            float blend=smooth((elapsed-(first+i*14-2))/4);
+            float nextX=(kind==Kind.VERTICAL_SQUARE&&i==3)?-.25f:x[i+1];
+            px=lerp(px,nextX,blend);py=lerp(py,y[i+1],blend);pz=lerp(pz,z[i+1],blend);
+        }
+        return new Frame(px,py,pz,weight);
     }
 }
