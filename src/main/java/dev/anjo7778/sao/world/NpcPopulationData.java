@@ -65,6 +65,29 @@ public final class NpcPopulationData extends SavedData {
         }
         setDirty();return true;
     }
+    /** Real blade repair; the equipment service establishes physical presence and steel stock.
+     * Compare the authoritative pre-repair stack so a stale or repeated request cannot charge twice. */
+    boolean repairBlade(long floor,UUID buyer,UUID seller,net.minecraft.world.item.ItemStack expected,long time,long epoch){
+        var capital=floors.get(floor);
+        if(capital==null||buyer.equals(seller)||expected==null||expected.isEmpty())return false;
+        var b=capital.get(buyer);var s=capital.get(seller);
+        if(b==null||s==null||b.profile().occupation()!=Occupation.ADVENTURER||!HuntContract.melee(b.profile())
+            ||s.profile().occupation()!=Occupation.BLACKSMITH||NpcRoutine.resting(b.profile(),time)
+            ||b.needs().health()<35||b.needs().supplies()<35||NpcDailyPlan.at(s,time).activity()!=NpcDailyPlan.Activity.WORK)return false;
+        var actual=blades.get(buyer);
+        if(actual==null||!net.minecraft.world.item.ItemStack.matches(actual,expected))return false;
+        var repaired=dev.anjo7778.sao.item.NativeSteelSword.npcRepaired(actual);
+        if(repaired.isEmpty())return false;
+        int price=dev.anjo7778.sao.item.NativeSteelSword.NPC_REPAIR_PRICE;
+        var current=wallet(b.profile());
+        if(current.col()<price+12)return false; // retain one supply purchase
+        var paid=AdventurerMarket.buyGoods(current,price,epoch);
+        int received=goodsReceipts(seller);
+        if(paid==null||received>AdventurerMarket.MAX-price)return false;
+        wallets.put(buyer,paid);goodsReceipts.put(seller,received+price);blades.put(buyer,repaired);
+        // General equipment readiness is a separate service; never silently reset it here.
+        setDirty();return true;
+    }
     public boolean wearBlade(UUID id,net.minecraft.world.item.ItemStack held){
         var stack=blades.get(id);
         if(stack==null||!net.minecraft.world.item.ItemStack.matches(stack,held))return false;
