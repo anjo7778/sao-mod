@@ -98,9 +98,10 @@ public final class SwordCombat {
         return victim.getHealth()+victim.getAbsorptionAmount();
     }
     private static void confirm(Session s,LivingEntity actor,LivingEntity victim,ServerLevel level,float before){
-        boolean landed=remainingHealth(victim)<before&&!victim.isRemoved()||!victim.isAlive()&&victim.getHealth()<=0&&before>0;
+        boolean landed=remainingHealth(victim)<before;
         s.clock.confirmHit(now(level),landed&&supports(actor));
-        s.comboTarget=s.clock.combo()>0?victim.getUUID():null;
+        s.comboTarget=s.clock.combo()>0&&victim.isAlive()?victim.getUUID():null;
+        if(s.comboTarget==null)s.clock.breakCombo();
     }
     private static void startResolve(Session s,LivingEntity victim){
         s.resolving=true;s.resolvingTarget=victim.getUUID();s.resolvingMove=s.clock.move();
@@ -109,7 +110,7 @@ public final class SwordCombat {
     private static void sync(ServerPlayer p,Session s,boolean available){
         int pose=available?s.clock.visualCode(now(p.serverLevel()),p.serverLevel().getGameTime()):0;
         CombatNetwork.send(p,available,s.clock.stamina(),s.clock.phase(),s.clock.move(),
-            s.clock.combo(),s.clock.skillCooldown(now(p.serverLevel())),mastery(p,p.serverLevel())>=SwordActions.HORIZONTAL_MASTERY,pose);
+            s.clock.combo(),s.clock.skillCooldown(now(p.serverLevel())),available&&mastery(p,p.serverLevel())>=SwordActions.HORIZONTAL_MASTERY,pose);
         s.shown=available;s.lastPose=pose;
     }
     public static void attack(AttackEntityEvent event){
@@ -152,7 +153,7 @@ public final class SwordCombat {
         }
     }
     /** Direction is relative to server-owned look yaw: backward, left, right, forward.
-     * No positions, stamina or hit claims are accepted from the client. */
+     * Skill intent uses a target entity id. No client positions, stamina or hit claims are accepted. */
     public static void intent(ServerPlayer p,int action,int direction){
         var level=p.serverLevel();
         if(!eligible(p)||!supports(p)||!outside(p,level)||p.isUsingItem())return;
