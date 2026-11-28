@@ -28,7 +28,11 @@ public final class AincradInventoryScreen extends AbstractContainerScreen<Invent
         imageWidth=176;imageHeight=166;
     }
     @Override public boolean isPauseScreen(){return false;}
-    @Override public void renderBackground(GuiGraphics g,int mouseX,int mouseY,float partial){}
+    @Override public void renderBackground(GuiGraphics g,int mouseX,int mouseY,float partial){
+        // AbstractContainerScreen renders its backdrop through this hook.
+        // Skip the vanilla blur/dim, but explicitly draw the native container panels.
+        renderBg(g,partial,mouseX,mouseY);
+    }
     @Override public void render(GuiGraphics g,int mouseX,int mouseY,float partial){
         super.render(g,mouseX,mouseY,partial);
         renderTooltip(g,mouseX,mouseY);
