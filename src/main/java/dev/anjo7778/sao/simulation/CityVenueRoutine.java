@@ -51,13 +51,16 @@ public final class CityVenueRoutine {
     private static Point connector(Site s){return new Point(s.x(),s.z()-CityPlan.LOT/2);}
     /** Court-specific connector routes avoid diagonal shortcuts through newly occupied building lots. */
     public static List<Point> route(long floor,Point from,Point to,ScoutingTrip.Trip trip,boolean landmarks){
+        return route(floor,from,to,trip,landmarks,true);
+    }
+    public static List<Point> route(long floor,Point from,Point to,ScoutingTrip.Trip trip,boolean landmarks,boolean localShortcuts){
         boolean active=trip!=null&&trip.active();
         if(!landmarks)return active?ScoutingTrip.route(floor,trip,from,to):NpcDailyPlan.route(floor,from,to);
         Site a=at(floor,from.x(),from.z()),b=at(floor,to.x(),to.z());
         if(a==null&&b==null){
             if(active)return ScoutingTrip.route(floor,trip,from,to);
             var ordinary=NpcDailyPlan.route(floor,from,to);
-            return localBuildingApproach(floor,from,to,ordinary);
+            return localShortcuts?localBuildingApproach(floor,from,to,ordinary):ordinary;
         }
         List<Point> out=new ArrayList<>();Point cursor=from;
         if(a!=null&&a.equals(b)){segment(out,from,to);return List.copyOf(out);}
