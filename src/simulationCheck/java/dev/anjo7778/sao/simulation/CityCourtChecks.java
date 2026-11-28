@@ -95,11 +95,39 @@ public final class CityCourtChecks {
                     check(seen[(s.z()+z+h)*sz+s.x()+x+h],"Court unreachable");
             }
             for(int[] v:new int[][]{{0,-h},{0,h-1},{-h,0},{h-1,0}})check(seen[(v[1]+h)*sz+v[0]+h],"Gate disconnected");
+            int shortcuts=0,forgeRoutes=0;
+            for(var gate:ScoutingTrip.Gate.values()){
+                var from=ScoutingTrip.gatePoint(floor,gate,-16);
+                for(var p:plots){
+                    if(p.role()!=Role.FORGE||!p.equals(plot(floor,p.x()/LOT,p.z()/LOT)))continue;
+                    var to=new NpcDailyPlan.Point(p.x()+3,p.z()-3);
+                    var legacy=NpcDailyPlan.route(floor,from,to);
+                    var route=CityVenueRoutine.route(floor,from,to,null,true);
+                    check(!route.isEmpty()&&route.getLast().equals(to),"Forge route must finish");
+                    check(routeLength(from,route)<=routeLength(from,legacy)+.001,"Delivery route longer than legacy");
+                    if(!route.equals(legacy))shortcuts++;
+                    var prev=from;
+                    for(var w:route){
+                        check(inside(floor,w.x(),w.z()),"Delivery left capital");
+                        check(seen[(w.z()+h)*sz+w.x()+h],"Delivery waypoint not reachable");
+                        check(Math.hypot(w.x()-prev.x(),w.z()-prev.z())<=26,"Delivery step too long");
+                        prev=w;
+                    }
+                    forgeRoutes++;
+                }
+            }
+            if(floor==1)check(shortcuts>0,"No starter capital delivery shortcuts");
+            System.out.printf("PASS: floor %d, %d forge delivery routes, %d shorter local routes%n",floor,forgeRoutes,shortcuts);
             connected+=tail;sites+=local.size();
             System.out.printf("PASS: floor %d landmark districts, %d public courts, %,d connected positions%n",floor,local.size(),tail);
         }
         check(sites>0,"No public courts");
         System.out.printf("PASS: 4 fixed public-space layouts, %,d cell checks, %d court placements, %,d connected cells, %,d original waypoints%n",checked,sites,connected,waypoints);
+    }
+    private static double routeLength(NpcDailyPlan.Point from,List<NpcDailyPlan.Point> route){
+        double length=0;
+        for(var p:route){length+=Math.hypot(p.x()-from.x(),p.z()-from.z());from=p;}
+        return length;
     }
     private static void check(boolean b,String m){if(!b)throw new AssertionError(m);}
 }
