@@ -18,6 +18,7 @@ import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -33,8 +34,10 @@ import java.util.function.Predicate;
 public final class NpcForgeWorkshop {
     private static final String JOB="sao_workshop_job";
     private NpcForgeWorkshop(){}
-    public enum Result { IDLE, BLEND, LOADED, COLLECTED, FORGED }
-    public record Fixtures(BlockPos stock,BlockPos output,BlockPos furnace,BlockPos anvil){}
+    public enum Result { IDLE, BLEND, LOADED, COLLECTED, FORGED, REFUELED }
+    public record Fixtures(BlockPos stock,BlockPos output,BlockPos furnace,BlockPos anvil){
+        public BlockPos kiln(){return furnace.south();}
+    }
     public static Fixtures fixtures(NpcRoster.Profile p){
         var c=FloorLayout.center(p.currentFloor());
         int x=c.x()+p.workX(),z=c.z()+p.workZ(),y=CityPlan.GROUND+1;
@@ -85,6 +88,13 @@ public final class NpcForgeWorkshop {
             ||!level.getBlockState(pos.anvil()).is(BlockTags.ANVIL))return Result.IDLE;
         // Do not modify a furnace or barrel while a player has that native menu open.
         if(level.players().stream().anyMatch(p->p.containerMenu!=p.inventoryMenu&&p.distanceToSqr(npc)<20*20))return Result.IDLE;
+        // The neighboring normal furnace is an optional charcoal kiln. Existing worlds
+        // with two blast furnaces need not be rewritten; a normal furnace works here.
+        if(level.hasChunkAt(pos.kiln())&&CityRules.isSafeZone(level,pos.kiln().getX(),pos.kiln().getZ())
+            &&level.getBlockEntity(pos.kiln()) instanceof FurnaceBlockEntity kiln){
+            var charcoal=processCharcoal(level,profile,stock,kiln);
+            if(charcoal!=Result.IDLE){npc.swing(InteractionHand.MAIN_HAND);return charcoal;}
+        }
         // A real customer already at the forge gets first chance to use the repair steel.
         if(has(copy(stock),SaoItems.STEEL_INGOT.get())&&NpcEquipmentService.readyRepairCustomer(npc,level))return Result.IDLE;
         var result=process(level,profile,stock,output,furnace);
@@ -97,25 +107,7 @@ public final class NpcForgeWorkshop {
         var progress=CharacterProgressData.get(level.getServer());
         var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.NPC,smith.id());
         long day=Math.max(0,level.getServer().overworld().getGameTime()/24000);
-        var tag=furnace.getPersistentData();
-        if(tag.contains(JOB)){
-            var job=tag.getCompound(JOB);
-            if(!job.hasUUID("owner")||!job.getUUID("owner").equals(smith.id()))return Result.IDLE;
-            var actual=furnace.getItem(2);
-            // If a player removed the input/output while the job was in flight, abandon the marker.
-            if(actual.isEmpty()){
-                if(furnace.getItem(0).isEmpty()){tag.remove(JOB);furnace.setChanged();}
-                return Result.IDLE;
-            }
-            if(!furnace.getItem(0).isEmpty()||actual.getCount()!=1
-                ||!net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(actual.getItem()).toString().equals(job.getString("expected")))return Result.IDLE;
-            var after=copy(stock);
-            if(!insert(after,actual))return Result.IDLE;
-            // Real output already processed; transfer exactly once.
-            furnace.removeItemNoUpdate(2);tag.remove(JOB);furnace.setChanged();apply(stock,after);
-            progress.profession(owner,day,Mastery.METALLURGY);
-            return Result.COLLECTED;
-        }
+        if(furnace.getPersistentData().contains(JOB))return finishOrRefuel(level,smith,stock,furnace,false);
         // Do not claim player-loaded input, output or fuel.
         if(!furnace.getItem(0).isEmpty()||!furnace.getItem(1).isEmpty()||!furnace.getItem(2).isEmpty())return Result.IDLE;
         var before=copy(stock);
@@ -170,6 +162,83 @@ public final class NpcForgeWorkshop {
             :load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.SMELTING);
         return Result.IDLE;
     }
+    /** Convert actual excess logs into charcoal in a native ordinary furnace.
+     * Reserve handles first, never consume coal/charcoal merely to create another unit. */
+    static Result processCharcoal(ServerLevel level,NpcRoster.Profile smith,Container stock,FurnaceBlockEntity kiln){
+        if(smith.occupation()!=Occupation.BLACKSMITH)return Result.IDLE;
+        if(kiln.getPersistentData().contains(JOB))return finishOrRefuel(level,smith,stock,kiln,true);
+        if(!kiln.getItem(0).isEmpty()||!kiln.getItem(1).isEmpty()||!kiln.getItem(2).isEmpty())return Result.IDLE;
+        var before=copy(stock);
+        if(count(before,Items.COAL)+count(before,Items.CHARCOAL)>=3||!has(before,Items.OAK_LOG))return Result.IDLE;
+        // Do not divert the last available handle material into charcoal.
+        int reserve=has(before,Items.STICK)?0:2;
+        if(count(before,Items.OAK_PLANKS)<=reserve){
+            if(count(before,Items.OAK_LOG)<2)return Result.IDLE;
+            var log=CraftingInput.of(1,1,List.of(new ItemStack(Items.OAK_LOG)));
+            if(craftStock(level,stock,log,Items.OAK_PLANKS))return Result.BLEND;
+            return Result.IDLE;
+        }
+        return load(level,smith,stock,kiln,Items.OAK_LOG,RecipeType.SMELTING,true);
+    }
+    private static int count(List<ItemStack> stock,Item item){
+        return stock.stream().filter(s->s.is(item)).mapToInt(ItemStack::getCount).sum();
+    }
+    private static Item takeFuel(List<ItemStack> stock,boolean charcoal){
+        if(charcoal){
+            int reserve=has(stock,Items.STICK)?0:2;
+            return count(stock,Items.OAK_PLANKS)>reserve&&consume(stock,Items.OAK_PLANKS,1)?Items.OAK_PLANKS:null;
+        }
+        if(consume(stock,Items.COAL,1))return Items.COAL;
+        if(consume(stock,Items.CHARCOAL,1))return Items.CHARCOAL;
+        int reserve=has(stock,Items.STICK)?0:2;
+        return count(stock,Items.OAK_PLANKS)>reserve&&consume(stock,Items.OAK_PLANKS,1)?Items.OAK_PLANKS:null;
+    }
+    private static String itemId(ItemStack stack){
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    }
+    private static boolean pendingInputMatches(ServerLevel level,AbstractFurnaceBlockEntity furnace,
+            net.minecraft.nbt.CompoundTag job,boolean charcoal){
+        var input=furnace.getItem(0);
+        if(input.isEmpty()||input.getCount()!=1)return false;
+        if(charcoal?!input.is(Items.OAK_LOG):!input.is(Items.RAW_IRON)&&!input.is(SaoItems.STEEL_BLOOM.get()))return false;
+        if(job.contains("input")&&!job.getString("input").equals(itemId(input)))return false;
+        var single=new SingleRecipeInput(input);
+        var recipe=furnace.getBlockState().is(Blocks.BLAST_FURNACE)
+            ?level.getRecipeManager().getRecipeFor(RecipeType.BLASTING,single,level)
+            :level.getRecipeManager().getRecipeFor(RecipeType.SMELTING,single,level);
+        if(recipe.isEmpty())return false;
+        var output=recipe.get().value().assemble(single,level.registryAccess());
+        return !output.isEmpty()&&output.getCount()==1&&itemId(output).equals(job.getString("expected"));
+    }
+    /** Recover only our single native job; never refuel foreign or modified input.
+     * A full stock barrel retains the real furnace output until collection is possible. */
+    private static Result finishOrRefuel(ServerLevel level,NpcRoster.Profile smith,Container stock,
+            AbstractFurnaceBlockEntity furnace,boolean charcoal){
+        var tag=furnace.getPersistentData();var job=tag.getCompound(JOB);
+        if(!job.hasUUID("owner")||!job.getUUID("owner").equals(smith.id()))return Result.IDLE;
+        if(charcoal&&!job.getString("expected").equals("minecraft:charcoal"))return Result.IDLE;
+        var actual=furnace.getItem(2);
+        if(actual.isEmpty()){
+            if(furnace.getItem(0).isEmpty()){tag.remove(JOB);furnace.setChanged();return Result.IDLE;}
+            if(!furnace.getItem(1).isEmpty()||furnace.getBlockState().getValue(net.minecraft.world.level.block.AbstractFurnaceBlock.LIT)
+                ||!pendingInputMatches(level,furnace,job,charcoal))return Result.IDLE;
+            var after=copy(stock);
+            Item fuel=takeFuel(after,charcoal);
+            if(fuel==null)return Result.IDLE;
+            apply(stock,after);furnace.setItem(1,new ItemStack(fuel));furnace.setChanged();
+            return Result.REFUELED;
+        }
+        if(!furnace.getItem(0).isEmpty()||actual.getCount()!=1||!itemId(actual).equals(job.getString("expected")))return Result.IDLE;
+        var after=copy(stock);
+        if(!insert(after,actual))return Result.IDLE;
+        furnace.removeItemNoUpdate(2);tag.remove(JOB);furnace.setChanged();apply(stock,after);
+        if(!charcoal){
+            var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.NPC,smith.id());
+            long day=Math.max(0,level.getServer().overworld().getGameTime()/24000);
+            CharacterProgressData.get(level.getServer()).profession(owner,day,Mastery.METALLURGY);
+        }
+        return Result.COLLECTED;
+    }
     private static boolean craftGoods(ServerLevel level,Container stock,Container output,CraftingInput input,Item expected){
         var recipe=level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,input,level).orElse(null);
         if(recipe==null)return false;
@@ -192,22 +261,26 @@ public final class NpcForgeWorkshop {
     }
     private static <T extends AbstractCookingRecipe> Result load(ServerLevel level,NpcRoster.Profile smith,Container stock,
             AbstractFurnaceBlockEntity furnace,Item input,RecipeType<T> type){
+        return load(level,smith,stock,furnace,input,type,false);
+    }
+    private static <T extends AbstractCookingRecipe> Result load(ServerLevel level,NpcRoster.Profile smith,Container stock,
+            AbstractFurnaceBlockEntity furnace,Item input,RecipeType<T> type,boolean charcoal){
         var recipe=level.getRecipeManager().getRecipeFor(type,new SingleRecipeInput(new ItemStack(input)),level).orElse(null);
         if(recipe==null)return Result.IDLE;
         var expected=recipe.value().assemble(new SingleRecipeInput(new ItemStack(input)),level.registryAccess());
-        if(expected.isEmpty()||expected.getCount()!=1)return Result.IDLE;
+        if(expected.isEmpty()||expected.getCount()!=1||charcoal&&!expected.is(Items.CHARCOAL))return Result.IDLE;
         var after=copy(stock);
         if(!consume(after,input,1))return Result.IDLE;
         // Reuse existing native burn time. Otherwise consume and insert one actual unit of fuel.
         Item coal=null;
         if(!furnace.getBlockState().getValue(net.minecraft.world.level.block.AbstractFurnaceBlock.LIT)){
-            coal=has(after,Items.COAL)?Items.COAL:Items.CHARCOAL;
-            if(!consume(after,coal,1))return Result.IDLE;
+            coal=takeFuel(after,charcoal);
+            if(coal==null)return Result.IDLE;
         }
         apply(stock,after);furnace.setItem(0,new ItemStack(input));
         if(coal!=null)furnace.setItem(1,new ItemStack(coal));
         var job=new net.minecraft.nbt.CompoundTag();job.putUUID("owner",smith.id());
-        job.putString("expected",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(expected.getItem()).toString());
+        job.putString("expected",itemId(expected));job.putString("input",itemId(new ItemStack(input)));
         furnace.getPersistentData().put(JOB,job);furnace.setChanged();
         return Result.LOADED;
     }
