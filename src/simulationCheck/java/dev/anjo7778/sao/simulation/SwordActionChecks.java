@@ -84,11 +84,17 @@ public final class SwordActionChecks {
             check(!action.skill(0,selected.mastery-1,selected)&&action.stamina()==100,"Locked skill costs nothing");
             check(action.skill(0,selected.mastery,selected)&&action.move()==selected.move,"Actual mastery unlock");
             check(action.stamina()==100-selected.move.cost,"Skill-specific cost");
-            check(!action.claimHit(selected.move.windup-1)&&action.claimHit(selected.move.windup),"Skill-specific hit window");
-            check(action.confirmHit(selected.move.windup,true)&&!action.claimHit(selected.move.windup),"Only one hit per current skill");
-            check(SwordPose.kind(action.visualCode(selected.move.windup,selected.move.windup))==SwordPose.Kind.valueOf(selected.name()),"Skill-specific pose");
-            action.advance(selected.move.windup+selected.move.recovery);
-            check(!action.skill(selected.move.windup+selected.move.recovery,selected.mastery,selected),"Individual cooldown");
+            for(int i=0;i<selected.move.hits;i++){
+                long tick=selected.move.windup+i*selected.move.spacing;
+                check(!action.claimHit(tick-1)&&action.claimHit(tick),"Skill-specific hit window");
+                check(!action.claimHit(tick)&&action.claimedDamage()==selected.move.hitDamage(i),"Exactly one claim per strike and correct multiplier");
+                check(action.confirmHit(tick,true)&&!action.confirmHit(tick,true)&&!action.claimHit(tick),"Exactly one confirmation per strike");
+                check(action.landedHits()==i+1,"Confirmed strike count");
+                check(SwordPose.kind(action.visualCode(tick,tick))==SwordPose.Kind.valueOf(selected.name()),"Skill-specific pose");
+            }
+            check(action.phase()==RECOVERY&&action.combo()==0,"Finished skill enters recovery without granting an ordinary combo");
+            action.advance(selected.move.duration());
+            check(!action.skill(selected.move.duration(),selected.mastery,selected),"Individual cooldown");
         }
         var shared=new SwordActions();
         check(shared.skill(0,7,SwordActions.Skill.SLANT),"Initial skill");
@@ -111,7 +117,37 @@ public final class SwordActionChecks {
         boolean invalid=false;
         try{new SwordActions.Saved(101,0,0,0,java.util.List.of(0,0,0,0));}catch(IllegalArgumentException expected){invalid=true;}
         check(invalid,"Invalid checkpoint rejected");
-        System.out.println("PASS: all four skill gates, distinct timings and poses, shared cooldown, reload recovery and rollback protection");
+        System.out.println("PASS: all six skill gates, distinct timings and poses, shared cooldown, reload recovery and rollback protection");
+        var square=new SwordActions();
+        var hs=SwordActions.Skill.HORIZONTAL_SQUARE;
+        check(square.skill(0,9,hs)&&square.stamina()==48,"Square charges its entire cost at activation");
+        check(square.claimHit(8)&&square.confirmHit(8,true)&&square.phase()==WINDUP,"Next strike remains armed");
+        check(!square.attack(9)&&!square.guard(9)&&!square.dodge(9),"No ordinary action during sequence");
+        check(square.claimHit(22)&&square.confirmHit(22,false),"Miss the second strike");
+        check(square.phase()==RECOVERY&&square.landedHits()==1&&square.visualCode(22,22)==0,"Miss aborts remaining animation and damage");
+        check(!square.claimHit(36)&&!square.claimHit(50)&&square.skillCooldown(hs,50)==170,"No third/fourth strike or cooldown refund");
+        var stale=new SwordActions();
+        check(stale.skill(0,11,SwordActions.Skill.VERTICAL_SQUARE)&&stale.claimHit(10),"Unconfirmed strike fixture");
+        check(!stale.claimHit(11)&&!stale.confirmHit(11,true)&&stale.phase()==RECOVERY,"Stale confirmation aborts without replay");
+        var late=new SwordActions();
+        check(late.skill(0,9,hs)&&late.claimHit(8)&&late.confirmHit(8,true),"Missed time window fixture");
+        check(!late.claimHit(24)&&late.phase()==RECOVERY&&!late.claimHit(36),"Expired second strike aborts later strikes");
+        var interrupted=new SwordActions();
+        check(interrupted.skill(0,9,hs)&&interrupted.claimHit(8)&&interrupted.confirmHit(8,true),"Interrupted square fixture");
+        interrupted.cancel(16);
+        check(!interrupted.claimHit(22)&&interrupted.phase()==RECOVERY&&interrupted.stamina()==48,"Cancel remaining strikes without refund");
+        var savedMid=new SwordActions();
+        check(savedMid.skill(100,9,hs)&&savedMid.claimHit(108)&&savedMid.confirmHit(108,true),"Save after first strike");
+        var restoredMid=SwordActions.restore(savedMid.save(110),110);
+        check(restoredMid.phase()==RECOVERY&&restoredMid.stamina()==48&&restoredMid.skillCooldown(hs,110)==210
+            &&!restoredMid.claimHit(122),"Reload never replays pending multi-hit attacks");
+        for(var selected:new SwordActions.Skill[]{hs,SwordActions.Skill.VERTICAL_SQUARE}){
+            double total=0;
+            for(int i=0;i<selected.move.hits;i++)total+=selected.move.hitDamage(i);
+            check(total>3&&total<4.2&&selected.move.spacing>=13,"Bounded four-strike damage and native recovery interval");
+            check(SwordPose.Kind.valueOf(selected.name()).duration==selected.move.duration(),"Pose length follows complete sequence");
+        }
+        System.out.println("PASS: four separately confirmed strikes, duplicate/late/missed hit rejection, interruption and multi-hit reload");
     }
     private static void check(boolean value,String message){if(!value)throw new AssertionError(message);}
 }
