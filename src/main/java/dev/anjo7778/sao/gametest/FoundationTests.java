@@ -822,6 +822,43 @@ public final class FoundationTests {
     }
 
     @GameTest(template="empty")
+    public static void materialSaleConservationAndPersistence(GameTestHelper helper){
+        var base=dev.anjo7778.sao.simulation.AdventurerMarket.NEW_WALLET;
+        int quote=dev.anjo7778.sao.simulation.AdventurerMarket.materialQuote(3,4,2);
+        helper.assertTrue(quote==12,"Real shipment quote");
+        var unpaid=dev.anjo7778.sao.simulation.AdventurerMarket.payMaterials(base,quote,0);
+        helper.assertTrue(unpaid.paid()==0&&unpaid.wallet().equals(base),"No proceeds means no new Col");
+        var paid=dev.anjo7778.sao.simulation.AdventurerMarket.payMaterials(base,quote,8);
+        helper.assertTrue(paid.paid()==8&&paid.wallet().col()==108&&paid.wallet().earned()==0,"Actual proceeds only");
+        var purchase=dev.anjo7778.sao.simulation.AdventurerMarket.buyGoods(paid.wallet(),40,1);
+        helper.assertTrue(purchase!=null&&purchase.col()==68&&purchase.materialEarned()==8,"Purchases preserve supplier income");
+        var reward=dev.anjo7778.sao.simulation.AdventurerMarket.huntReward(purchase,dev.anjo7778.sao.simulation.AdventurerMarket.NEW_TREASURY);
+        helper.assertTrue(reward.wallet().col()==78&&reward.wallet().materialEarned()==8,"Hunt reward preserves material income");
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var regs=helper.getLevel().registryAccess();var tag=pop.save(new CompoundTag(),regs);
+        var roster=tag.getList("capitals",10).getCompound(0).getList("npcs",10);
+        CompoundTag buyer=null,smith=null;
+        for(int i=0;i<roster.size();i++){
+            var n=roster.getCompound(i);
+            if(buyer==null&&n.getString("job").equals("ADVENTURER"))buyer=n;
+            if(smith==null&&n.getString("job").equals("BLACKSMITH"))smith=n;
+        }
+        helper.assertTrue(buyer!=null&&smith!=null,"Fixture roles");
+        var wallet=new CompoundTag();wallet.putLong("lastEpoch",-1);wallet.putInt("materialEarned",8);
+        buyer.put("wallet",wallet);smith.putInt("goodsReceipts",40);smith.putInt("supplierPayments",8);
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(tag,regs);
+        var owner=restored.state(1,buyer.getUUID("id")).profile();
+        helper.assertTrue(restored.wallet(owner).col()==108&&restored.supplierBudget(smith.getUUID("id"))==32,"Balanced saved transfer");
+        var round=dev.anjo7778.sao.world.NpcPopulationData.load(restored.save(new CompoundTag(),regs),regs);
+        helper.assertTrue(round.wallet(owner).materialEarned()==8&&round.supplierPayments(smith.getUUID("id"))==8,"Payment persists");
+        smith.putInt("supplierPayments",9);
+        boolean rejected=false;
+        try{dev.anjo7778.sao.world.NpcPopulationData.load(tag,regs);}catch(IllegalArgumentException expected){rejected=true;}
+        helper.assertTrue(rejected,"Reject unbalanced income");
+        helper.succeed();
+    }
+
+    @GameTest(template="empty")
     public static void actualGoodsWalletAndReplacement(GameTestHelper helper){
         var market=dev.anjo7778.sao.simulation.AdventurerMarket.NEW_WALLET;
         var paid=dev.anjo7778.sao.simulation.AdventurerMarket.buyGoods(market,40,1);
