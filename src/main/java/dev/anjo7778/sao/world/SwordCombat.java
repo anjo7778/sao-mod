@@ -241,41 +241,59 @@ public final class SwordCombat {
         }
         return best!=null&&target(p,best,level,reach)?best:null;
     }
-    /** Direction is relative to server-owned look yaw: backward, left, right, forward.
-     * Skill intent uses a target entity id. No client positions, stamina or hit claims are accepted. */
+    private static void notice(ServerPlayer p,String reason,Object... args){
+        p.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.sao.control."+reason,args),true);
+    }
+    /** Only these explicit, bounded intents can be used by the local controls.
+     * Action 2 is reserved for the existing server-side acceptance fixture. */
     public static void intent(ServerPlayer p,int action,int direction){
         var level=p.serverLevel();
-        if(!eligible(p)||!supports(p)||p.isUsingItem())return;
-        if(action!=3&&!outside(p,level))return;
+        if(action<0||action>5)return;
+        if(!eligible(p)){notice(p,scope(p,level)?"survival":"world");return;}
+        if(!supports(p)){notice(p,"equip");return;}
         var s=session(p);advance(s,p,level);
         long time=now(level);if(time-s.lastIntent<2)return;s.lastIntent=time;
-        if(action==3){
-            // One selectable active slot. Changing selection cannot reset any cooldown.
-            if(s.clock.phase()==Phase.IDLE){
-                long skillLevel=mastery(p,level);
-                for(int i=1;i<=Skill.values().length;i++){
-                    var next=Skill.values()[(s.selected.ordinal()+i)%Skill.values().length];
-                    if(next.unlocked(skillLevel)){s.selected=next;break;}
-                }
+        if(p.isUsingItem()){notice(p,"using");return;}
+        if(action!=3&&action!=5&&!outside(p,level)){notice(p,"safe_zone");return;}
+        if(s.clock.phase()!=Phase.IDLE){notice(p,"recovering");sync(p,s,true);return;}
+        if(action==3||action==5){
+            long skillLevel=mastery(p,level);
+            Skill selected=null;
+            if(action==5)selected=Skill.fromIndex(direction);
+            else for(int i=1;i<Skill.values().length;i++){
+                var next=Skill.values()[(s.selected.ordinal()+i)%Skill.values().length];
+                if(next.unlocked(skillLevel)){selected=next;break;}
             }
+            if(selected==null){notice(p,"no_other_skill");return;}
+            if(!selected.unlocked(skillLevel)){notice(p,"mastery",selected.mastery);return;}
+            // Selection is a saved preference, not a new cooldown or an attack.
+            s.selected=selected;notice(p,"selected",net.minecraft.network.chat.Component.translatable("skill.sao."+selected.name().toLowerCase(java.util.Locale.ROOT)));
         }else if(action==0){
-            if(s.clock.guard(now(level))){s.capture(p,level);s.target=null;}
-        }else if(action==4){
-            var victim=aimedTarget(p,level,s.selected);
-            if(victim!=null)begin(s,p,victim,level,s.selected);
-        }else if(action==2){
-            // Legacy explicit target intent remains constrained by all begin/impact checks.
-            if(direction>=0&&level.getEntity(direction) instanceof LivingEntity victim)begin(s,p,victim,level,s.selected);
-        }else if(action==1&&direction>=0&&direction<=3&&p.onGround()&&!p.isInWater()){
+            if(s.clock.stamina()<SwordActions.GUARD_COST){notice(p,"stamina",SwordActions.GUARD_COST);return;}
+            if(s.clock.guard(time)){s.capture(p,level);s.target=null;}
+        }else if(action==4||action==2){
+            var selected=s.selected;
+            if(!selected.unlocked(mastery(p,level))){notice(p,"mastery",selected.mastery);return;}
+            int wait=s.clock.skillCooldown(selected,time);
+            if(wait>0){notice(p,"cooldown",String.format(java.util.Locale.ROOT,"%.1f",wait/20.0));return;}
+            if(s.clock.stamina()<selected.move.cost){notice(p,"stamina",selected.move.cost);return;}
+            LivingEntity victim=action==4?aimedTarget(p,level,selected)
+                :level.getEntity(direction) instanceof LivingEntity e?e:null;
+            if(victim==null){notice(p,"target");return;}
+            if(!begin(s,p,victim,level,selected)){notice(p,selected==Skill.SONIC_LEAP?"leap":"target");return;}
+        }else if(action==1&&direction>=0&&direction<=3){
+            if(s.clock.stamina()<SwordActions.DODGE_COST){notice(p,"stamina",SwordActions.DODGE_COST);return;}
+            if(!p.onGround()||p.isInWater()){notice(p,"ground");return;}
             double yaw=Math.toRadians(p.getYRot()),x=-Math.sin(yaw),z=Math.cos(yaw);
             double dx=direction==0?-x:direction==1?z:direction==2?-z:x;
             double dz=direction==0?-z:direction==1?-x:direction==2?x:z;
-            // Validate a short corridor against actual collision before applying native motion.
             for(double d:new double[]{.3,.6,.9}){
                 if(!level.noCollision(p,p.getBoundingBox().move(dx*d,0,dz*d))
-                    ||CityRules.isSafeZone(level,(int)Math.floor(p.getX()+dx*d),(int)Math.floor(p.getZ()+dz*d)))return;
+                    ||CityRules.isSafeZone(level,(int)Math.floor(p.getX()+dx*d),(int)Math.floor(p.getZ()+dz*d))){
+                    notice(p,"blocked");return;
+                }
             }
-            if(s.clock.dodge(now(level))){
+            if(s.clock.dodge(time)){
                 s.capture(p,level);s.dodgeStart=p.position();s.target=null;
                 p.setDeltaMovement(dx*.65,Math.max(0,p.getDeltaMovement().y),dz*.65);p.hurtMarked=true;
             }
