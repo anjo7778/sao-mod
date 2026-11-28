@@ -46,7 +46,7 @@ public final class NpcForgeWorkshop {
         for(int i=0;i<c.getContainerSize();i++)list.add(c.getItem(i).copy());
         return list;
     }
-    private static void apply(Container c,List<ItemStack> list){
+    static void apply(Container c,List<ItemStack> list){
         for(int i=0;i<list.size();i++)if(!ItemStack.matches(c.getItem(i),list.get(i)))c.setItem(i,list.get(i));
         c.setChanged();
     }
@@ -117,6 +117,13 @@ public final class NpcForgeWorkshop {
         // Do not claim player-loaded input, output or fuel.
         if(!furnace.getItem(0).isEmpty()||!furnace.getItem(1).isEmpty()||!furnace.getItem(2).isEmpty())return Result.IDLE;
         var before=copy(stock);
+        // Convert real gathered deadwood with native recipes only when a handle is needed.
+        if(!has(before,Items.STICK)){
+            var planks=CraftingInput.of(1,2,List.of(new ItemStack(Items.OAK_PLANKS),new ItemStack(Items.OAK_PLANKS)));
+            if(craftStock(level,stock,planks,Items.STICK))return Result.BLEND;
+            var log=CraftingInput.of(1,1,List.of(new ItemStack(Items.OAK_LOG)));
+            if(craftStock(level,stock,log,Items.OAK_PLANKS))return Result.BLEND;
+        }
         var steel=SaoItems.STEEL_INGOT.get();
         var in=copy(stock);var out=copy(output);
         if(consume(in,steel,2)&&consume(in,Items.STICK,1)&&fuel(in)){
@@ -140,6 +147,16 @@ public final class NpcForgeWorkshop {
             ?load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.BLASTING)
             :load(level,smith,stock,furnace,Items.RAW_IRON,RecipeType.SMELTING);
         return Result.IDLE;
+    }
+    private static boolean craftStock(ServerLevel level,Container stock,CraftingInput input,Item expected){
+        var recipe=level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING,input,level).orElse(null);
+        if(recipe==null)return false;
+        var result=recipe.value().assemble(input,level.registryAccess());
+        if(result.isEmpty()||!result.is(expected))return false;
+        var contents=copy(stock);
+        for(var ingredient:input.items())if(!ingredient.isEmpty()&&!consume(contents,ingredient.getItem(),ingredient.getCount()))return false;
+        if(!insert(contents,result))return false;
+        apply(stock,contents);return true;
     }
     private static <T extends AbstractCookingRecipe> Result load(ServerLevel level,NpcRoster.Profile smith,Container stock,
             AbstractFurnaceBlockEntity furnace,Item input,RecipeType<T> type){

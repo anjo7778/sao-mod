@@ -228,3 +228,7 @@ v0.2.39 real forge/self/NPC/persistence passed, 32 required GameTests passed, 3D
 ## v0.2.41 verification update
 
 Full materials and 3D forge client probes passed. v0.2.40 all 33 GameTests passed. Correct commission access to assigned generated forge anvil; extend real native furnace production test to raw iron rather than pre-refined iron. Full generated-site autonomous tick probe pending.
+
+## v0.2.42 physical starter supply candidate
+
+v0.2.41 complete generated-workshop client probe and 33 GameTests passed. Add finite new-world gate prospects, real reach/LOS gathering, persistent tool wear and cargo, physical delivery after scouting, native deadwood-to-stick conversion. No offscreen resources, no arbitrary digging, no item duplication in ordinary server-thread transfers. Initial finite tools, no mining beyond designated prospects or automatic supply replenishment. Runtime supply validation pending.

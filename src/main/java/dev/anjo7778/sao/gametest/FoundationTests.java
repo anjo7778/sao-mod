@@ -789,4 +789,35 @@ public final class FoundationTests {
             helper.succeed();
         });
     }
+
+    @GameTest(template="empty")
+    public static void supplyCargoAndProspectBounds(GameTestHelper helper){
+        var resource=dev.anjo7778.sao.simulation.GateProspects.Resource.IRON;
+        var id=java.util.UUID.randomUUID();var smith=java.util.UUID.randomUUID();
+        var data=new dev.anjo7778.sao.world.NpcSupplyData();
+        var start=data.candidate(id,1,smith);
+        helper.assertTrue(start.size()==0&&start.pickUses()==250&&start.axeUses()==250,"Finite initial tools; no free cargo");
+        var next=start.gather(resource,2).gather(dev.anjo7778.sao.simulation.GateProspects.Resource.COAL,3)
+            .gather(dev.anjo7778.sao.simulation.GateProspects.Resource.DEADWOOD,1);
+        helper.assertTrue(next.size()==6&&next.pickUses()==248&&next.axeUses()==249,"Exact cargo and tool wear");
+        helper.assertFalse(next.canGather(resource,7),"Bounded capacity");
+        var delivered=next.emptied();
+        helper.assertTrue(delivered.size()==0&&delivered.delivered()==1&&delivered.pickUses()==248,"Delivery retains tool wear");
+        helper.assertTrue(delivered.reassigned(2,smith).pickUses()==248,"No free replacement on floor change");
+        for(var gate:dev.anjo7778.sao.simulation.ScoutingTrip.Gate.values()){
+            var plan=dev.anjo7778.sao.simulation.GateProspects.columns(1,gate);
+            helper.assertTrue(plan.size()==12&&plan.stream().map(p->p.x()+":"+p.z()).distinct().count()==12,"Finite unique prospect columns");
+            for(var p:plan)helper.assertTrue(!dev.anjo7778.sao.simulation.CityPlan.inside(1,p.x(),p.z())
+                &&dev.anjo7778.sao.simulation.ScoutingTrip.inRange(1,p.x(),p.z()),"Wilderness only");
+            helper.assertTrue(dev.anjo7778.sao.simulation.GateProspects.columns(11,gate).isEmpty(),"Starter prospect floor boundary");
+        }
+        var root=new CompoundTag();root.putInt("schema",1);var entries=new net.minecraft.nbt.ListTag();
+        var n=new CompoundTag();n.putUUID("id",id);n.putUUID("smith",smith);n.putLong("floor",1);
+        n.putIntArray("materials",new int[]{2,3,1});n.putIntArray("tools",new int[]{248,249});n.putLong("delivered",0);entries.add(n);root.put("cargo",entries);
+        var restored=dev.anjo7778.sao.world.NpcSupplyData.load(root,helper.getLevel().registryAccess());
+        helper.assertTrue(restored.cargo(id).equals(next)&&restored.carrying(id),"Actual cargo schema round trip");
+        var again=dev.anjo7778.sao.world.NpcSupplyData.load(restored.save(new CompoundTag(),helper.getLevel().registryAccess()),helper.getLevel().registryAccess());
+        helper.assertTrue(again.cargo(id).equals(next),"Save preserves cargo and tools");
+        helper.succeed();
+    }
 }

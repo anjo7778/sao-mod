@@ -25,8 +25,7 @@ public final class CharacterProgressData extends SavedData {
     private final Map<Owner,EnumMap<Mastery,WorkWindow>> workWindows=new HashMap<>();
     /** Capped, save-backed progression. Only called by authenticated completed actions. */
     public boolean profession(Owner owner,long day,Mastery mastery){
-        if(day<0||(mastery!=Mastery.MINING&&mastery!=Mastery.METALLURGY)
-            ||owner.kind()==Kind.NPC&&mastery!=Mastery.METALLURGY)return false;
+        if(day<0||(mastery!=Mastery.MINING&&mastery!=Mastery.METALLURGY))return false;
         var windows=workWindows.computeIfAbsent(owner,k->new EnumMap<>(Mastery.class));
         var before=windows.get(mastery);int limit=mastery==Mastery.MINING?32:16;
         if(before!=null&&(day<before.day()||day==before.day()&&before.operations()>=limit))return false;

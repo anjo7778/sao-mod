@@ -62,6 +62,10 @@ public final class AdventureSimulationData extends SavedData {
         var base=CityVenueRoutine.plan(state,level.getDayTime(),ledger,CityRules.hasLandmarks(level));
         if(CityRules.hasRegionalSettlements(level)){
             var journey=simulation.journey(state);
+            if(ledger!=null&&!ledger.trip().active()&&!journey.active()){
+                var delivery=NpcResourceService.deliveryPlan(level,state);
+                if(delivery!=null)return delivery;
+            }
             if(journey.visiting())base=RegionalJourney.visitPlan(state.profile(),journey);
             return MarketService.plan(level,state,journey,base);
         }
@@ -132,6 +136,11 @@ public final class AdventureSimulationData extends SavedData {
             if(previous==null){update(s.profile().birthFloor(),id,epoch,mode,offscreen);continue;}
             if(CityRules.hasRegionalSettlements(level)){
                 var current=journey(s);
+                // Retain real cargo, allow rest, and prevent migration/new abstract trips before delivery.
+                if(!previous.trip().active()&&!current.active()&&NpcSupplyData.get(server).carrying(id)){
+                    floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,offscreen?Mode.IDLE:mode,offscreen));
+                    setDirty();continue;
+                }
                 if(!previous.trip().active()&&MarketService.transact(level,s,current,desired,epoch)){
                     floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,Mode.PREPARE,offscreen));
                     setDirty();continue;
@@ -162,7 +171,7 @@ public final class AdventureSimulationData extends SavedData {
                 mode=previous.trip().phase()==ScoutingTrip.Phase.SURVEY&&(offscreen||reached)?Mode.SCOUT:Mode.TRAVEL;
             }
             if(!offscreen&&actor instanceof CityNpc npc&&CityRules.hasRegionalSettlements(level)
-                &&HuntService.holding(npc,level,s,previous.trip(),epoch))reached=false;
+                &&(HuntService.holding(npc,level,s,previous.trip(),epoch)||NpcResourceService.holding(npc)))reached=false;
             // A mastery/contact objective is not randomly interrupted by a new
             // scouting expedition. Existing trips still finish and urgent needs retain priority.
             boolean deferScout=CityRules.hasLandmarks(level)&&!previous.trip().active()
@@ -188,7 +197,7 @@ public final class AdventureSimulationData extends SavedData {
                 int claimed=population.wallet(s.profile()).claimedThrough();
                 population.settleScouting(cursorFloor,id,previous.trip().completed(),next.trip().completed());
                 if(population.wallet(s.profile()).claimedThrough()>claimed)RpgEvents.npcScouting(server,s.profile());
-            }else if(CityRules.hasLandmarks(level)&&offscreen&&FloorMigration.eligible(s,next,epoch,level.getDayTime())
+            }else if(CityRules.hasLandmarks(level)&&offscreen&&!NpcSupplyData.get(server).carrying(id)&&FloorMigration.eligible(s,next,epoch,level.getDayTime())
                 &&tryMigration(server,population,s,epoch)){
                 migrated++;
             }else if(offscreen&&mode==Mode.SOCIALIZE&&!next.trip().active()){
