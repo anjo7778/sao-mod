@@ -66,7 +66,9 @@ public final class SwordComboProbe {
             phase=1;return;
         }
         if(pending!=null){if(!pending.isDone())return;pending.join();pending=null;}
-        if(c.player==null||c.level==null||c.screen!=null||c.getSingleplayerServer()==null)return;
+        if(c.player==null||c.level==null||c.getSingleplayerServer()==null)return;
+        if(phase>=4){ticks++;verifyGripAndMenu(c);return;}
+        if(c.screen!=null)return;
         ticks++;
         if(phase==1&&ticks>=80){
             c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
@@ -76,9 +78,74 @@ public final class SwordComboProbe {
         require(ticks<1500,"Combat client probe timed out");
         if(finished){
             require(visual&&horizontalSquareVisual&&verticalSquareVisual,"Missing synchronized sword-skill model pose");
-            LOG.info("SAO_SWORD_COMBO_PROBE_PASS");phase=3;return;
+            action(c,p->{
+                p.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get()));
+                require(p.teleportTo(p.serverLevel(),.5,CityPlan.GROUND+1,.5,Set.of(),0,0),"Return to capital for skill-menu test");
+            });
+            c.options.setCameraType(CameraType.THIRD_PERSON_FRONT);phase=4;ticks=0;return;
         }
         action(c,SwordComboProbe::observe);
+    }
+    private static void verifyGripAndMenu(Minecraft c){
+        require(ticks<240,"Grip or skill menu acceptance timed out at phase "+phase);
+        var snapshot=CombatNetwork.snapshot();
+        switch(phase){
+            case 4->{
+                if(ticks<20||!c.player.getMainHandItem().is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get())
+                    ||snapshot==null||!snapshot.available())return;
+                var model=c.getItemRenderer().getModel(c.player.getMainHandItem(),c.level,c.player,0);
+                require(model!=c.getModelManager().getMissingModel()&&model.isGui3d(),"Actual steel sword model");
+                // ItemRenderer centers its baked model by -0.5. Test the real baked transform
+                // at the authored grip midpoint, in held-item-layer coordinates, for both hands.
+                for(boolean left:new boolean[]{false,true}){
+                    var context=left?net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_LEFT_HAND
+                        :net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
+                    var stack=new com.mojang.blaze3d.vertex.PoseStack();
+                    model.getTransforms().getTransform(context).apply(left,stack);
+                    var anchor=new org.joml.Vector3f(0,-5.9f/16f,0).mulPosition(stack.last().pose());
+                    require(Math.abs(anchor.x)<.015&&Math.abs(anchor.y+2f/16)<.015&&Math.abs(anchor.z-2f/16)<.015,
+                        "Sword grip does not align with hand anchor "+left+" "+anchor);
+                }
+                captureView(c,"steel-sword-grip");
+                LOG.info("SAO_SWORD_GRIP_OK");
+                c.setScreen(new AincradMenu());phase=5;ticks=0;
+            }
+            case 5->{
+                if(!(c.screen instanceof AincradMenu menu)||menu.age()<22)return;
+                clickMenu(c,165,60);phase=6;ticks=0;
+            }
+            case 6->{
+                if(ticks<10)return;
+                captureView(c,"sword-skill-tree");
+                clickMenu(c,259,97);phase=7;ticks=0;
+            }
+            case 7->{
+                if(snapshot==null||snapshot.selectedSkill()!=SwordActions.Skill.HORIZONTAL_SQUARE.ordinal())return;
+                LOG.info("SAO_SWORD_TREE_SELECT_OK");
+                clickMenu(c,328,131);phase=8;ticks=0;
+            }
+            case 8->{
+                if(snapshot==null||snapshot.selectedSkill()!=SwordActions.Skill.VERTICAL_SQUARE.ordinal())return;
+                require(snapshot.skillCooldown()>0,"Menu selection must retain existing cooldown");
+                captureView(c,"sword-skill-selected");
+                LOG.info("SAO_SWORD_TREE_COOLDOWN_OK");
+                LOG.info("SAO_SWORD_COMBO_PROBE_PASS");phase=3;
+            }
+            default->{}
+        }
+    }
+    private static void clickMenu(Minecraft c,double x,double y){
+        require(c.screen instanceof AincradMenu,"Skill menu must be open");
+        int w=c.getWindow().getGuiScaledWidth(),h=c.getWindow().getGuiScaledHeight();
+        double scale=Math.max(.1,Math.min(1.15,Math.min(w*.90/AincradMenu.W,h*.74/AincradMenu.H)));
+        require(c.screen.mouseClicked((w-AincradMenu.W*scale)/2+x*scale,
+            (h-AincradMenu.H*scale)/2+Math.min(10,h*.035)+y*scale,0),"Skill menu click "+x+","+y);
+    }
+    private static void captureView(Minecraft c,String name){
+        try{
+            var dir=c.gameDirectory.toPath().resolve("sword-combo-probe");Files.createDirectories(dir);
+            try(var img=Screenshot.takeScreenshot(c.getMainRenderTarget())){img.writeToFile(dir.resolve(name+".png"));}
+        }catch(Exception ex){throw new IllegalStateException(ex);}
     }
     private static void setup(ServerPlayer p){
         var level=p.serverLevel();level.setDayTime(4000);
