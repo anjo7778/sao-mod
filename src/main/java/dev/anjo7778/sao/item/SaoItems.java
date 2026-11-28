@@ -18,9 +18,9 @@ public final class SaoItems {
     public static final Supplier<Item> BRONZE_INGOT=ITEMS.register("bronze_ingot",()->new RefinedMetalItem(dev.anjo7778.sao.simulation.MaterialRules.Material.BRONZE,new Item.Properties()));
     public static final Supplier<Item> TIN_ORE=ITEMS.register("tin_ore",()->new net.minecraft.world.item.BlockItem(dev.anjo7778.sao.block.SaoBlocks.TIN_ORE.get(),new Item.Properties()));
     public static final Supplier<Item> DEEPSLATE_TIN_ORE=ITEMS.register("deepslate_tin_ore",()->new net.minecraft.world.item.BlockItem(dev.anjo7778.sao.block.SaoBlocks.DEEPSLATE_TIN_ORE.get(),new Item.Properties()));
-    private static final java.util.Map<dev.anjo7778.sao.simulation.MaterialRules.Material,Supplier<Item>> RAW=new java.util.EnumMap<>(dev.anjo7778.sao.simulation.MaterialRules.Material.class);
-    private static final java.util.Map<dev.anjo7778.sao.simulation.MaterialRules.Material,Supplier<Item>> REFINED=new java.util.EnumMap<>(dev.anjo7778.sao.simulation.MaterialRules.Material.class);
-    private static final java.util.List<Supplier<Item>> EXTRA_INGREDIENTS=new java.util.ArrayList<>(),EXTRA_BLOCKS=new java.util.ArrayList<>();
+    private static final java.util.Map<dev.anjo7778.sao.simulation.MaterialRules.Material,Supplier<? extends Item>> RAW=new java.util.EnumMap<>(dev.anjo7778.sao.simulation.MaterialRules.Material.class);
+    private static final java.util.Map<dev.anjo7778.sao.simulation.MaterialRules.Material,Supplier<? extends Item>> REFINED=new java.util.EnumMap<>(dev.anjo7778.sao.simulation.MaterialRules.Material.class);
+    private static final java.util.List<Supplier<? extends Item>> EXTRA_INGREDIENTS=new java.util.ArrayList<>(),EXTRA_BLOCKS=new java.util.ArrayList<>();
     static{
         RAW.put(dev.anjo7778.sao.simulation.MaterialRules.Material.TIN,RAW_TIN);
         REFINED.put(dev.anjo7778.sao.simulation.MaterialRules.Material.TIN,TIN_INGOT);
