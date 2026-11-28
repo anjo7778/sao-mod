@@ -84,13 +84,27 @@ public final class CityFabric {
         }
         return Piece.GRASS;
     }
+    /** Keep the original plaza design except for corner planters moved off the
+     * horizontal connector streets at z=+/-24. No clipped or floating decorative blocks. */
+    public static Piece publicPiece(Column c,int y){
+        int ax=Math.abs(c.x()),az=Math.abs(c.z());
+        if(c.zone()==Zone.PLAZA&&y>0&&ax>=24&&ax<=30&&az>=24&&az<=32){
+            int dx=ax-27,dz=az-30;
+            if(y==1&&Math.max(Math.abs(dx),Math.abs(dz))==2)return Piece.TRIM;
+            if(y==1&&Math.abs(dx)<=1&&Math.abs(dz)<=1)return Piece.GRASS;
+            if(dx==0&&dz==0&&y>=2&&y<=6)return Piece.POST;
+            if(y>=5&&y<=7&&Math.abs(dx)+Math.abs(dz)<=(y==7?1:2))return Piece.LEAVES;
+            return Piece.AIR;
+        }
+        return CityArchitecture.piece(c,y);
+    }
     /** Model interiors use exact fixed cells; preserve city wall/plaza furniture outside them. */
     public static boolean clearAt(long floor,int x,int z,int y){
         if(!inside(floor,x,z))return false;
         Column c=column(floor,x,z);
         Plot p=buildingAt(floor,c);
         if(p!=null)return BuildingTemplates.forPlot(p,TEMPLATE_VERSION).at(x-p.x(),y,z-p.z())=='.';
-        Piece q=CityArchitecture.piece(c,y);
+        Piece q=publicPiece(c,y);
         return q==Piece.AIR||q==Piece.FLOWER;
     }
 }

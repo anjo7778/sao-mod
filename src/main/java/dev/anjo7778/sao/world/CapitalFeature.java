@@ -51,7 +51,7 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
                 }else if(districts&&y==0)state=detail.state(surface,null);
                 else if(districts&&y==1&&surface!=CityArchitecture.Piece.GRASS&&CityArchitecture.piece(col,y)==CityArchitecture.Piece.FLOWER)
                     state=Blocks.AIR.defaultBlockState();
-                else state=detailed?detail.state(CityArchitecture.piece(col,y),col.plot()):palette.get(CityPlan.piece(col,y));
+                else state=detailed?detail.state(districts?CityFabric.publicPiece(col,y):CityArchitecture.piece(col,y),col.plot()):palette.get(CityPlan.piece(col,y));
                 pos.set(x,CityPlan.GROUND+y,z);
                 if(!level.getBlockState(pos).equals(state))level.setBlock(pos,state,2);
             }
