@@ -17,8 +17,8 @@ public final class CityRules {
     private CityRules(){}
     public static boolean hasCities(ServerLevel level){
         if(!(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator n))return false;
-        return level.dimension().equals(Level.OVERWORLD)&&(n.generatorSettings().is(FloorTravel.FIRST_CITY)||n.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL))
-            || level.dimension().equals(FloorTravel.UPPER)&&(n.generatorSettings().is(FloorTravel.UPPER_CITY)||n.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL));
+        return level.dimension().equals(Level.OVERWORLD)&&(n.generatorSettings().is(FloorTravel.FIRST_CITY)||n.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||n.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES))
+            || level.dimension().equals(FloorTravel.UPPER)&&(n.generatorSettings().is(FloorTravel.UPPER_CITY)||n.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||n.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES));
     }
     public static boolean isCity(ServerLevel level,int x,int z){
         if(!hasCities(level))return false;

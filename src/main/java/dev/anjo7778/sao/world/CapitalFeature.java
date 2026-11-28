@@ -16,8 +16,9 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
     public CapitalFeature(){super(NoneFeatureConfiguration.CODEC);}
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx){
         if(!(ctx.chunkGenerator() instanceof NoiseBasedChunkGenerator gen))return false;
-        boolean detailed=gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
-        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
+        boolean templates=gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
+        boolean detailed=templates||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
+        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
         if(!upper&&!detailed&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
         int ox=ctx.origin().getX()&~15,oz=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(ox,oz):1;
@@ -25,6 +26,7 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
         var theme=FloorCatalog.themeFor(floor);
         var palette=palette(theme);
         var detail=detailed?new DetailedCapitalPalette(theme):null;
+        var templatePalette=templates?new TemplateCapitalPalette(theme):null;
         var level=ctx.level();var pos=new BlockPos.MutableBlockPos();
         boolean changed=false;
         for(int dx=0;dx<16;dx++)for(int dz=0;dz<16;dz++){
@@ -32,8 +34,17 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
             var col=CityPlan.column(floor,upper?FloorLayout.local(x):x,upper?FloorLayout.local(z):z);
             if(col.zone()==CityPlan.Zone.OUTSIDE)continue;
             for(int y=93;y<CityPlan.GROUND;y++)level.setBlock(pos.set(x,y,z),palette.get(CityPlan.Piece.FOUNDATION),2);
+            var model=templates&&col.plot()!=null?BuildingTemplates.forPlot(col.plot()):null;
+            int lx=model==null?0:col.x()-col.plot().x(),lz=model==null?0:col.z()-col.plot().z();
             for(int y=0;y<=(detailed?CityArchitecture.MAX_HEIGHT:17);y++){
-                var state=detailed?detail.state(CityArchitecture.piece(col,y),col.plot()):palette.get(CityPlan.piece(col,y));
+                BlockState state;
+                if(model!=null){
+                    char symbol=model.at(lx,y,lz);
+                    if(y==0&&symbol=='.'){
+                        boolean entrance=Math.abs(lx)<=2&&lz<=0;
+                        state=detail.state(entrance?CityArchitecture.Piece.ROAD:CityArchitecture.Piece.GRASS,col.plot());
+                    }else state=templatePalette.state(symbol,col.plot());
+                }else state=detailed?detail.state(CityArchitecture.piece(col,y),col.plot()):palette.get(CityPlan.piece(col,y));
                 pos.set(x,CityPlan.GROUND+y,z);
                 if(!level.getBlockState(pos).equals(state))level.setBlock(pos,state,2);
             }
