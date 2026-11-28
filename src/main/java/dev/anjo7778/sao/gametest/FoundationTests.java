@@ -487,4 +487,36 @@ public final class FoundationTests {
         helper.assertFalse(dev.anjo7778.sao.world.BoarSpawns.habitat(2,400,0),"Mountain habitat excluded");
         boar.discard();helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void sharedRpgProgression(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.CharacterProgressData();
+        var id=new java.util.UUID(87,88);
+        var player=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.PLAYER,id);
+        var npc=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.NPC,id);
+        var combat=dev.anjo7778.sao.simulation.CharacterProgress.Source.COMBAT;
+        var craft=dev.anjo7778.sao.simulation.CharacterProgress.Source.CRAFT;
+        var sword=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.SWORD;
+        var smith=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.BLACKSMITHING;
+        var scythe=dev.anjo7778.sao.simulation.CharacterProgress.Mastery.SCYTHE;
+        var strength=dev.anjo7778.sao.simulation.CharacterProgress.Attribute.STRENGTH;
+        helper.assertTrue(data.state(player).level()==1&&data.state(npc).level()==1,"New identities at level one");
+        helper.assertTrue(data.award(player,combat,1,100,sword,50),"Combat fixture");
+        helper.assertTrue(data.award(npc,craft,1,100,smith,50),"Noncombat progression fixture");
+        helper.assertTrue(data.state(player).level()==2&&data.state(npc).level()==2,"Same character level curve");
+        helper.assertTrue(data.state(player).mastery(sword)==2&&data.state(player).mastery(scythe)==1&&data.state(npc).mastery(sword)==1&&data.state(npc).mastery(smith)==2,"Independent masteries");
+        helper.assertFalse(data.award(player,combat,1,100,sword,50),"Duplicate event refused");
+        helper.assertTrue(data.allocate(player,strength,3)&&data.state(player).attribute(strength)==13&&data.state(player).unspent()==0,"Spend only earned points");
+        helper.assertFalse(data.allocate(player,strength,1),"Overspend refused");
+        var reg=helper.getLevel().registryAccess();var restored=dev.anjo7778.sao.world.CharacterProgressData.load(data.save(new CompoundTag(),reg),reg);
+        helper.assertTrue(restored.state(player).equals(data.state(player))&&restored.state(npc).equals(data.state(npc)),"Both identity kinds persist");
+        helper.assertFalse(restored.award(player,combat,1,100,sword,50),"Reload prevents replay");
+        helper.assertTrue(restored.award(player,combat,2,200,scythe,50)&&restored.state(player).level()==3&&restored.state(player).mastery(scythe)==2&&restored.state(player).mastery(sword)==2,"New weapon learns independently");
+        long previous=0;
+        for(long xp:new long[]{0,99,100,299,300,1_000_000,100_000_000_000L,Long.MAX_VALUE}){
+            long level=dev.anjo7778.sao.simulation.CharacterProgress.levelForXp(xp);
+            helper.assertTrue(level>=previous,"Monotonic overflow-safe level curve");previous=level;
+        }
+        helper.assertTrue(previous>1000,"No ordinary gameplay level cap");
+        helper.succeed();
+    }
 }

@@ -15,6 +15,14 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(() -> Component.literal("SAO: highest unlocked floor " + unlocked), false);
                 return 1;
             }))
+            .then(Commands.literal("profile").executes(ctx->{
+                var player=ctx.getSource().getPlayerOrException();
+                if(!CityRules.hasRegionalSettlements(player.serverLevel())){ctx.getSource().sendFailure(Component.literal("Aincrad regional world required."));return 0;}
+                var owner=new CharacterProgressData.Owner(CharacterProgressData.Kind.PLAYER,player.getUUID());
+                var state=CharacterProgressData.get(player.serverLevel().getServer()).state(owner);
+                ctx.getSource().sendSuccess(()->Component.literal("RPG level "+state.level()+" | XP "+state.xpIntoLevel()+"/"+state.xpForNextLevel()+" | "+state.unspent()+" unspent attributes (foundation; XP sources pending)"),false);
+                return 1;
+            }))
             .then(Commands.literal("population").executes(ctx->{
                 var p=ctx.getSource().getPlayerOrException();
                 if(!CityRules.isCity(p.serverLevel(),p.getBlockX(),p.getBlockZ())){

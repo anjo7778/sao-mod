@@ -15,7 +15,7 @@ Scope: singleplayer-first living MMORPG in Minecraft 1.21.1, NeoForge. Player an
 - Non-hardcore defeat: no permanent player or NPC death, no lost character levels, mastery, inventory or Col. Downed revival, interrupted expedition, recovery and modest equipment wear. A safe-settlement/inn return for unrecovered characters, with no duplication of inventories. Proposed defaults: 60 seconds downed, revival at 30% health, 5% condition loss on failed revival/defeat; balance and accessibility to be tested. Ordinary Minecraft death handling outside the intended Aincrad scope must not be silently changed.
 - Inspectable NPC profile: level/XP, attributes, weapon and profession masteries, skills, gear, needs, quest, party, guild and relationship information. Player UI should show equivalent own-character data. Avoid exposing fictional stats as verified before implementation.
 
-## Combat design (proposed mechanics; numerical values not finalized)
+## Combat design (approved direction; numerical values not finalized)
 
 ### One shared combat resolver
 Separate attack intent, windup, active hit window, recovery and cooldown. Server-authoritative validation for equipment, grip, reach, line of sight, stamina, target and safe zone. Rendered animations and sound follow the authoritative result; never deal duplicate damage because an animation callback fires twice. Players use input actions; NPCs use the same action interface and constraints. NPC AI has reaction delay, imperfect aim, limited knowledge and ability selection based on personality, training and actual threats. Off-screen simulation cannot silently manufacture observed monster kills, guardian wins or item loot; design a separate resource-accounted abstract encounter policy before enabling remote combat.
@@ -29,7 +29,7 @@ Basic attacks available with compatible weapons; specialized moves unlock from t
 ### Character build balance
 Separate base character attributes (proposed strength, vitality, agility, dexterity, intelligence, endurance, luck), equipment statistics, mastery, and temporary buffs. Allow profession-focused attributes and skills to remain useful outside combat; high character level alone must not confer complete weapon competence. Curves, point allocation, damage formulas, XP amounts, monster ranges and equipment thresholds require a shared balance test. Preserve leveling while preventing runaway movement, health, hit rate and combat speed.
 
-## Further design proposals for discussion
+## Additional systems approved
 
 - Item progression: common through legendary rarity, item quality, material tiers, affixes, durability, crafting mastery and fair trade/repair. Avoid random loot invalidating crafting and avoid equipment-level restrictions that contradict attribute/proficiency requirements.
 - Parties: front-line defense, damage, ranged/support and healing roles derived from equipped skills rather than permanent classes. Shared encounter credit based on contribution, including support; no duplicate rewards or last-hit-only XP. NPC recruitment, leadership, morale, recovery, retreat and resource distribution. Guilds and NPC floor progression use actual accepted achievements.
@@ -50,3 +50,7 @@ Separate base character attributes (proposed strength, vitality, agility, dexter
 8. Add fixed monster levels, difficulty profiles, loot quality, party XP distribution and renewable economy/quest sources with balance and performance tests. Expand custom monster models and floor content in verified slices.
 
 Never mark a feature playable from a design document or unit test. Run Minecraft GameTests, dedicated-server restart tests and actual client probes where applicable. Keep screenshots and visual approval separate. Prefer bounded simulation, no forced distant chunk loads, and meaningful autonomous progress while the world is running.
+
+## v0.2.24 foundation implementation
+
+Shared CharacterProgress and CharacterProgressData store character XP, derived levels, three unspent points per level, attribute allocations, independent weapon/profession XP tracks, and per-source replay watermarks for player and NPC identities. Provisional cumulative character XP curve 50 × (level − 1) × level; mastery curve uses 25 instead of 50. No arbitrary gameplay cap, explicit signed-long storage limit, overflow checked. All numerical bonuses are provisional and not yet applied to real combat. `/sao profile` reads the foundation state. Actual event adapters, automatic NPC point allocation, item family classification, skill trees, UI and combat attributes are not wired yet. No legacy practice converted into fictitious combat XP.
