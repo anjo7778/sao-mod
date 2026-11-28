@@ -24,7 +24,8 @@
             "minecraft:meadow"
           ],
           "capital": "sao:capital",
-          "regional": true
+          "regional": true,
+          "regional_decoration_buffer": true
         }
       }
     },
@@ -73,7 +74,8 @@
             "minecraft:meadow"
           ],
           "capital": "sao:capital",
-          "regional": true
+          "regional": true,
+          "regional_decoration_buffer": true
         }
       }
     }

@@ -99,3 +99,8 @@ Dedicated 46088346505 (v0.2.13 initial) passed 72 adventurers over 58,000 ticks,
 
 ## v0.2.15 regional geography (candidate)
 Four deterministic hubs per floor: market town (8 buildings), three villages/refuges (4 buildings each). Chunk-aligned envelopes, distinct services, unchanged v2 templates, central connected lanes, no overlapping capital or edge. Versioned new regional density graph and optional biome-source setting keep earlier worlds unchanged. Regional safe zones separate from capital population detection; no synthetic residents or transactions yet. `/sao settlements` lists coordinates, not generated/discovered history. Validate layouts, actual generation/paths, terrain edge and safe zones in Minecraft; regional NPC services and travel remain pending.
+
+
+## v0.2.16 regional edge candidate
+
+v0.2.15 build [46089487855](https://github.com/anjo7778/sao-mod/actions/runs/46089487855) passed; client [46089542911](https://github.com/anjo7778/sao-mod/actions/runs/46089542911) failed a road/foundation assertion at (-1040,97,0), the west boundary of Ironbrook. The failure did not distinguish obstruction from ground loss. A two-chunk decoration-free biome buffer is a targeted candidate for neighboring vanilla feature spillover; not a confirmed diagnosis or a guarantee against modded features. New presets opt in via a serialized optional flag (legacy defaults false); noise settings, safe-zone bounds, authored templates and existing chunks are unchanged. Geometry checks cover exact buffer boundaries. Repeat the actual client test without weakening any road or template assertion. Regional services remain deferred until runtime verification.

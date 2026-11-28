@@ -54,7 +54,14 @@ public final class RegionalSettlementChecks {
             check(Math.max(Math.abs(s.x()),Math.abs(s.z()))-s.half()-BLEND>CityPlan.half(f)+64,"Capital blend overlap");
             check(Math.hypot(Math.abs(s.x())+s.half()+BLEND,Math.abs(s.z())+s.half()+BLEND)<FloorCatalog.radiusFor(f),"Floor edge overlap");
             check(at(f,s.x(),s.z()).equals(s)&&blend(f,s.x(),s.z())==1,"Site selection");
-            check(at(f,0,0)==null&&blend(f,0,0)==0,"Capital modified");
+            int h=s.half(),b=h+DECORATION_BUFFER;
+            // Half-open, chunk-aligned buffer on all four sides; it does not move the safe boundary.
+            check(inDecorationBuffer(f,s.x()-b,s.z())&&inDecorationBuffer(f,s.x()+b-1,s.z()),"West/east buffer gap");
+            check(inDecorationBuffer(f,s.x(),s.z()-b)&&inDecorationBuffer(f,s.x(),s.z()+b-1),"North/south buffer gap");
+            check(!inDecorationBuffer(f,s.x()-b-1,s.z())&&!inDecorationBuffer(f,s.x()+b,s.z()),"West/east buffer leak");
+            check(!inDecorationBuffer(f,s.x(),s.z()-b-1)&&!inDecorationBuffer(f,s.x(),s.z()+b),"North/south buffer leak");
+            check(at(f,s.x()+h,s.z())==null&&inDecorationBuffer(f,s.x()+h,s.z()),"Decoration buffer changes site boundary");
+            check(at(f,0,0)==null&&blend(f,0,0)==0&&!inDecorationBuffer(f,0,0),"Capital modified");
         }
     }
     private static void check(boolean b,String m){if(!b)throw new AssertionError(m);}
