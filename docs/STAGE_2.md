@@ -188,3 +188,7 @@ Add synced NPC role/level projection, depth-tested nearby NPC/targeted enemy dia
 ## v0.2.32 NPC menu presence candidate
 
 [v0.2.31 build](https://github.com/anjo7778/sao-mod/actions/runs/46100234695), [v0.2.30 client](https://github.com/anjo7778/sao-mod/actions/runs/46100101367), [corrected archery](https://github.com/anjo7778/sao-mod/actions/runs/46100118474) passed. User clarified owner full-screen in all perspectives, NPC observer-only floating panels; no multiplayer synchronization now. Committed real observed ledger and RPG transaction review triggers, transient entity projection/gesture and bounded world rendering. New build and autonomous graphical acceptance pending. See AINCRAD_UI.md.
+
+## v0.2.33 native inventory candidate
+
+v0.2.32 build and graphical probe passed (46101134885, 46101111905); observed NPC menu from actual epoch 1 preparation and goal decision. Implement styled InventoryMenu screen preserving authoritative slots and native transfer behavior, owner menu return, NPC panel readability and smooth gesture holding. Test item conservation, shift-equipping, close with a carried stack, and screenshots. No new multiplayer implementation.

@@ -184,7 +184,11 @@ public final class AincradMenu extends Screen {
         for(int i=0;i<PAGES[group].length;i++)if(inside(mx,my,115,subTop()+i*19,99,17)){if(page!=i){page=i;scroll=slide=0;sound(1.2f);}return true;}
         if(slide<5)return false;
         if(group==0&&page==1&&inside(mx,my,228,164,133,14)&&minecraft!=null&&minecraft.player!=null){
-            sound(1.2f);minecraft.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(minecraft.player));return true;
+            sound(1.2f);
+            if(minecraft.player.isCreative()||minecraft.player.containerMenu!=minecraft.player.inventoryMenu)
+                minecraft.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(minecraft.player));
+            else minecraft.setScreen(new AincradInventoryScreen(minecraft.player,this));
+            return true;
         }
         if(group==4)for(int i=0;i<5;i++)if(inside(mx,my,228,46+i*25,133,16)){MenuPreferences.cycle(i);sound(1.2f);return true;}
         var s=ProfileNetwork.clientSnapshot();

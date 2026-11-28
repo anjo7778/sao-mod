@@ -48,7 +48,10 @@ public final class AincradWorldMenu {
             var anchor=new net.minecraft.world.phys.Vec3(ax,ay,az);
             if(c.level.clip(new net.minecraft.world.level.ClipContext(cam,anchor,net.minecraft.world.level.ClipContext.Block.COLLIDER,
                 net.minecraft.world.level.ClipContext.Fluid.NONE,c.player)).getType()!=net.minecraft.world.phys.HitResult.Type.MISS)continue;
-            float scale=.0045f*reveal;
+            double distance=Math.sqrt(npc.distanceToSqr(cam.x,cam.y,cam.z));
+            // Modestly larger in-world panels at normal conversation distance;
+            // capped physical size instead of growing unbounded as the viewer retreats.
+            float scale=(float)(.0054+Math.min(.0014,Math.max(0,distance-3)*.00035))*reveal;
             var matrix=new Matrix4f(event.getModelViewMatrix()).translate((float)(ax-cam.x),(float)(ay-cam.y),(float)(az-cam.z))
                 .rotate(camera.rotation()).scale(scale,-scale,scale).translate(-AincradMenu.W/2f,-AincradMenu.H/2f,0);
             var clip=new Matrix4f(event.getProjectionMatrix()).mul(matrix);

@@ -18,9 +18,16 @@ public final class MenuGesture {
     public static float progress(float partial){return Minecraft.getInstance().screen instanceof AincradMenu m&&m.summoning()?m.gesture(partial):-1;}
     public static float npcPitch(CityNpc npc,float partial){
         int age=npc.menuAge();if(age<0)return Float.NaN;
-        if(age<NpcMenuReview.SUMMON)return armPitch((age+partial)/NpcMenuReview.SUMMON);
-        if(age>=NpcMenuReview.SUMMON+NpcMenuReview.HOLD)return -.82f*(NpcMenuReview.DURATION-age-partial)/NpcMenuReview.CLOSE;
-        return -.82f;
+        if(age<NpcMenuReview.SUMMON){
+            float t=(age+partial)/NpcMenuReview.SUMMON;
+            if(t<.78f)return armPitch(t);
+            return -.55f-.27f*smooth((t-.78f)/.22f);
+        }
+        if(age>=NpcMenuReview.SUMMON+NpcMenuReview.HOLD)
+            return -.82f*smooth((NpcMenuReview.DURATION-age-partial)/NpcMenuReview.CLOSE);
+        float hold=(age+partial-NpcMenuReview.SUMMON)/NpcMenuReview.HOLD;
+        // Gentle read/selection motion; the review is still of the one committed action.
+        return -.82f-.16f*(float)Math.sin(hold*Math.PI*2)*smooth(Math.min(hold,1-hold)*4);
     }
     private static float smooth(float t){t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);}
     public static float armPitch(float t){
