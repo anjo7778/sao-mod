@@ -1,5 +1,6 @@
 package dev.anjo7778.sao.client;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -19,10 +20,10 @@ import org.joml.Vector4f;
 @EventBusSubscriber(modid="sao",value=Dist.CLIENT)
 public final class AincradWorldMenu {
     private static final MultiBufferSource.BufferSource BUFFERS=MultiBufferSource.immediate(new ByteBufferBuilder(65536));
-    private static final RenderType ICONS=RenderType.text(AincradMenu.ATLAS);
+    private static final RenderType ICONS=RenderType.textSeeThrough(AincradMenu.ATLAS);
     private AincradWorldMenu(){}
     @SubscribeEvent public static void render(RenderLevelStageEvent event){
-        if(event.getStage()!=RenderLevelStageEvent.Stage.AFTER_PARTICLES)return;
+        if(event.getStage()!=RenderLevelStageEvent.Stage.AFTER_LEVEL)return;
         var c=Minecraft.getInstance();
         if(!(c.screen instanceof AincradMenu menu)||c.player==null)return;
         menu.resetWorld();if(!menu.useWorld()||menu.summoning())return;
@@ -31,9 +32,9 @@ public final class AincradWorldMenu {
         var right=new Vector3f(1,0,0).rotate(camera.rotation());
         double yaw=Math.toRadians(Mth.rotLerp(partial,player.yBodyRotO,player.yBodyRot));
         double px=Mth.lerp(partial,player.xOld,player.getX()),py=Mth.lerp(partial,player.yOld,player.getY()),pz=Mth.lerp(partial,player.zOld,player.getZ());
-        double ax=px-Math.sin(yaw)*.8+right.x*1.35,ay=py+1.42,az=pz+Math.cos(yaw)*.8+right.z*1.35;
+        double ax=px-Math.sin(yaw)*.8+right.x*1.15,ay=py+1.42,az=pz+Math.cos(yaw)*.8+right.z*1.15;
         double distance=Math.sqrt((ax-cam.x)*(ax-cam.x)+(ay-cam.y)*(ay-cam.y)+(az-cam.z)*(az-cam.z));
-        float scale=(float)Math.max(.004,Math.min(.012,distance*.0022));
+        float scale=(float)Math.max(.0025,Math.min(.009,distance*.00165))*menu.reveal();
         var matrix=new Matrix4f(event.getModelViewMatrix()).translate((float)(ax-cam.x),(float)(ay-cam.y),(float)(az-cam.z))
             .rotate(camera.rotation()).scale(scale,-scale,scale).translate(-AincradMenu.W/2f,-AincradMenu.H/2f,0);
         var clip=new Matrix4f(event.getProjectionMatrix()).mul(matrix);
@@ -42,7 +43,14 @@ public final class AincradWorldMenu {
         var hit=new AincradMenu.WorldHit(a[0],a[1],(b[0]-a[0])/AincradMenu.W,(b[1]-a[1])/AincradMenu.H,System.nanoTime());
         double mx=c.mouseHandler.xpos()*c.getWindow().getGuiScaledWidth()/c.getWindow().getScreenWidth();
         double my=c.mouseHandler.ypos()*c.getWindow().getGuiScaledHeight()/c.getWindow().getScreenHeight();
-        menu.draw(new WorldPainter(c.font,matrix),hit.x(mx),hit.y(my));BUFFERS.endBatch();menu.worldRendered(hit);
+        // The event matrix is the intended eye-space transform. The shader already
+        // applies RenderSystem's active model-view matrix; remove it from submitted
+        // vertices to avoid applying the camera rotation twice.
+        var submitted=new Matrix4f(RenderSystem.getModelViewMatrix()).invert().mul(matrix);
+        c.getMainRenderTarget().bindWrite(false);
+        RenderSystem.setShaderColor(1,1,1,1);
+        menu.draw(new WorldPainter(c.font,submitted),hit.x(mx),hit.y(my));
+        BUFFERS.endBatch();menu.worldRendered(hit);
     }
     private static float[] project(Matrix4f clip,float x,float y,Minecraft c){
         var v=clip.transform(new Vector4f(x,y,0,1));if(v.w<=.02f||!Float.isFinite(v.w))return null;
@@ -58,7 +66,7 @@ public final class AincradWorldMenu {
             var out=BUFFERS.getBuffer(ICONS);float z=z();vertex(out,x,y+h,z,u0,v1,c);vertex(out,x+w,y+h,z,u1,v1,c);vertex(out,x+w,y,z,u1,v0,c);vertex(out,x,y,z,u0,v0,c);
         }
         private void vertex(VertexConsumer out,float x,float y,float z,float u,float v,int c){out.addVertex(matrix,x,y,z).setColor(c).setUv(u,v).setLight(LightTexture.FULL_BRIGHT);}
-        public void text(String s,int x,int y,int c,int max){if(max>0)font.drawInBatch(font.plainSubstrByWidth(s,max),x,y,c,false,new Matrix4f(matrix).translate(0,0,z()),BUFFERS,Font.DisplayMode.NORMAL,0,LightTexture.FULL_BRIGHT);}
-        public int width(String s){return font.width(s);}
+        public void text(String s,int x,int y,int c,int max){if(max>0)font.drawInBatch(AincradType.fit(font,s,max),x,y,c,false,new Matrix4f(matrix).translate(0,0,z()),BUFFERS,Font.DisplayMode.SEE_THROUGH,0,LightTexture.FULL_BRIGHT);}
+        public int width(String s){return AincradType.width(font,s);}
     }
 }

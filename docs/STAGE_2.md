@@ -172,3 +172,7 @@ v0.2.26 build and [client probe 46097100943](https://github.com/anjo7778/sao-mod
 ## v0.2.28 menu V2 candidate
 
 [v0.2.27 build](https://github.com/anjo7778/sao-mod/actions/runs/46097389450) and [corrected boar client](https://github.com/anjo7778/sao-mod/actions/runs/46097402312) passed. Archery still unverified. New menu controls, atlas, grouped layout, animation and third-person world rendering require compile/client and visual acceptance. See AINCRAD_UI.md.
+
+## v0.2.29 HUD/menu candidate
+
+V2 client test passed input and profile but screenshot review found invisible world panel. See AINCRAD_UI.md for corrected render stage/model-view and visual acceptance gate. Added native survival HUD with real HP, hunger/air, hotbar, XP notices, target HP and clock; new original geometric lettering and compact animated menu. Test build and graphical pixel evidence pending. Preserve working combat/leveling. No new combat features.
