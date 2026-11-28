@@ -473,4 +473,18 @@ public final class FoundationTests {
         helper.assertFalse(saved.openHunt(1,id,6,quarry),"Insufficient preparation");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void frenzyBoarRegistration(GameTestHelper helper){
+        var boar=dev.anjo7778.sao.entity.SaoEntities.FRENZY_BOAR.get().create(helper.getLevel());
+        helper.assertTrue(boar!=null&&boar.getMaxHealth()==24,"Registered monster and health");
+        helper.assertTrue(boar.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)==4,"Boar attack attribute");
+        helper.assertTrue(dev.anjo7778.sao.item.SaoItems.BOAR_TUSK.get()!=null,"Tusk registered");
+        helper.assertFalse(dev.anjo7778.sao.world.BoarSpawns.habitat(1,0,0),"No capital spawn");
+        helper.assertTrue(dev.anjo7778.sao.world.BoarSpawns.habitat(1,400,0),"First-floor field");
+        helper.assertFalse(dev.anjo7778.sao.world.BoarSpawns.habitat(1,4000,0),"No void-edge spawn");
+        var site=dev.anjo7778.sao.simulation.RegionalSettlements.sites(1).getFirst();
+        helper.assertFalse(dev.anjo7778.sao.world.BoarSpawns.habitat(1,site.x(),site.z()),"No regional safe-zone spawn");
+        helper.assertFalse(dev.anjo7778.sao.world.BoarSpawns.habitat(2,400,0),"Mountain habitat excluded");
+        boar.discard();helper.succeed();
+    }
 }

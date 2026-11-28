@@ -11,6 +11,8 @@ import dev.anjo7778.sao.world.NpcPresence;
 import dev.anjo7778.sao.world.AdventureSimulationData;
 import dev.anjo7778.sao.world.CitySocial;
 import dev.anjo7778.sao.entity.SaoEntities;
+import dev.anjo7778.sao.item.SaoItems;
+import dev.anjo7778.sao.world.BoarSpawns;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import dev.anjo7778.sao.world.FloorBiomeSource;
 import dev.anjo7778.sao.world.FloorGuardian;
@@ -51,6 +53,8 @@ public final class SaoMod {
         BIOMES.register(modBus);
         FEATURES.register(modBus);
         SaoEntities.register(modBus);
+        SaoItems.register(modBus);
+        NeoForge.EVENT_BUS.addListener(BoarSpawns::tick);
         NeoForge.EVENT_BUS.addListener(CityRules::spawn);
         NeoForge.EVENT_BUS.addListener(CityRules::spawnCheck);
         NeoForge.EVENT_BUS.addListener(CityRules::damage);

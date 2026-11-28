@@ -1,6 +1,7 @@
 package dev.anjo7778.sao.world;
 
 import dev.anjo7778.sao.entity.CityNpc;
+import dev.anjo7778.sao.entity.SaoEntities;
 import dev.anjo7778.sao.simulation.*;
 import dev.anjo7778.sao.simulation.NpcRoster.*;
 import net.minecraft.server.level.ServerLevel;
@@ -26,7 +27,7 @@ public final class HuntService {
     private HuntService(){}
     private static long epoch(ServerLevel level){return Math.max(0,level.getServer().overworld().getGameTime()/AdventureProgress.EPOCH_TICKS);}
     private static boolean allowedType(EntityType<?> type){
-        return type==EntityType.ZOMBIE||type==EntityType.HUSK||type==EntityType.SPIDER||type==EntityType.SKELETON;
+        return type==EntityType.ZOMBIE||type==EntityType.HUSK||type==EntityType.SPIDER||type==EntityType.SKELETON||type==SaoEntities.FRENZY_BOAR.get();
     }
     private static boolean arena(ServerLevel level,long floor,ScoutingTrip.Trip trip,Entity e){
         if(e.level()!=level||!CityRules.hasRegionalSettlements(level)||CityRules.isSafeZone(level,e.getBlockX(),e.getBlockZ())

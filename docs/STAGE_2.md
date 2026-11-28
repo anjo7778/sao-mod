@@ -144,3 +144,11 @@ First physical quest slice: eligible projected melee adventurers at a scouting s
 ## v0.2.22 combat classes (candidate)
 
 Separate sword, knight and assassin attack cadence/reach/base attributes and knight damage reduction. Archer support with actual vanilla arrow, draw state, visible launch, one supply point charged only for a successfully spawned arrow, reserve of 15, no collectible ammo. Contract-bound damage guard validates exact target and current arena; tagged projectiles expire when owner, contract or arena invalid or after 100 ticks. No ranged reward without actual death attribution; same persisted bounty and health system, no new schema. Test actual ranged kill and supply debit, wrong-target denial, melee regressions and save/load. Mage/healer combat and custom monster assets remain pending.
+
+## v0.2.22 status
+
+[Build 46092297762](https://github.com/anjo7778/sao-mod/actions/runs/46092297762) passed; [archery client 46092325736](https://github.com/anjo7778/sao-mod/actions/runs/46092325736) was still running at continuation. No final ranged acceptance yet.
+
+## v0.2.23 first original monster (candidate)
+
+Frenzy Boar: registered living hostile quadruped, original 128x96 pixel atlas and model with a broad body, shoulders, mane, snout, tusks, ears, four animated legs and tail; 24 HP, 4 base attack, vanilla melee goals, 4 XP, one tusk and 1–3 porkchops via real loot table. Reuses vanilla pig audio for this slice. A loaded-only, eight-attempt local spawn pass per eligible player every 200 ticks, cap six within 96 blocks, plains/ancient forest floor themes, safe-zone and floor-edge exclusion, actual outdoor dirt support, vanilla mob-spawning rule and difficulty. Custom boar is eligible as an actual contracted hunt quarry; no automatic loot pickup or virtual kills. No new save schema, global spawns, third-party assets or mandatory pack. Verify actual model/texture, animation, spawned entity, real death and loot, safe zones, normal-world isolation, and hunt compatibility in client and dedicated tests. Spawn rates and visual design remain provisional.
