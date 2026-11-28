@@ -47,6 +47,20 @@ public final class NativeSteelSword extends SwordItem {
         stack.set(DataComponents.ATTRIBUTE_MODIFIERS,SwordItem.createAttributes(materialTier,3,-2.4f));
         return stack;
     }
+    /** NPC maintenance uses the vanilla-style one-quarter durability per steel ingot.
+     * No new sword is constructed: every component except damage is preserved. */
+    public static final int NPC_REPAIR_PRICE=16;
+    public static boolean needsNpcRepair(ItemStack stack){
+        return stack.getItem() instanceof NativeSteelSword&&stack.getCount()==1
+            &&stack.getMaxDamage()>0&&stack.getDamageValue()>0&&stack.getDamageValue()<stack.getMaxDamage()
+            &&(long)stack.getDamageValue()*2>=stack.getMaxDamage();
+    }
+    public static ItemStack npcRepaired(ItemStack stack){
+        if(!needsNpcRepair(stack))return ItemStack.EMPTY;
+        var next=stack.copy();
+        next.setDamageValue(Math.max(0,stack.getDamageValue()-Math.max(1,stack.getMaxDamage()/4)));
+        return next;
+    }
     @Override public void appendHoverText(ItemStack stack,TooltipContext context,List<Component> tooltip,TooltipFlag flag){
         super.appendHoverText(stack,context,tooltip,flag);
         tooltip.add(Component.translatable("tooltip.sao.steel_sword").withStyle(ChatFormatting.GRAY));
