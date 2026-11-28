@@ -39,6 +39,8 @@ public final class RegionalProbe{
     private static UUID observedResident;
     private static double startX,startZ;
     private static NpcDailyPlan.Plan observedPlan;
+    private static long movementStarted;
+    private static boolean movementDone;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!ENABLED||phase==5)return;
         var c=Minecraft.getInstance();
@@ -56,8 +58,9 @@ public final class RegionalProbe{
             phase=1;return;
         }
         if(pending!=null){if(!pending.isDone())return;pending.join();pending=null;}
+        if(phase==4&&movementDone){phase=6;ticks=0;}
         if(c.screen!=null||c.player==null||c.level==null||c.getSingleplayerServer()==null){ticks=0;return;}
-        if(++ticks<(phase==4?650:150))return;ticks=0;
+        if(++ticks<(phase==4?20:150))return;ticks=0;
         switch(phase){
             case 1 -> {
                 require(Math.abs(c.player.getX())<=16&&Math.abs(c.player.getZ())<=16,"Capital spawn lost");
@@ -91,7 +94,6 @@ public final class RegionalProbe{
             }
             case 4 -> {
                 action(c,p->finishMovement(p));
-                phase=6;
             }
             case 6 -> {
                 index++;
@@ -191,7 +193,7 @@ public final class RegionalProbe{
             if(!actor.activity().equals("WORK")||plan.activity()!=NpcDailyPlan.Activity.SOCIALIZE||
                 actor.distanceToSqr(center.x()+plan.destination().x()+.5,CityPlan.GROUND+1,center.z()+plan.destination().z()+.5)<20*20)continue;
             observedResident=actor.getUUID();startX=actor.getX();startZ=actor.getZ();observedPlan=plan;
-            level.setDayTime(11500);return;
+            movementStarted=level.getGameTime();level.setDayTime(11500);return;
         }
         throw new IllegalStateException("No work-to-social resident fixture among naturally projected actors");
     }
@@ -201,13 +203,19 @@ public final class RegionalProbe{
         var actor=(CityNpc)level.getEntity(observedResident);
         double moved=Math.hypot(actor.getX()-startX,actor.getZ()-startZ);
         double remaining=Math.hypot(actor.getX()-(center.x()+observedPlan.destination().x()+.5),actor.getZ()-(center.z()+observedPlan.destination().z()+.5));
-        require(actor.matchesPlan(observedPlan)&&moved>=12&&remaining<=8,"Regional schedule movement failed moved="+moved+" remaining="+remaining);
+        long elapsed=level.getGameTime()-movementStarted;
+        if(!actor.matchesPlan(observedPlan)||moved<12||remaining>8||!actor.atScheduledDestination()){
+            require(elapsed<1800,"Regional schedule movement failed after "+elapsed+" server ticks moved="+moved+" remaining="+remaining+" navigationDone="+actor.getNavigation().isDone());
+            if(elapsed%100<20)LOG.info("SAO_REGIONAL_MOVEMENT_PROGRESS ticks={} moved={} remaining={} navDone={}",elapsed,moved,remaining,actor.getNavigation().isDone());
+            return;
+        }
         // Direct server interaction fixture: exercise the actual greeting handler, not a fake memory insertion.
         var data=NpcPopulationData.get(level.getServer());var before=data.state(floor,observedResident);
         actor.interact(p,net.minecraft.world.InteractionHand.MAIN_HAND);
         var after=data.state(floor,observedResident);
         require(after.memories().size()>before.memories().size(),"Regional greeting did not persist");
-        LOG.info("SAO_REGIONAL_MOVEMENT_OK moved={} remaining={} greeting=true",moved,remaining);
+        movementDone=true;
+        LOG.info("SAO_REGIONAL_MOVEMENT_OK ticks={} moved={} remaining={} greeting=true",elapsed,moved,remaining);
     }
     private static void camera(ServerPlayer p,double x,double y,double z,float yaw,float pitch){
         p.getAbilities().flying=true;p.onUpdateAbilities();
