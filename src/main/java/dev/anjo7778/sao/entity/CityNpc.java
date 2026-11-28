@@ -108,7 +108,7 @@ public final class CityNpc extends PathfinderMob {
         var centerCheck=FloorLayout.center(floor);
         var ledgerNow=AdventureSimulationData.get(level.getServer()).ledger(profile);
         var trip=ledgerNow==null?null:ledgerNow.trip();
-        var region=profile.regionalHome();
+        var region=AdventureSimulationData.get(level.getServer()).localSite(profile);
         if(region!=null){
             if(!CityRules.hasRegionalSettlements(level)||!region.contains(getBlockX()-centerCheck.x(),getBlockZ()-centerCheck.z())){discard();return;}
         }else if(!CityRules.isCity(level,getBlockX(),getBlockZ())&&
@@ -186,7 +186,7 @@ public final class CityNpc extends PathfinderMob {
         }else failedAttempts=0;
     }
     private boolean canWalk(ServerLevel level,FloorLayout.Center c,Point p){
-        var region=profile.regionalHome();
+        var region=AdventureSimulationData.get(level.getServer()).localSite(profile);
         if(region==null?!CityPlan.inside(floor,p.x(),p.z()):!region.contains(p.x(),p.z()))return false;
         var pos=new BlockPos(c.x()+p.x(),CityPlan.GROUND+1,c.z()+p.z());
         return level.hasChunkAt(pos)&&level.getBlockState(pos).getCollisionShape(level,pos).isEmpty()
@@ -208,6 +208,8 @@ public final class CityNpc extends PathfinderMob {
             if(journal.surveyed()!=0)line+=" I've surveyed the "+SurveyJournal.directions(journal.surveyed())+" gate approaches.";
             else if(journal.reported()!=0)line+=" I've heard reports about the "+SurveyJournal.directions(journal.reported())+" gate approaches.";
         }
+        var journey=AdventureSimulationData.get(p.serverLevel().getServer()).journey(profile);
+        if(journey.visiting())line+=" I'm visiting "+RegionalSettlements.site(floor,journey.target()).name()+".";
         if(ledger!=null&&ledger.goal().active()&&state.relationship(p.getUUID()).trust()>=50)
             line+=" My current goal: "+AdventurerGoals.description(ledger.goal())+".";
         p.sendSystemMessage(Component.literal(profile.name()+": "+line));

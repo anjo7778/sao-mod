@@ -82,6 +82,24 @@ public final class SaoCommands {
                     }
                     return 1;
                 })))
+            .then(Commands.literal("journeys")
+                .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                    var server=ctx.getSource().getServer();long floor=LongArgumentType.getLong(ctx,"floor");
+                    if(!SaoWorldData.get(server).isUnlocked(floor)){ctx.getSource().sendFailure(Component.literal("Unlocked floor required."));return 0;}
+                    var sim=AdventureSimulationData.get(server);
+                    var roster=NpcPopulationData.get(server).roster(floor);
+                    int active=0,completed=0;
+                    for(var s:roster){
+                        var j=sim.journey(s);
+                        completed+=j.completed();
+                        if(!j.active())continue;
+                        active++;
+                        ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+j.phase()+" | "+j.target()+" | "+j.purpose()+" (abstract travel legs)"),false);
+                    }
+                    final int a=active,c=completed;
+                    ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+" | "+a+" active regional journeys | "+c+" completed round trips by current adventurers"),false);
+                    return 1;
+                })))
             .then(Commands.literal("settlements").executes(ctx->{
                 var p=ctx.getSource().getPlayerOrException();
                 var level=p.serverLevel();

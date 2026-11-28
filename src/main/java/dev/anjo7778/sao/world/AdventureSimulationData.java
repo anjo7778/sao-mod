@@ -20,6 +20,18 @@ public final class AdventureSimulationData extends SavedData {
     public static final int BUDGET=8, PERIOD=20;
     private static final Factory<AdventureSimulationData> FACTORY=new Factory<>(AdventureSimulationData::new,AdventureSimulationData::load,null);
     private final Map<Long,Map<UUID,Ledger>> floors=new TreeMap<>();
+    private final Map<Long,Map<UUID,RegionalJourney.Journey>> regionalJourneys=new TreeMap<>();
+    public RegionalJourney.Journey journey(Profile p){
+        var r=regionalJourneys.get(p.currentFloor());
+        return r==null?RegionalJourney.EMPTY:r.getOrDefault(p.id(),RegionalJourney.EMPTY);
+    }
+    public RegionalJourney.Journey journey(State s){return journey(s.profile());}
+    public RegionalSettlements.Site localSite(Profile p){
+        var home=p.regionalHome();return home!=null?home:RegionalJourney.site(p.currentFloor(),journey(p));
+    }
+    private void storeJourney(Profile p,RegionalJourney.Journey j){
+        regionalJourneys.computeIfAbsent(p.currentFloor(),k->new LinkedHashMap<>()).put(p.id(),j);setDirty();
+    }
     private long cursorFloor;
     private int cursorIndex;
     public static AdventureSimulationData get(MinecraftServer server){
@@ -45,7 +57,12 @@ public final class AdventureSimulationData extends SavedData {
     }
     public static NpcDailyPlan.Plan plan(ServerLevel level,State state){
         if(!CityRules.hasCities(level))return NpcDailyPlan.at(state,level.getDayTime());
-        var ledger=state.profile().occupation()==Occupation.ADVENTURER?get(level.getServer()).ledger(state):null;
+        var simulation=get(level.getServer());
+        var ledger=state.profile().occupation()==Occupation.ADVENTURER?simulation.ledger(state):null;
+        if(CityRules.hasRegionalSettlements(level)){
+            var journey=simulation.journey(state);
+            if(journey.visiting())return RegionalJourney.visitPlan(state.profile(),journey);
+        }
         return CityVenueRoutine.plan(state,level.getDayTime(),ledger,CityRules.hasLandmarks(level));
     }
     public boolean update(long floor,UUID id,long epoch,Mode mode,boolean offscreen){
@@ -111,6 +128,24 @@ public final class AdventureSimulationData extends SavedData {
                 mode=npc.matchesPlan(desired)&&npc.atScheduledDestination()?AdventureProgress.mode(desired.activity()):Mode.TRAVEL;
             }
             if(previous==null){update(s.profile().birthFloor(),id,epoch,mode,offscreen);continue;}
+            if(CityRules.hasRegionalSettlements(level)){
+                var current=journey(s);
+                // Regional legs and local scouting are mutually exclusive. A represented NPC
+                // never departs via the abstract simulator or earns unobserved travel credit.
+                var regional=RegionalJourney.advance(s,previous,current,epoch,level.getDayTime(),offscreen);
+                if(current.active()||regional.began()){
+                    var next=regional.journey();
+                    if(!next.equals(current))storeJourney(s.profile(),next);
+                    if(regional.began()){
+                        var n=s.needs();
+                        population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-RegionalJourney.supplyCost(cursorFloor),n.equipment(),n.partyReadiness(),n.danger()));
+                    }
+                    if(regional.arrived())population.discoverRegional(cursorFloor,next.target(),server.overworld().getSeed());
+                    Mode regionalMode=offscreen&&(current.phase()==RegionalJourney.Phase.OUTBOUND||current.phase()==RegionalJourney.Phase.RETURNING||regional.began())?Mode.TRAVEL:Mode.IDLE;
+                    floors.get(s.profile().birthFloor()).put(id,AdventureProgress.advance(previous,epoch,regionalMode,offscreen));setDirty();
+                    continue;
+                }
+            }
             boolean reached=actor instanceof CityNpc npc&&npc.isAlive()
                 &&npc.originFloor()==cursorFloor&&npc.matchesPlan(desired)&&npc.atScheduledDestination();
             if(previous.trip().active()){
@@ -158,7 +193,7 @@ public final class AdventureSimulationData extends SavedData {
         // Up to four candidates, never a global pair search. Both must be unrepresented.
         for(int k=0;k<Math.min(4,roster.size());k++){
             UUID id=roster.get((start+k)%roster.size()).profile().id();
-            if(a.profile().id().equals(id)||level.getEntity(id)!=null)continue;
+            if(a.profile().id().equals(id)||level.getEntity(id)!=null||journey(roster.get((start+k)%roster.size())).active())continue;
             State b=population.state(cursorFloor,id);
             if(b==null)continue;
             var other=CityVenueRoutine.plan(b,level.getDayTime(),ledger(b),CityRules.hasLandmarks(level));
@@ -168,7 +203,7 @@ public final class AdventureSimulationData extends SavedData {
         }
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",5);ListTag all=new ListTag();
+        root.putInt("schema",6);ListTag all=new ListTag();
         floors.forEach((floor,records)->{
             CompoundTag group=new CompoundTag();group.putLong("floor",floor);ListTag npcs=new ListTag();
             records.forEach((id,l)->{
@@ -191,11 +226,23 @@ public final class AdventureSimulationData extends SavedData {
             });
             group.put("npcs",npcs);all.add(group);
         });
-        root.put("capitals",all);return root;
+        root.put("capitals",all);
+        ListTag journeys=new ListTag();
+        regionalJourneys.forEach((floor,records)->{
+            CompoundTag group=new CompoundTag();group.putLong("floor",floor);ListTag list=new ListTag();
+            records.forEach((id,j)->{
+                CompoundTag n=new CompoundTag();n.putUUID("id",id);n.putString("phase",j.phase().name());
+                n.putString("target",j.target().name());n.putString("purpose",j.purpose().name());
+                n.putLong("since",j.since());n.putLong("nextStart",j.nextStart());n.putInt("visited",j.visitedMask());
+                list.add(n);
+            });
+            group.put("npcs",list);journeys.add(group);
+        });
+        root.put("regionalJourneys",journeys);return root;
     }
     public static AdventureSimulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5&&schema!=6)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown adventure ledger schema");
         var data=new AdventureSimulationData();ListTag all=root.getList("capitals",Tag.TAG_COMPOUND);
         for(int i=0;i<all.size();i++){
             var group=all.getCompound(i);long floor=group.getLong("floor");
@@ -231,6 +278,22 @@ public final class AdventureSimulationData extends SavedData {
                 if(records.put(n.getUUID("id"),l)!=null)throw new IllegalArgumentException("Duplicate adventurer ledger");
             }
             data.floors.put(floor,records);
+        }
+        if(schema>=6){
+            var groups=root.getList("regionalJourneys",Tag.TAG_COMPOUND);
+            for(int i=0;i<groups.size();i++){
+                var g=groups.getCompound(i);long floor=g.getLong("floor");
+                if(!FloorLayout.supported(floor)||data.regionalJourneys.containsKey(floor))throw new IllegalArgumentException("Invalid regional journey floor");
+                var list=g.getList("npcs",Tag.TAG_COMPOUND);if(list.size()>512)throw new IllegalArgumentException("Invalid regional journey count");
+                var records=new LinkedHashMap<UUID,RegionalJourney.Journey>();
+                for(int k=0;k<list.size();k++){
+                    var n=list.getCompound(k);
+                    var j=new RegionalJourney.Journey(RegionalJourney.Phase.valueOf(n.getString("phase")),RegionalSettlements.Kind.valueOf(n.getString("target")),
+                        RegionalJourney.Purpose.valueOf(n.getString("purpose")),n.getLong("since"),n.getLong("nextStart"),n.getInt("visited"));
+                    if(records.put(n.getUUID("id"),j)!=null)throw new IllegalArgumentException("Duplicate regional traveler");
+                }
+                data.regionalJourneys.put(floor,records);
+            }
         }
         return data;
     }

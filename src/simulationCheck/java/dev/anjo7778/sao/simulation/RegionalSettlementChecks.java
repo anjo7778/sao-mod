@@ -66,7 +66,36 @@ public final class RegionalSettlementChecks {
                 placements+=buildings.size();paths+=tail;count++;
             }
         }
+        int trips=journeys();
+        System.out.printf("PASS: %d regional journey transition cases%n",trips);
         System.out.printf("PASS: %,d regional geometry cases, %d settlements, %d reused building placements, %,d connected positions%n",2001,count,placements,paths);
+    }
+    private static int journeys(){
+        int cases=0;
+        for(long floor:new long[]{1,2,1000,FloorLayout.MAX_FLOOR}){
+            for(var s:NpcRoster.generate(42,floor)){
+                if(s.profile().occupation()!=NpcRoster.Occupation.ADVENTURER)continue;
+                var j=RegionalJourney.EMPTY;var l=AdventureProgress.start(0).onFloor(floor);
+                for(int epoch=1;epoch<120;epoch++){
+                    var next=RegionalJourney.advance(s,l,j,epoch,6000,true);
+                    check(RegionalJourney.advance(s,l,j,epoch,6000,false).journey().equals(j),"Visible traveler cannot abstractly move");
+                    if(next.began())check(!j.active()&&next.journey().active()&&s.needs().supplies()>=35+RegionalJourney.supplyCost(floor),"Departure requirements");
+                    if(next.arrived()){
+                        check(j.phase()==RegionalJourney.Phase.OUTBOUND&&epoch-j.since()>=RegionalJourney.legEpochs(floor),"Early regional arrival");
+                        var site=RegionalJourney.site(floor,next.journey());
+                        var p=RegionalJourney.visitPlan(s.profile(),next.journey()).destination();
+                        check(clear(site,buildings(site),p.x(),p.z()),"Visit destination blocked");
+                    }
+                    if(next.journey().completed()>j.completed())check(j.phase()==RegionalJourney.Phase.RETURNING&&next.journey().completed()==j.completed()+1,"Round trip credit");
+                    var mode=j.active()?AdventureProgress.Mode.IDLE:AdventureProgress.Mode.PREPARE;
+                    l=AdventureProgress.advance(l,epoch,mode,true);
+                    // Alternate rest to keep the pure fixture eligible; production uses normal routines.
+                    if(!j.active()&&epoch%3==0)l=new AdventureProgress.Ledger(l.epoch(),l.practice(),0,l.preparations(),l.restSessions(),l.updates(),l.abstractUpdates(),l.last(),l.trip(),l.journal(),l.goal(),l.journalFloor(),l.priorJournalFloor(),l.priorJournal());
+                    j=next.journey();cases++;
+                }
+            }
+        }
+        check(cases>0,"No journey cases");return cases;
     }
     private static void geometry(long f){
         var list=sites(f);check(list.size()==4,"Site count");

@@ -328,4 +328,28 @@ public final class FoundationTests {
         helper.assertTrue(legacy.regionalRoster(1,market).isEmpty()&&legacy.roster(1).equals(pop.roster(1)),"Legacy population keeps capital without invented residents");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void regionalJourneyPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var s=pop.roster(1).stream().filter(a->a.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).findFirst().orElseThrow();
+        var id=s.profile().id();var regs=helper.getLevel().registryAccess();
+        var original=new dev.anjo7778.sao.world.AdventureSimulationData();
+        original.update(1,id,1,dev.anjo7778.sao.simulation.AdventureProgress.Mode.IDLE,true);
+        var tag=original.save(new CompoundTag(),regs);
+        var group=new CompoundTag();group.putLong("floor",1);
+        var entry=new CompoundTag();entry.putUUID("id",id);entry.putString("phase","VISITING");entry.putString("target","CRAFTS_VILLAGE");entry.putString("purpose","EQUIPMENT");
+        entry.putLong("since",2);entry.putLong("nextStart",0);entry.putInt("visited",1);
+        var list=new net.minecraft.nbt.ListTag();list.add(entry);group.put("npcs",list);
+        tag.getList("regionalJourneys",10).add(group);
+        var data=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,regs);
+        var j=data.journey(s);
+        helper.assertTrue(j.visiting()&&j.completed()==1,"Saved journey and prior visit");
+        helper.assertTrue(data.localSite(s.profile()).kind()==dev.anjo7778.sao.simulation.RegionalSettlements.Kind.CRAFTS_VILLAGE,"Visitor location");
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(data.save(new CompoundTag(),regs),regs);
+        helper.assertTrue(restored.journey(s).equals(j)&&restored.ledger(s).equals(data.ledger(s)),"Journey and lifetime ledger round trip");
+        tag.putInt("schema",5);tag.remove("regionalJourneys");
+        var legacy=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,regs);
+        helper.assertTrue(!legacy.journey(s).active()&&legacy.journey(s).completed()==0,"Legacy save has no invented visit");
+        helper.succeed();
+    }
 }

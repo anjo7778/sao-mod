@@ -29,28 +29,37 @@ public final class NpcPresence {
         if(site==null&&!ScoutingTrip.inRange(floor,p.getBlockX()-c.x(),p.getBlockZ()-c.z()))return;
         if(city)data.discover(floor,level.getServer().overworld().getSeed());
         if(site!=null)data.discoverRegional(floor,site.kind(),level.getServer().overworld().getSeed());
-        var roster=site==null?data.roster(floor):data.regionalRoster(floor,site.kind());
+        var simulation=AdventureSimulationData.get(level.getServer());
+        List<State> roster;
+        if(site==null)roster=data.roster(floor);
+        else{
+            roster=new ArrayList<>(data.regionalRoster(floor,site.kind()));
+            for(var s:data.roster(floor)){
+                var journey=simulation.journey(s);
+                if(journey.visiting()&&journey.target()==site.kind())roster.add(s);
+            }
+        }
         if(roster.isEmpty())return;
         var visible=level.getEntitiesOfClass(CityNpc.class,p.getBoundingBox().inflate(RADIUS+24),e->e.originFloor()==floor&&e.isAlive());
         int allowance=Math.min(BATCH,CAP-visible.size());if(allowance<=0)return;
-        var simulation=AdventureSimulationData.get(level.getServer());
         // Stable but rotating scan avoids permanently favoring the first roles in the roster.
         int start=Math.floorMod((int)(level.getGameTime()/40)*BATCH,roster.size());
         for(int i=0;i<roster.size()&&allowance>0;i++){
             State s=roster.get((start+i)%roster.size());
             if(level.getEntity(s.profile().id())!=null)continue;
             var trip=simulation.trip(s);
+            var journey=simulation.journey(s);
+            if(journey.active()&&(!journey.visiting()||site==null||journey.target()!=site.kind()))continue;
             if(!city&&site==null&&(trip==null||!trip.active()))continue;
             var dest=AdventureSimulationData.plan(level,s).destination();
             double d=p.distanceToSqr(c.x()+dest.x()+.5,CityPlan.GROUND+1,c.z()+dest.z()+.5);
             if(d>RADIUS*RADIUS||d<10*10)continue;
-            if(spawn(level,s,c,dest,trip!=null&&trip.active()))allowance--;
+            if(spawn(level,s,c,dest,trip!=null&&trip.active(),simulation.localSite(s.profile())))allowance--;
         }
     }
-    private static boolean spawn(ServerLevel level,State s,FloorLayout.Center center,NpcDailyPlan.Point dest,boolean expedition){
+    private static boolean spawn(ServerLevel level,State s,FloorLayout.Center center,NpcDailyPlan.Point dest,boolean expedition,RegionalSettlements.Site site){
         int[] offsets={0,2,-2,4,-4,6,-6};
         var base=CityPlan.column(s.profile().originFloor(),dest.x(),dest.z());
-        var site=s.profile().regionalHome();
         var buildings=site==null?List.<RegionalSettlements.Placement>of():RegionalSettlements.buildings(site);
         var regionalBuilding=site==null?null:RegionalSettlements.buildingAt(buildings,dest.x(),dest.z());
         for(int dx:offsets)for(int dz:offsets){
