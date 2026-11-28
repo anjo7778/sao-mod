@@ -55,6 +55,14 @@ public final class MaterialRules {
         public final double edge,durability;
         CraftQuality(double edge,double durability){this.edge=edge;this.durability=durability;}
     }
+    /** Deterministic, skill-dependent forging quality. No random retry or rarity upgrade. */
+    public static CraftQuality steelQuality(long smithMastery){
+        if(smithMastery<1)throw new IllegalArgumentException("Mastery must be positive");
+        if(smithMastery>=12)return CraftQuality.MASTERWORK;
+        if(smithMastery>=6)return CraftQuality.EXCELLENT;
+        if(smithMastery>=3)return CraftQuality.FINE;
+        return CraftQuality.STANDARD;
+    }
     public record EquipmentMaterial(Material material,Rarity rarity,CraftQuality quality){
         public EquipmentMaterial{Objects.requireNonNull(material);Objects.requireNonNull(rarity);Objects.requireNonNull(quality);}
         public Properties effective(){

@@ -50,7 +50,8 @@ public final class CharacterProgressData extends SavedData {
     }
     /** Reward only authenticated completed meaningful crafting; eight operations per elapsed world day. */
     public boolean craft(Owner owner,long day,Mastery mastery){
-        if(owner.kind()!=Kind.PLAYER||day<0||(mastery!=Mastery.BLACKSMITHING&&mastery!=Mastery.ARMORSMITHING))return false;
+        if(day<0||(mastery!=Mastery.BLACKSMITHING&&mastery!=Mastery.ARMORSMITHING)
+            ||owner.kind()==Kind.NPC&&mastery!=Mastery.BLACKSMITHING)return false;
         var before=craftWindows.get(owner);
         if(before!=null&&(day<before.day()||day==before.day()&&before.operations()>=8))return false;
         if(!awardNext(owner,Source.CRAFT,8,mastery,10))return false;
@@ -118,7 +119,6 @@ public final class CharacterProgressData extends SavedData {
                     data.discoveries.put(key,known);
                 }
                 if(n.contains("craftDay",Tag.TAG_LONG)){
-                    if(key.kind()!=Kind.PLAYER)throw new IllegalArgumentException("Invalid craft owner");
                     data.craftWindows.put(key,new CraftWindow(n.getLong("craftDay"),n.getInt("craftOperations")));
                 }
             }

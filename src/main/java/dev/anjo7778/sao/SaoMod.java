@@ -63,6 +63,7 @@ public final class SaoMod {
         NeoForge.EVENT_BUS.addListener(BoarSpawns::tick);
         NeoForge.EVENT_BUS.addListener(RpgEvents::discover);
         NeoForge.EVENT_BUS.addListener(RpgEvents::crafted);
+        NeoForge.EVENT_BUS.addListener(dev.anjo7778.sao.world.ForgeService::useAnvil);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,RpgEvents::mined);
         NeoForge.EVENT_BUS.addListener(RpgEvents::smelted);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,RpgEvents::playerKill);

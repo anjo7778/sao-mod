@@ -216,3 +216,7 @@ Tin actual worldgen passed on allowed floors and capital/out-of-range exclusion;
 ### Material professions
 
 Added actual player ore-drop and furnace-extraction XP adapters (vanilla and custom ores), native sword crafting XP and independent persisted profession budgets. NPC work and mastery-driven craftsmanship not yet wired. New tests cover save/reload and caps; actual mining and smelting events need runtime proof.
+
+## v0.2.39 forge candidate
+
+v0.2.38 compiled and passed 31 GameTests. Added real material-funded self forge and physically available NPC commission, mastery-based craftsmanship with native persistent quality/damage/durability, transaction rejects missing materials or space without mutating inputs, preserves standard recipe. Player-funded commissions are not autonomous NPC supply. Runtime tests still required.

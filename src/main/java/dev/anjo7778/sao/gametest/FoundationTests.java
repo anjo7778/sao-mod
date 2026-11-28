@@ -710,4 +710,42 @@ public final class FoundationTests {
         helper.assertTrue(restored.profession(owner,2,met),"Independent metallurgy cap");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void forgeQualityAndConservation(GameTestHelper helper){
+        var standard=dev.anjo7778.sao.simulation.MaterialRules.CraftQuality.STANDARD;
+        var master=dev.anjo7778.sao.simulation.MaterialRules.CraftQuality.MASTERWORK;
+        helper.assertTrue(dev.anjo7778.sao.simulation.MaterialRules.steelQuality(1)==standard,"Beginner quality");
+        helper.assertTrue(dev.anjo7778.sao.simulation.MaterialRules.steelQuality(12)==master,"Master smith quality");
+        var maker=java.util.UUID.randomUUID();
+        var sword=dev.anjo7778.sao.item.NativeSteelSword.forged(master,maker,"Test Smith");
+        helper.assertTrue(sword.getMaxDamage()==456,"Masterwork real durability");
+        helper.assertTrue(dev.anjo7778.sao.item.NativeSteelSword.quality(sword.copy())==master,"Quality stored on actual item");
+        var normal=new net.minecraft.world.item.ItemStack(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get());
+        helper.assertFalse(sword.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS).equals(normal.get(net.minecraft.core.component.DataComponents.ATTRIBUTE_MODIFIERS)),"Masterwork actual damage modifiers");
+        helper.assertTrue(dev.anjo7778.sao.item.NativeSteelSword.equipment(sword).rarity()==dev.anjo7778.sao.item.NativeSteelSword.EQUIPMENT.rarity(),"Craft quality is independent of rarity");
+        var input=new java.util.ArrayList<net.minecraft.world.item.ItemStack>();
+        for(int i=0;i<36;i++)input.add(net.minecraft.world.item.ItemStack.EMPTY);
+        var steel=dev.anjo7778.sao.item.SaoItems.STEEL_INGOT.get();
+        input.set(0,new net.minecraft.world.item.ItemStack(steel,2));
+        input.set(1,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK));
+        input.set(2,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHARCOAL));
+        var after=dev.anjo7778.sao.world.ForgeService.plan(input,sword).orElseThrow();
+        helper.assertTrue(input.get(0).getCount()==2&&input.get(1).getCount()==1&&input.get(2).getCount()==1,"Planning does not mutate real ingredients");
+        helper.assertTrue(after.stream().filter(s->s.is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get())).count()==1,"One output");
+        helper.assertTrue(after.stream().noneMatch(s->s.is(steel)||s.is(net.minecraft.world.item.Items.STICK)||s.is(net.minecraft.world.item.Items.CHARCOAL)),"All inputs consumed");
+        helper.assertTrue(dev.anjo7778.sao.world.ForgeService.plan(after,sword).isEmpty(),"Cannot replay without new materials");
+        for(int i=0;i<36;i++)input.set(i,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE,64));
+        input.set(0,new net.minecraft.world.item.ItemStack(steel,3));
+        input.set(1,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK,2));
+        input.set(2,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL,2));
+        helper.assertTrue(dev.anjo7778.sao.world.ForgeService.plan(input,sword).isEmpty(),"Reject when output cannot fit");
+        helper.assertTrue(input.get(0).getCount()==3,"Failed transaction consumes nothing");
+        var progress=new dev.anjo7778.sao.world.CharacterProgressData();
+        var owner=new dev.anjo7778.sao.world.CharacterProgressData.Owner(dev.anjo7778.sao.world.CharacterProgressData.Kind.NPC,maker);
+        helper.assertTrue(progress.craft(owner,1,dev.anjo7778.sao.simulation.CharacterProgress.Mastery.BLACKSMITHING),"Actual NPC forge credit supported");
+        var restored=dev.anjo7778.sao.world.CharacterProgressData.load(progress.save(new CompoundTag(),helper.getLevel().registryAccess()),helper.getLevel().registryAccess());
+        helper.assertTrue(restored.state(owner).equals(progress.state(owner)),"NPC craft window survives save");
+        helper.succeed();
+    }
 }

@@ -55,5 +55,15 @@
   "item.sao.steel_sword": "Aincrad Steel Sword",
   "tooltip.sao.steel_sword": "Steel · Common",
   "tooltip.sao.weapon_quality_standard": "Craftsmanship: Standard",
-  "tooltip.sao.weapon_grip_one": "One-handed sword"
+  "tooltip.sao.weapon_grip_one": "One-handed sword",
+  "tooltip.sao.weapon_quality": "Craftsmanship: %s",
+  "tooltip.sao.forged_by": "Forged by %s",
+  "quality.sao.poor": "Poor",
+  "quality.sao.standard": "Standard",
+  "quality.sao.fine": "Fine",
+  "quality.sao.excellent": "Excellent",
+  "quality.sao.masterwork": "Masterwork",
+  "message.sao.forged": "Forged %s steel sword — %s.",
+  "message.sao.forge_materials": "Forging requires two steel ingots, one stick, one coal or charcoal, and inventory space.",
+  "message.sao.forge_unavailable": "A working smith and forge are required: an anvil and nearby furnace in a safe settlement."
 }

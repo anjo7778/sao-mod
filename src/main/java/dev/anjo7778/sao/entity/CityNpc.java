@@ -274,6 +274,11 @@ public final class CityNpc extends PathfinderMob {
             &&!level.getBlockState(pos.below()).getCollisionShape(level,pos.below()).isEmpty();
     }
     @Override protected InteractionResult mobInteract(Player player,InteractionHand hand){
+        if(hand==InteractionHand.MAIN_HAND&&player.isShiftKeyDown()&&displayOccupation()==Occupation.BLACKSMITH
+            &&player.getItemInHand(hand).is(dev.anjo7778.sao.item.SaoItems.STEEL_INGOT.get())){
+            if(player instanceof ServerPlayer p)ForgeService.commission(p,this);
+            return level().isClientSide?InteractionResult.SUCCESS:InteractionResult.CONSUME;
+        }
         if(!player.getItemInHand(hand).isEmpty())return InteractionResult.PASS;
         if(level().isClientSide)return InteractionResult.SUCCESS;
         if(!(player instanceof ServerPlayer p)||profile==null||hand!=InteractionHand.MAIN_HAND)return InteractionResult.PASS;
