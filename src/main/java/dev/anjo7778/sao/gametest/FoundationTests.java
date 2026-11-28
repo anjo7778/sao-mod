@@ -640,16 +640,16 @@ public final class FoundationTests {
 
     @GameTest(template="empty")
     public static void tinDepositBoundaries(GameTestHelper helper){
-        var plan=dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,256,256);
+        var plan=dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,384,384);
         helper.assertTrue(!plan.isEmpty()&&plan.size()<=24,"Bounded natural deposits");
-        helper.assertTrue(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,256,256)),"Seed deterministic");
-        helper.assertFalse(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(43,1,256,256)),"Seed affects deposits");
-        for(var point:plan)helper.assertTrue(point.x()>=256&&point.x()<272&&point.z()>=256&&point.z()<272&&point.y()>=6,"Chunk local and underground");
+        helper.assertTrue(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,384,384)),"Seed deterministic");
+        helper.assertFalse(plan.equals(dev.anjo7778.sao.simulation.TinDeposits.plan(43,1,384,384)),"Seed affects deposits");
+        for(var point:plan)helper.assertTrue(point.x()>=384&&point.x()<400&&point.z()>=384&&point.z()<400&&point.y()>=6,"Chunk local and underground");
         helper.assertTrue(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,0,0).isEmpty(),"Capital protected");
         helper.assertTrue(dev.anjo7778.sao.simulation.TinDeposits.plan(42,1,4096,4096).isEmpty(),"Void protected");
         for(long floor=2;floor<=9;floor++){
             var c=dev.anjo7778.sao.simulation.FloorLayout.center(floor);
-            var p=dev.anjo7778.sao.simulation.TinDeposits.plan(42,floor,c.x()+256,c.z()+256);
+            var p=dev.anjo7778.sao.simulation.TinDeposits.plan(42,floor,c.x()+384,c.z()+384);
             helper.assertTrue((floor<=8)==!p.isEmpty(),"Intended tin floor limit "+floor);
         }
         helper.assertTrue(dev.anjo7778.sao.item.SaoItems.TIN_ORE.get() instanceof net.minecraft.world.item.BlockItem,"Actual ore block item");
