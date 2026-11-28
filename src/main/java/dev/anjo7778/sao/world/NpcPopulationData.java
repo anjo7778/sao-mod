@@ -19,6 +19,19 @@ public final class NpcPopulationData extends SavedData {
     private final Map<Region,LinkedHashMap<UUID,State>> regions=new LinkedHashMap<>();
     private final Map<UUID,AdventurerMarket.Wallet> wallets=new HashMap<>();
     private final Map<UUID,AdventurerMarket.Shop> shops=new HashMap<>();
+    private final Map<Long,AdventurerMarket.Treasury> treasuries=new HashMap<>();
+    public AdventurerMarket.Treasury treasury(long floor){return treasuries.getOrDefault(floor,AdventurerMarket.NEW_TREASURY);}
+    /** Settlement of a newly completed authoritative scouting trip, not an arbitrary quest reward. */
+    public int settleScouting(long floor,UUID id,int before,int after){
+        var capital=floors.get(floor);if(capital==null)return 0;
+        var state=capital.get(id);
+        if(state==null||state.profile().occupation()!=Occupation.ADVENTURER)return 0;
+        var c=AdventurerMarket.commission(wallet(state.profile()),treasury(floor),before,after);
+        if(c==null)return 0;
+        wallets.put(id,c.wallet());treasuries.put(floor,c.treasury());
+        capital.put(id,state.withNeeds(AdventurerMarket.wear(state.needs(),4)));
+        setDirty();return c.paid();
+    }
     public AdventurerMarket.Wallet wallet(Profile p){
         if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Not an adventurer");
         return wallets.getOrDefault(p.id(),AdventurerMarket.NEW_WALLET);
@@ -38,10 +51,16 @@ public final class NpcPopulationData extends SavedData {
             ||NpcRoutine.resting(b.profile(),time)||AdventurerMarket.forRole(s.profile().occupation())==null)return false;
         var sellerPlan=NpcDailyPlan.at(s,time);
         if(sellerPlan.activity()!=NpcDailyPlan.Activity.WORK||!sellerPlan.destination().equals(destination))return false;
-        var sale=AdventurerMarket.buy(b.needs(),wallet(b.profile()),shop(s.profile()),epoch,observed);
+        var w=wallet(b.profile());var stock=shop(s.profile());var treasury=treasury(floor);
+        if(epoch<=w.lastEpoch()||!AdventurerMarket.canOffer(b.needs(),w,stock,treasury))return false;
+        AdventurerMarket.Restock restock=stock.remaining()==0?AdventurerMarket.restock(stock,treasury):null;
+        if(restock!=null)stock=restock.shop();
+        var sale=AdventurerMarket.buy(b.needs(),w,stock,epoch,observed);
         if(sale==null)return false;
         capital.put(buyer,b.withNeeds(sale.needs()));
-        wallets.put(buyer,sale.wallet());shops.put(seller,sale.shop());setDirty();return true;
+        wallets.put(buyer,sale.wallet());shops.put(seller,sale.shop());
+        if(restock!=null)treasuries.put(floor,restock.treasury());
+        setDirty();return true;
     }
     public boolean discoverRegional(long floor,RegionalSettlements.Kind kind,long seed){
         var key=new Region(floor,kind);
@@ -133,7 +152,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2&&schema!=3&&schema!=4)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3&&schema!=4&&schema!=5)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -147,6 +166,9 @@ public final class NpcPopulationData extends SavedData {
                 if(schema>=4)d.readEconomy(list.getCompound(k),s.profile());
             }
             d.floors.put(floor,roster);
+            if(schema>=5&&entry.contains("treasury",Tag.TAG_COMPOUND)){
+                var t=entry.getCompound("treasury");d.treasuries.put(floor,new AdventurerMarket.Treasury(t.getInt("supplies"),t.getInt("repairs"),t.getInt("commissions")));
+            }
         }
         if(schema>=3){
             var regional=root.getList("regions",Tag.TAG_COMPOUND);
@@ -172,11 +194,17 @@ public final class NpcPopulationData extends SavedData {
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",4);ListTag capitals=new ListTag();
+        root.putInt("schema",5);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
             ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
-            entry.put("npcs",npcs);capitals.add(entry);
+            entry.put("npcs",npcs);
+            var treasury=treasuries.get(floor);
+            if(treasury!=null){
+                var t=new CompoundTag();t.putInt("supplies",treasury.supplyReleased());t.putInt("repairs",treasury.repairReleased());
+                t.putInt("commissions",treasury.commissions());entry.put("treasury",t);
+            }
+            capitals.add(entry);
         });
         root.put("capitals",capitals);
         ListTag regional=new ListTag();
@@ -203,21 +231,21 @@ public final class NpcPopulationData extends SavedData {
         var wallet=wallets.get(p.id());
         if(wallet!=null){
             var w=new CompoundTag();w.putInt("supply",wallet.supplyOrders());w.putInt("repair",wallet.repairOrders());
-            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());b.put("wallet",w);
+            w.putLong("lastEpoch",wallet.lastEpoch());w.putInt("observed",wallet.observedOrders());w.putInt("earned",wallet.earned());w.putInt("claimed",wallet.claimedThrough());b.put("wallet",w);
         }
-        var shop=shops.get(p.id());if(shop!=null)b.putInt("sold",shop.sold());
+        var shop=shops.get(p.id());if(shop!=null){b.putInt("sold",shop.sold());b.putInt("restocked",shop.restocked());}
         return b;
     }
     private void readEconomy(CompoundTag b,Profile p){
         if(b.contains("wallet",Tag.TAG_COMPOUND)){
             if(p.occupation()!=Occupation.ADVENTURER)throw new IllegalArgumentException("Wallet role mismatch");
             var w=b.getCompound("wallet");
-            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed")));
+            wallets.put(p.id(),new AdventurerMarket.Wallet(w.getInt("supply"),w.getInt("repair"),w.getLong("lastEpoch"),w.getInt("observed"),w.getInt("earned"),w.getInt("claimed")));
         }
         if(b.contains("sold",Tag.TAG_INT)){
             var service=AdventurerMarket.forRole(p.occupation());
             if(service==null)throw new IllegalArgumentException("Shop role mismatch");
-            shops.put(p.id(),new AdventurerMarket.Shop(service,b.getInt("sold")));
+            shops.put(p.id(),new AdventurerMarket.Shop(service,b.getInt("sold"),b.getInt("restocked")));
         }
     }
     private static State readState(CompoundTag b,long floor,int schema){

@@ -84,7 +84,7 @@ public final class AdventureSimulationData extends SavedData {
     public Optional<NpcSocial.Encounter> converse(NpcPopulationData population,long floor,UUID first,UUID second,long day,long epoch){
         var result=population.converse(floor,first,second,day);
         if(result.isEmpty()||!result.get().friendly())return result;
-        var a=ledger(floor,first);var b=ledger(floor,second);
+        var a=ledger(population.state(floor,first));var b=ledger(population.state(floor,second));
         if(a==null||b==null||a.trip().active()||b.trip().active())return result;
         var ja=a.journal().learn(b.journal());var jb=b.journal().learn(a.journal());
         var ga=AdventurerGoals.conversation(a.goal(),epoch);
@@ -176,7 +176,7 @@ public final class AdventureSimulationData extends SavedData {
                 population.updateNeeds(cursorFloor,id,new AdventurerMind.Needs(n.health(),n.supplies()-ScoutingTrip.SUPPLY_COST,
                     n.equipment(),n.partyReadiness(),n.danger()));
             }else if(CityRules.hasRegionalSettlements(level)&&next.trip().completed()>previous.trip().completed()){
-                population.updateNeeds(cursorFloor,id,AdventurerMarket.wear(s.needs(),4));
+                population.settleScouting(cursorFloor,id,previous.trip().completed(),next.trip().completed());
             }else if(CityRules.hasLandmarks(level)&&offscreen&&FloorMigration.eligible(s,next,epoch,level.getDayTime())
                 &&tryMigration(server,population,s,epoch)){
                 migrated++;

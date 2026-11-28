@@ -392,4 +392,43 @@ public final class FoundationTests {
         helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.buy(needs,poor,new dev.anjo7778.sao.simulation.AdventurerMarket.Shop(market,0),9,false)==null,"No credit or free supplies");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void guildEconomyPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var buyer=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER
+            &&!dev.anjo7778.sao.simulation.NpcRoutine.resting(s.profile(),6000)).findFirst().orElseThrow();
+        var seller=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.MERCHANT
+            &&dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,6000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.WORK).findFirst().orElseThrow();
+        var p=buyer.profile();var v=seller.profile();var reg=helper.getLevel().registryAccess();
+        helper.assertTrue(pop.settleScouting(1,p.id(),7,8)==10,"A newly completed scout earns a commission, not seven historical ones");
+        helper.assertTrue(pop.wallet(p).col()==110&&pop.wallet(p).claimedThrough()==8&&pop.treasury(1).col()==1190,"Treasury funded reward");
+        helper.assertTrue(pop.settleScouting(1,p.id(),7,8)==0&&pop.settleScouting(1,p.id(),8,10)==0,"Replay and skipped completions refused");
+        helper.assertTrue(pop.state(1,p.id()).needs().equipment()==buyer.needs().equipment()-4,"Only one expedition wear");
+        // Seed a consistent exhausted shop fixture: its initial stock was sold, and receipts are available.
+        var tag=pop.save(new CompoundTag(),reg);
+        var list=tag.getList("capitals",10).getCompound(0).getList("npcs",10);
+        for(int i=0;i<list.size();i++)if(list.getCompound(i).getUUID("id").equals(v.id()))list.getCompound(i).putInt("sold",24);
+        pop=dev.anjo7778.sao.world.NpcPopulationData.load(tag,reg);
+        var n=pop.state(1,p.id()).needs();
+        pop.updateNeeds(1,p.id(),new dev.anjo7778.sao.simulation.AdventurerMind.Needs(n.health(),10,n.equipment(),n.partyReadiness(),n.danger()));
+        var dest=dev.anjo7778.sao.simulation.NpcDailyPlan.at(seller,6000).destination();
+        long before=(long)pop.wallet(p).col()+pop.shop(v).till()+pop.treasury(1).col();
+        helper.assertTrue(pop.purchase(1,p.id(),v.id(),null,dest,6000,12,false),"Paid wholesale replenishment and retail sale");
+        helper.assertTrue(pop.shop(v).remaining()==5&&pop.shop(v).restocked()==6&&pop.shop(v).sold()==25,"Six reserve units, one consumed");
+        helper.assertTrue(pop.treasury(1).supplyReleased()==6&&pop.treasury(1).col()==1238,"Wholesale fee paid to treasury");
+        helper.assertTrue(before==(long)pop.wallet(p).col()+pop.shop(v).till()+pop.treasury(1).col(),"Conservation across three balances");
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(pop.save(new CompoundTag(),reg),reg);
+        helper.assertTrue(restored.wallet(p).equals(pop.wallet(p))&&restored.shop(v).equals(pop.shop(v))&&restored.treasury(1).equals(pop.treasury(1)),"Exact economy persistence");
+        helper.assertTrue(restored.settleScouting(1,p.id(),7,8)==0,"Saved claim prevents replay");
+        helper.assertFalse(restored.purchase(1,p.id(),v.id(),null,dest,6000,12,false),"Saved sale prevents replay");
+        var empty=new dev.anjo7778.sao.simulation.AdventurerMarket.Treasury(0,0,120);
+        var w=dev.anjo7778.sao.simulation.AdventurerMarket.NEW_WALLET;
+        var unpaid=dev.anjo7778.sao.simulation.AdventurerMarket.commission(w,empty,0,1);
+        helper.assertTrue(unpaid.paid()==0&&unpaid.wallet().claimedThrough()==1&&unpaid.wallet().col()==100,"No minted Col when empty");
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.commission(unpaid.wallet(),dev.anjo7778.sao.simulation.AdventurerMarket.NEW_TREASURY,0,1)==null,"Unfunded historical completion cannot be replayed");
+        var exhausted=new dev.anjo7778.sao.simulation.AdventurerMarket.Treasury(256,0,0);
+        var shop=new dev.anjo7778.sao.simulation.AdventurerMarket.Shop(dev.anjo7778.sao.simulation.AdventurerMarket.Service.SUPPLIES,24);
+        helper.assertTrue(dev.anjo7778.sao.simulation.AdventurerMarket.restock(shop,exhausted)==null,"No imaginary goods when reserve empty");
+        helper.succeed();
+    }
 }

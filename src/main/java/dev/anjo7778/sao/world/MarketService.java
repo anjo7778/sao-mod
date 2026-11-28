@@ -32,7 +32,7 @@ public final class MarketService {
         if(want==null)return base;
         var pop=NpcPopulationData.get(level.getServer());var p=s.profile();
         var best=local(pop,p.currentFloor(),j).stream()
-            .filter(v->v.profile().occupation()==want.seller()&&AdventurerMarket.canBuy(s.needs(),pop.wallet(p),pop.shop(v.profile())))
+            .filter(v->v.profile().occupation()==want.seller()&&AdventurerMarket.canOffer(s.needs(),pop.wallet(p),pop.shop(v.profile()),pop.treasury(p.currentFloor())))
             .min(Comparator.<State>comparingInt(v->NpcDailyPlan.at(v,time).activity()==Activity.WORK?0:1)
                 .thenComparingLong(v->{long dx=(long)v.profile().workX()+3-base.destination().x(),dz=(long)v.profile().workZ()-3-base.destination().z();return dx*dx+dz*dz;})
                 .thenComparing(v->v.profile().id())).orElse(null);
