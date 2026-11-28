@@ -54,3 +54,7 @@ Never mark a feature playable from a design document or unit test. Run Minecraft
 ## v0.2.24 foundation implementation
 
 Shared CharacterProgress and CharacterProgressData store character XP, derived levels, three unspent points per level, attribute allocations, independent weapon/profession XP tracks, and per-source replay watermarks for player and NPC identities. Provisional cumulative character XP curve 50 × (level − 1) × level; mastery curve uses 25 instead of 50. No arbitrary gameplay cap, explicit signed-long storage limit, overflow checked. All numerical bonuses are provisional and not yet applied to real combat. `/sao profile` reads the foundation state. Actual event adapters, automatic NPC point allocation, item family classification, skill trees, UI and combat attributes are not wired yet. No legacy practice converted into fictitious combat XP.
+
+## Approved Aincrad interface reference
+
+See [AINCRAD_UI.md](AINCRAD_UI.md). Use SAO Utils as the primary visual/gesture reference. Develop a functional character-menu vertical slice alongside authenticated RPG progression, then add panels only as corresponding server-authoritative systems exist. v0.2.24 build [46096137503](https://github.com/anjo7778/sao-mod/actions/runs/46096137503) passed; actual gameplay XP event sources remain pending.

@@ -28,3 +28,7 @@ Independent world rule: while the Minecraft world ticks, visited adventurers sho
 ## RPG progression and combat direction
 
 See [RPG system design](RPG_SYSTEM.md) for the agreed progression, weapon compatibility and non-hardcore defeat direction, plus the proposed combat mechanics and implementation gates. Treat numerical balance examples as provisional, and preserve working Stage 2 behavior until its replacement is runtime-tested.
+
+## Aincrad UI direction
+
+[Approved SAO Utils reference and native interface plan](AINCRAD_UI.md). Build the gesture and real character-profile vertical slice early, alongside shared RPG progression, without blocking runtime fixes or inventing unimplemented gameplay state.
