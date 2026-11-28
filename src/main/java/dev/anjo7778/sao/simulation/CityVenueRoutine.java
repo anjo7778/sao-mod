@@ -12,6 +12,7 @@ public final class CityVenueRoutine {
         Plan base=AdventureProgress.plan(s,time,ledger);
         if(!landmarks)return base;
         Profile p=s.profile();
+        if(p.regionalHome()!=null)return base;
         if(base.activity()!=Activity.TRAIN&&base.activity()!=Activity.SOCIALIZE)return base;
         boolean adventurer=p.occupation()==Occupation.ADVENTURER;
         Activity activity=base.activity();

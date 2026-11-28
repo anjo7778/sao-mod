@@ -15,17 +15,42 @@ import java.util.*;
 public final class NpcPopulationData extends SavedData {
     private static final Factory<NpcPopulationData> FACTORY=new Factory<>(NpcPopulationData::new,NpcPopulationData::load,null);
     private final NavigableMap<Long,LinkedHashMap<UUID,State>> floors=new TreeMap<>();
+    private record Region(long floor,RegionalSettlements.Kind kind){}
+    private final Map<Region,LinkedHashMap<UUID,State>> regions=new LinkedHashMap<>();
+    public boolean discoverRegional(long floor,RegionalSettlements.Kind kind,long seed){
+        var key=new Region(floor,kind);
+        if(regions.containsKey(key))return false;
+        var roster=new LinkedHashMap<UUID,State>();
+        for(var s:NpcRoster.generateRegional(seed,floor,kind))roster.put(s.profile().id(),s);
+        regions.put(key,roster);setDirty();return true;
+    }
+    public List<State> regionalRoster(long floor,RegionalSettlements.Kind kind){
+        var r=regions.get(new Region(floor,kind));return r==null?List.of():List.copyOf(r.values());
+    }
+    private LinkedHashMap<UUID,State> rosterContaining(long floor,UUID id){
+        var capital=floors.get(floor);
+        if(capital!=null&&capital.containsKey(id))return capital;
+        for(var kind:RegionalSettlements.Kind.values()){
+            var r=regions.get(new Region(floor,kind));if(r!=null&&r.containsKey(id))return r;
+        }
+        return null;
+    }
     public static NpcPopulationData get(MinecraftServer server){
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY,"sao_population");
     }
     public static void onPlayerTick(PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer p)||p.tickCount%100!=0)return;
         var level=p.serverLevel();
-        if(!CityRules.isCity(level,p.getBlockX(),p.getBlockZ()))return;
+        if(p.isSpectator()||!p.isAlive()||!CityRules.hasCities(level))return;
         long floor=FloorTravel.currentFloor(level,p.getBlockX(),p.getBlockZ());
         var server=level.getServer();
-        if(FloorLayout.supported(floor)&&SaoWorldData.get(server).isUnlocked(floor))
-            get(server).discover(floor,server.overworld().getSeed());
+        if(!FloorLayout.supported(floor)||!SaoWorldData.get(server).isUnlocked(floor))return;
+        if(CityRules.isCity(level,p.getBlockX(),p.getBlockZ()))get(server).discover(floor,server.overworld().getSeed());
+        else if(CityRules.hasRegionalSettlements(level)){
+            var c=FloorLayout.center(floor);
+            var site=RegionalSettlements.at(floor,p.getBlockX()-c.x(),p.getBlockZ()-c.z());
+            if(site!=null)get(server).discoverRegional(floor,site.kind(),server.overworld().getSeed());
+        }
     }
     public boolean discover(long floor,long seed){
         if(floors.containsKey(floor))return false;
@@ -38,7 +63,7 @@ public final class NpcPopulationData extends SavedData {
         var r=floors.get(floor);
         return r==null?List.of():List.copyOf(r.values());
     }
-    public State state(long floor,UUID id){var r=floors.get(floor);return r==null?null:r.get(id);}
+    public State state(long floor,UUID id){var r=rosterContaining(floor,id);return r==null?null:r.get(id);}
     public long nextDiscoveredFloor(long after){var next=floors.higherKey(after);return next!=null?next:floors.isEmpty()?0:floors.firstKey();}
     public int discoveredCapitals(){return floors.size();}
     /** Location is authoritative here. The lifetime ledger stays under birthFloor. */
@@ -55,15 +80,15 @@ public final class NpcPopulationData extends SavedData {
         a.remove(id);b.put(id,moved);setDirty();return true;
     }
     public boolean remember(long floor,UUID npc,Memory event){
-        var r=floors.get(floor);if(r==null||!r.containsKey(npc))return false;
+        var r=rosterContaining(floor,npc);if(r==null)return false;
         var before=r.get(npc);var after=before.remember(event);
         if(after==before)return false;
         r.put(npc,after);setDirty();return true;
     }
     /** Commit both perspectives together on the server thread. No one-sided social event. */
     public Optional<NpcSocial.Encounter> converse(long floor,UUID first,UUID second,long day){
-        var r=floors.get(floor);
-        if(r==null)return Optional.empty();
+        var r=rosterContaining(floor,first);
+        if(r==null||!r.containsKey(second))return Optional.empty();
         var a=r.get(first);var b=r.get(second);
         var result=NpcSocial.offer(a,b,day);
         if(result.isEmpty())return result;
@@ -74,7 +99,7 @@ public final class NpcPopulationData extends SavedData {
         return result;
     }
     public boolean updateNeeds(long floor,UUID npc,Needs needs){
-        var r=floors.get(floor);if(r==null||!r.containsKey(npc))return false;
+        var r=rosterContaining(floor,npc);if(r==null)return false;
         var before=r.get(npc);
         if(before.needs().equals(needs))return false;
         r.put(npc,before.withNeeds(needs));setDirty();return true;
@@ -82,7 +107,7 @@ public final class NpcPopulationData extends SavedData {
 
     public static NpcPopulationData load(CompoundTag root,HolderLookup.Provider registries){
         int schema=root.getInt("schema");
-        if((schema!=1&&schema!=2)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
+        if((schema!=1&&schema!=2&&schema!=3)||!root.contains("capitals",Tag.TAG_LIST))throw new IllegalArgumentException("Unknown population schema");
         var d=new NpcPopulationData();var all=root.getList("capitals",Tag.TAG_COMPOUND);var identities=new HashSet<UUID>();
         for(int i=0;i<all.size();i++){
             var entry=all.getCompound(i);long floor=entry.getLong("floor");
@@ -92,20 +117,47 @@ public final class NpcPopulationData extends SavedData {
             var roster=new LinkedHashMap<UUID,State>();
             for(int k=0;k<list.size();k++){
                 var s=readState(list.getCompound(k),floor,schema);
-                if(!identities.add(s.profile().id())||roster.put(s.profile().id(),s)!=null)throw new IllegalArgumentException("Duplicate identity");
+                if(s.profile().regionalHome()!=null||!identities.add(s.profile().id())||roster.put(s.profile().id(),s)!=null)throw new IllegalArgumentException("Invalid capital identity");
             }
             d.floors.put(floor,roster);
+        }
+        if(schema>=3){
+            var regional=root.getList("regions",Tag.TAG_COMPOUND);
+            for(int i=0;i<regional.size();i++){
+                var entry=regional.getCompound(i);long floor=entry.getLong("floor");
+                var kind=RegionalSettlements.Kind.valueOf(entry.getString("kind"));
+                var key=new Region(floor,kind);
+                if(!FloorLayout.supported(floor)||d.regions.containsKey(key))throw new IllegalArgumentException("Invalid regional record");
+                var list=entry.getList("npcs",Tag.TAG_COMPOUND);
+                var site=RegionalSettlements.site(floor,kind);
+                if(list.size()!=RegionalSettlements.buildings(site).size())throw new IllegalArgumentException("Invalid regional population");
+                var roster=new LinkedHashMap<UUID,State>();
+                var homes=new HashSet<List<Integer>>();
+                for(int k=0;k<list.size();k++){
+                    var s=readState(list.getCompound(k),floor,schema);var p=s.profile();
+                    if(!site.equals(p.regionalHome())||!homes.add(List.of(p.homeX(),p.homeZ()))||!identities.add(p.id())||roster.put(p.id(),s)!=null)
+                        throw new IllegalArgumentException("Invalid regional identity");
+                }
+                d.regions.put(key,roster);
+            }
         }
         return d;
     }
     @Override public CompoundTag save(CompoundTag root,HolderLookup.Provider registries){
-        root.putInt("schema",2);ListTag capitals=new ListTag();
+        root.putInt("schema",3);ListTag capitals=new ListTag();
         floors.forEach((floor,roster)->{
             CompoundTag entry=new CompoundTag();entry.putLong("floor",floor);
             ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
             entry.put("npcs",npcs);capitals.add(entry);
         });
-        root.put("capitals",capitals);return root;
+        root.put("capitals",capitals);
+        ListTag regional=new ListTag();
+        regions.forEach((key,roster)->{
+            CompoundTag entry=new CompoundTag();entry.putLong("floor",key.floor());entry.putString("kind",key.kind().name());
+            ListTag npcs=new ListTag();roster.values().forEach(s->npcs.add(writeState(s)));
+            entry.put("npcs",npcs);regional.add(entry);
+        });
+        root.put("regions",regional);return root;
     }
     private static CompoundTag writeState(State s){
         var p=s.profile();var n=s.needs();var t=p.personality();

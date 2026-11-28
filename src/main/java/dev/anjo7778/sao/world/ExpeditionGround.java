@@ -12,8 +12,8 @@ public final class ExpeditionGround {
     public static BlockPos walkable(ServerLevel level,long floor,int x,int z){
         var center=FloorLayout.center(floor);
         int lx=x-center.x(),lz=z-center.z();
-        if(!level.hasChunkAt(new BlockPos(x,CityPlan.GROUND+1,z))||!ScoutingTrip.inRange(floor,lx,lz))return null;
-        boolean city=CityRules.isCity(level,x,z);
+        boolean city=CityRules.isSafeZone(level,x,z);
+        if(!level.hasChunkAt(new BlockPos(x,CityPlan.GROUND+1,z))||(!city&&!ScoutingTrip.inRange(floor,lx,lz)))return null;
         int highest=city?CityPlan.GROUND+1:CityPlan.GROUND+18;
         int lowest=city?highest:CityPlan.GROUND-18;
         for(int y=highest;y>=lowest;y--){
