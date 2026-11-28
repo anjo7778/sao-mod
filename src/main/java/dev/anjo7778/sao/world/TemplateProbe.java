@@ -177,7 +177,7 @@ public final class TemplateProbe {
                 require(got.equals(expect),"Block-state mismatch "+model.style()+" at "+x+","+y+","+z+": "+got+" expected "+expect);
                 if(symbol=='h')beds++;
                 if("BCFATSLJ".indexOf(symbol)>=0)fixtures++;
-                if(symbol=='l')require(got.canSurvive(level,pos),"Unsupported lantern "+pos);
+                if(symbol=='l'||symbol=='H')require(got.canSurvive(level,pos),"Unsupported lantern "+pos);
                 compared++;
             }
             if("=+i".indexOf(ground)>=0&&model.at(x,1,z)=='.'&&model.at(x,2,z)=='.'){
@@ -192,7 +192,7 @@ public final class TemplateProbe {
         npc.moveTo(x0+.5,y0+1,z0-hd-1+.5,0,0);npc.setOnGround(true);
         var path=npc.getNavigation().createPath(new BlockPos(x0+3,y0+1,z0-3),0);
         require(path!=null&&path.canReach(),"Actual NPC path to destination failed "+model.style());
-        require(light>=4,"Too dark: "+model.style()+" minimum block light "+light);
+        require(light>=6,"Too dark: "+model.style()+" minimum block light "+light);
         LOG.info("SAO_TEMPLATE_MODEL_OK floor={} style={} cells={} fixtures={} beds={} walkable={} minBlockLight={} path=true",floor,model.style(),compared,fixtures,beds,walkable,light);
     }
     private static void action(Minecraft c,java.util.function.Consumer<ServerPlayer> a){

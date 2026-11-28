@@ -30,7 +30,7 @@ public final class BuildingTemplateChecks{
                 char ground=b.at(x,0,z);
                 char first=b.at(x,1,z);
                 if(walk(b,x,z))check(reached.contains(new P(x,z)),"Inaccessible walkable interior "+style+" "+x+","+z);
-                if(ground=='+'||b.at(x,2,z)=='l')lights++;
+                if(ground=='+'||b.at(x,2,z)=='l'||b.at(x,3,z)=='H')lights++;
                 if(first=='h'){heads++;check(b.at(x,1,z-1)=='b',"Unpaired head "+style);}
                 if(first=='b'){feet++;check(b.at(x,1,z+1)=='h',"Unpaired foot "+style);}
                 if("BCFATbhSLJ".indexOf(first)>=0){
@@ -44,6 +44,14 @@ public final class BuildingTemplateChecks{
                     fixtures++;
                 }
                 if(b.at(x,2,z)=='l')check(first=='T',"Floating lantern");
+                if(b.at(x,3,z)=='H')check(b.at(x,4,z)=='x',"Unsupported hanging light");
+                if(ground!='.'&&(Math.abs(x)==hw-1||Math.abs(z)==hd-1)){
+                    for(int y=1;y<b.height();y++){
+                        if(b.at(x,y,z)=='r'||b.at(x,y,z)=='k')break;
+                        if(z==-hd+1&&Math.abs(x)<=1&&y<=3)continue;
+                        check(b.at(x,y,z)!='.',"Unintended wall gap "+style+" "+x+","+y+","+z);
+                    }
+                }
                 if(ground!='.'){
                     boolean cover=false;
                     for(int y=4;y<b.height();y++)if(b.at(x,y,z)=='r'||b.at(x,y,z)=='k'){cover=true;break;}

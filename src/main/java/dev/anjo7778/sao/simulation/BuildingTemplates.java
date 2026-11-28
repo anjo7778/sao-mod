@@ -8,7 +8,7 @@ import static dev.anjo7778.sao.simulation.CityArchitecture.Style;
 /** Immutable fixed building layers. No random geometry, furniture placement, or per-lot construction rules. */
 public final class BuildingTemplates {
     public static final int MAX_HEIGHT=28;
-    public static final String SYMBOLS=".=#wpxzrgk+<>v^lBCFATbhSiLJ";
+    public static final String SYMBOLS=".=#wpxzrgk+<>v^lBCFATbhSiLJH";
     public record Blueprint(Style style,int width,int height,int depth,char[][][] layers){
         public int halfWidth(){return width/2;}
         public int halfDepth(){return depth/2;}
