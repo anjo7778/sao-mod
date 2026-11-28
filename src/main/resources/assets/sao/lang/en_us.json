@@ -65,5 +65,7 @@
   "quality.sao.masterwork": "Masterwork",
   "message.sao.forged": "Forged %s steel sword — %s.",
   "message.sao.forge_materials": "Forging requires two steel ingots, one stick, one coal or charcoal, and inventory space.",
-  "message.sao.forge_unavailable": "A working smith and forge are required: an anvil and nearby furnace in a safe settlement."
+  "message.sao.forge_unavailable": "A working smith and forge are required: an anvil and nearby furnace in a safe settlement.",
+  "key.sao.guard": "Sword Guard / Parry",
+  "key.sao.dodge": "Sword Dodge"
 }
