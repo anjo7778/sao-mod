@@ -66,7 +66,8 @@ public final class NpcEquipmentService {
     public static boolean tick(CityNpc buyer,ServerLevel level){
         if(!buyer.boundAdventurer()||!buyer.isAlive()||!CityRules.hasRegionalSettlements(level))return false;
         var pop=NpcPopulationData.get(level.getServer());var s=pop.state(buyer.originFloor(),buyer.getUUID());
-        if(s==null||AdventureSimulationData.get(level.getServer()).journey(s).active())return false;
+        var sim=AdventureSimulationData.get(level.getServer());
+        if(s==null||sim.journey(s).active()||sim.trip(s)!=null&&sim.trip(s).active())return false;
         var offer=offer(level,s);
         if(offer==null||!buyer.matchesPlan(offer.destination())||!buyer.atScheduledDestination())return false;
         if(!(level.getEntity(offer.seller().id()) instanceof CityNpc smith)||!smith.isAlive()
@@ -103,6 +104,24 @@ public final class NpcEquipmentService {
         buyer.updateDisplayItem();
         buyer.reviewMenu(new NpcMenuReview(NpcMenuReview.Kind.PURCHASE,offer.item().getHoverName().getString()+"|"+offer.price()+" Col"));
         return true;
+    }
+    /** Avoid consuming the final steel ingot for other production while a qualified,
+     * physically present repair customer can transact this epoch. No distant reservation. */
+    static boolean readyRepairCustomer(CityNpc smith,ServerLevel level){
+        var pop=NpcPopulationData.get(level.getServer());
+        long epoch=Math.max(0,level.getServer().overworld().getGameTime()/AdventureProgress.EPOCH_TICKS);
+        var sim=AdventureSimulationData.get(level.getServer());
+        for(var buyer:level.getEntitiesOfClass(CityNpc.class,smith.getBoundingBox().inflate(6),n->n.boundAdventurer()&&n.isAlive())){
+            if(buyer.originFloor()!=smith.originFloor()||buyer.distanceToSqr(smith)>36||!buyer.hasLineOfSight(smith)
+                ||!buyer.atScheduledDestination())continue;
+            var s=pop.state(buyer.originFloor(),buyer.getUUID());
+            if(s==null||!NativeSteelSword.needsNpcRepair(pop.blade(buyer.getUUID()))
+                ||pop.wallet(s.profile()).lastEpoch()>=epoch||sim.journey(s).active()
+                ||sim.trip(s)!=null&&sim.trip(s).active())continue;
+            var offer=offer(level,s);
+            if(offer!=null&&offer.repair()&&offer.seller().id().equals(smith.getUUID())&&buyer.matchesPlan(offer.destination()))return true;
+        }
+        return false;
     }
     /** Server-thread transaction on the designated workshop input stock.
      * The caller establishes physical presence, fixtures and exclusive access. */
