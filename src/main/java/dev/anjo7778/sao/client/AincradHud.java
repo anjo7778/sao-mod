@@ -71,9 +71,17 @@ public final class AincradHud {
         if(combat!=null&&combat.available()&&combat.owner().equals(p.getUUID())){
             small(g,x,info,w,"STA",combat.stamina()+"/100",ratio(combat.stamina(),100),combat.stamina()<24?RED:BLUE);info+=16;
             var phase=dev.anjo7778.sao.simulation.SwordActions.Phase.values()[combat.phase()];
-            if(phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
+            var move=dev.anjo7778.sao.simulation.SwordActions.Move.values()[combat.move()];
+            if(phase==dev.anjo7778.sao.simulation.SwordActions.Phase.WINDUP||phase==dev.anjo7778.sao.simulation.SwordActions.Phase.RECOVERY){
+                text(g,move.name().replace('_',' ')+" / "+phase.name(),x+4,info+1,WHITE,w-8);info+=12;
+            }else if(phase!=dev.anjo7778.sao.simulation.SwordActions.Phase.IDLE){
                 text(g,phase.name(),x+4,info+1,WHITE,w-8);info+=12;
             }
+            if(combat.combo()>0){
+                text(g,"CHAIN "+combat.combo()+"/3",x+4,info+1,AMBER,w-8);info+=12;
+            }
+            String skill=combat.skillUnlocked()?(combat.skillCooldown()==0?"HORIZONTAL  READY":"HORIZONTAL  "+String.format(Locale.ROOT,"%.1fs",combat.skillCooldown()/20.0)):"HORIZONTAL  MASTERY 3";
+            text(g,skill,x+4,info+1,combat.skillUnlocked()&&combat.skillCooldown()==0?BLUE:WHITE,w-8);info+=12;
         }
         int food=p.getFoodData().getFoodLevel();
         if(food<20){
