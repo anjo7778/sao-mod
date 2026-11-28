@@ -60,6 +60,10 @@ public final class SaoMod {
         SaoItems.register(modBus);
         modBus.addListener(SaoItems::creativeTabs);
         modBus.addListener(ProfileNetwork::register);
+        modBus.addListener(dev.anjo7778.sao.network.CombatNetwork::register);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,dev.anjo7778.sao.world.SwordCombat::attack);
+        NeoForge.EVENT_BUS.addListener(dev.anjo7778.sao.world.SwordCombat::playerTick);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,dev.anjo7778.sao.world.SwordCombat::damage);
         NeoForge.EVENT_BUS.addListener(BoarSpawns::tick);
         NeoForge.EVENT_BUS.addListener(RpgEvents::discover);
         NeoForge.EVENT_BUS.addListener(RpgEvents::crafted);
