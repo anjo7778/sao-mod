@@ -1,7 +1,7 @@
 name: Stage 2 Sword Combo Client Probe
 on:
   push:
-    branches: ['stage2/sword-combos', 'stage2/sword-skill-loadouts', 'stage2/multi-hit-sword-skills']
+    branches: ['stage2/sword-combos', 'stage2/sword-skill-loadouts', 'stage2/multi-hit-sword-skills', 'stage2/sword-grip-and-skill-menu']
   workflow_dispatch:
 permissions:
   contents: read
