@@ -114,7 +114,14 @@ public final class SupplyProbe {
         LOG.info("SAO_SUPPLY_NATURAL_OK iron={} coal={} logs={}",iron,coal,logs);
         // This is a surface-only supply fixture. Deep extraction has its own
         // separate live probe. Remove only generated deep pockets, without drops.
-        for(var vein:GateMinePlan.veins(1,ScoutingTrip.Gate.EAST)){
+        var deepPockets=new ArrayList<>(GateMinePlan.veins(1,ScoutingTrip.Gate.EAST));
+        deepPockets.addAll(GateMineExtension.veins(1,ScoutingTrip.Gate.EAST));
+        for(var tree:GateWoodlandPlan.sites(1,ScoutingTrip.Gate.EAST))
+            for(int y=CityPlan.GROUND-20;y<=CityPlan.GROUND+16;y++){
+                var pos=new BlockPos(tree.x(),y,tree.z());
+                if(level.getBlockState(pos).is(Blocks.ROOTED_DIRT))level.setBlockAndUpdate(pos,Blocks.DIRT.defaultBlockState());
+            }
+        for(var vein:deepPockets){
             var v=vein.point();var pos=new BlockPos(v.x(),v.y(),v.z());
             level.getChunk(v.x()>>4,v.z()>>4);
             var b=level.getBlockState(pos);
