@@ -263,3 +263,59 @@ tasks.register('verifyCityPlan', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.CityPlanChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyCityPlan') }
+
+tasks.register('verifyNpcRoster', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.NpcRosterChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyNpcRoster') }
+
+tasks.register('verifyNpcDaily', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.NpcDailyChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyNpcDaily') }
+
+tasks.register('verifyNpcSocial', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.NpcSocialChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyNpcSocial') }
+
+tasks.register('verifyAdventureProgress', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.AdventureProgressChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyAdventureProgress') }
+
+tasks.register('verifyScoutingTrips', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.ScoutingTripChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyScoutingTrips') }
+
+tasks.register('verifySurveyJournals', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.SurveyJournalChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifySurveyJournals') }
+
+tasks.register('verifyCityArchitecture', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.CityArchitectureChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyCityArchitecture') }

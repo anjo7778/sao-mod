@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.0.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.8.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -27,7 +27,7 @@ You can also start a fresh build from **Actions → Build SAO Mod → Run workfl
 | ModDevGradle | 2.0.148 |
 | Mod ID | `sao` |
 | Java package | `dev.anjo7778.sao` |
-| Mod version | 0.2.0 |
+| Mod version | 0.2.8 |
 
 ## Local builds (optional)
 
@@ -67,4 +67,36 @@ Travel now accepts only open-sky, solid-surface arrival points with a walkable n
 
 ## Stage 2 city prototype
 
-New worlds only: a 608×608-block Town of Beginnings and 384×384 upper-floor capitals, generated per decorated chunk. The central plaza is the initial spawn and unlocked-floor arrival target. Four districts, walled gates, role-based building shells and basic furnishings are initial templates, not working merchants or residents. The city biome has no natural spawns; hostile spawn placement and player/enemy damage across city boundaries are restricted. Start guardian challenges outside the walls within 192 blocks of the perimeter. See [Stage 2](docs/STAGE_2.md). No NPC entities yet. v0.1.6 saves retain their original noise settings and biome source. New test world recommended.
+New worlds only: a 608×608-block Town of Beginnings and 384×384 upper-floor capitals, generated per decorated chunk. The central plaza is the initial spawn and unlocked-floor arrival target. Four districts, walled gates, role-based building shells and basic furnishings are initial templates, not working merchants or residents. The city biome has no natural spawns; hostile spawn placement and player/enemy damage across city boundaries are restricted. Start guardian challenges outside the walls within 192 blocks of the perimeter. See [Stage 2](docs/STAGE_2.md). See the NPC prototype below. v0.1.6 saves retain their original noise settings and biome source. New test world recommended.
+
+## NPC population foundation (experimental)
+
+The first visit to each unlocked capital creates persistent resident/adventurer profiles only for that capital. `/sao population` reports saved profiles. These have deterministic identities, names, occupations, assigned locations, personalities, ambitions, needs and bounded social memories. v0.2.2 adds temporary physical projections, initial schedules and greetings; actual combat, commerce, migration and abstract progression remain pending. Identity generator version 1 must not change for already-discovered capitals.
+
+## v0.2.2 NPC prototype
+
+In a generated capital, wait a few seconds: up to 32 nearby profiles materialize as humanoid mobs using local vanilla player skins. They follow initial day/night schedules and bounded local navigation, and can greet a player who right-clicks with an empty hand. Greetings persist once per NPC/player/day and influence relationships. No arbitrary language model or network skin calls. The roster is authoritative; projections are unsaved, invulnerable and carry display-only items (no drops). Unloaded/distant NPCs are not yet simulated over time. No real job output, combat, sleep animation, trade or independent expeditions; no claim of final NPC AI. New build needs runtime verification.
+
+## v0.2.3 local social life
+
+Nearby idle or preparing NPCs can hold short reciprocal conversations, stop and look at each other, and remember friendly exchanges or occasional disagreements. Each pair can meet once per elapsed in-game day, each NPC at most three such encounters per day, and at most one pair per local interaction pass. Memories persist in the existing roster schema. Only nearby players hear the short exchange; no global chat spam. Adventurers with low supplies/equipment seek a market/forge rather than receiving free goods. No actual buying, crafting or repair yet. Initial player dialogue can also reflect stored rescue memories and ambitions. All features require runtime verification.
+
+## v0.2.4 individual routines
+
+Characters have stable early/regular/late/nocturnal/flexible rest preferences with daily variation. Some stay active at night, train, socialize or seek supplies; some rest by day. Unhealthy characters prioritize recovery. This is schedule diversity only, not actual fatigue, sleeping poses, nighttime quests or combat. The project is an autonomous MMORPG adventurer simulation, not a colony-production management mod. Service NPCs support adventurers.
+
+## v0.2.5 autonomous adventurer routine simulation
+
+Visited capitals are processed in bounded round-robin batches (up to eight adventurers per 20 server ticks). Unrepresented adventurers can abstractly practice, prepare, rest and socialize while the world ticks; loaded NPCs are sampled at their actual scheduled destinations instead. Persistent practice points/ranks, fatigue and routine counts are separate from future combat XP and real items. Fatigue can override individual schedules. `/sao adventurers <floor>` reports observed simulation progress even when elsewhere. No chunk force-loading, offline time progression, retroactive reward bursts, fake inventory, dungeon discoveries or boss victories. Unvisited capitals are not allocated. Actual runtime validation pending.
+
+## v0.2.6 independent scouting
+
+Prepared adventurers can start short reconnaissance trips outside a capital on their own. Four gate directions, outbound checkpoint, nearby survey point and return checkpoint. Visible actors use loaded terrain navigation and must arrive before advancing; absent actors can complete the same stages abstractly. Persistent trip counters distinguish fully observed from abstract/mixed returns. A trip costs eight abstract supply points, has fatigue/health early-return rules and cooldown; no real items, combat rewards, dungeon discovery, guilds or boss wins yet. Actor projections remain temporary and invulnerable. `/sao adventurers <floor>` includes scouting status. New runtime verification pending.
+
+## v0.2.7 exploration knowledge
+
+Adventurers retain compact journals of surveyed gate approaches, distinguishing actual observed routes, abstract personal trips and secondhand reports. Future trips prioritize previously unvisited directions; discovery-minded and cautious characters prefer unknown and reported approaches respectively. Friendly same-floor conversations exchange only firsthand accounts. Right-click social dialogue can mention actual journal entries; `/sao recon <floor>` summarizes known reports. Old saves preserve trip totals without invented location records. Low supplies/equipment now trigger preparation at the same thresholds as scouting eligibility. Resupply still requires the later economy system; no free goods. No actual mapped dungeon locations, monster combat or loot. Runtime verification pending.
+
+## v0.2.8 detailed capital architecture
+
+Fresh Aincrad worlds use a versioned detailed capital generator, with eight role-specific styles, mixed stone/plaster/timber facades, directional stair roofs, chimneys, windows, paired beds, improved furnishings, gate lintels, masonry detailing and plaza landscaping. Uses only vanilla blocks; no resource pack or external mod required. Existing v0.2.x capital saves retain their previous generator keys and geometry; no retroactive world edits. Plot positions, sizes, doors, city limits, spawn, routes and NPC identities remain stable. Bed blocks are furnished but autonomous sleep behavior is still pending. This is a modular visual improvement, not organic urban planning or finished handcrafted cities. Runtime visual validation pending.

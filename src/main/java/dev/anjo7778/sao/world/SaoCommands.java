@@ -15,6 +15,73 @@ public final class SaoCommands {
                 ctx.getSource().sendSuccess(() -> Component.literal("SAO: highest unlocked floor " + unlocked), false);
                 return 1;
             }))
+            .then(Commands.literal("population").executes(ctx->{
+                var p=ctx.getSource().getPlayerOrException();
+                if(!CityRules.isCity(p.serverLevel(),p.getBlockX(),p.getBlockZ())){
+                    ctx.getSource().sendFailure(Component.literal("Enter a generated capital first."));return 0;
+                }
+                long floor=FloorTravel.currentFloor(p.serverLevel(),p.getBlockX(),p.getBlockZ());
+                var data=NpcPopulationData.get(p.serverLevel().getServer());
+                var roster=data.roster(floor);
+                long adventurers=roster.stream().filter(n->n.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).count();
+                ctx.getSource().sendSuccess(()->Component.literal("Capital "+floor+": "+roster.size()+" saved NPC profiles ("+adventurers+" adventurers; up to 32 nearby projected characters)"),false);
+                return 1;
+            }))
+            .then(Commands.literal("adventurers")
+                .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                    var server=ctx.getSource().getServer();
+                    if(!CityRules.hasCities(server.overworld())){
+                        ctx.getSource().sendFailure(Component.literal("Aincrad city world required."));return 0;
+                    }
+                    long floor=LongArgumentType.getLong(ctx,"floor");
+                    var roster=NpcPopulationData.get(server).roster(floor).stream()
+                        .filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
+                    if(roster.isEmpty()){ctx.getSource().sendFailure(Component.literal("No discovered adventurers on this floor."));return 0;}
+                    var data=AdventureSimulationData.get(server);
+                    long offscreen=0,practice=0,completed=0;int active=0;
+                    for(var s:roster){
+                        var l=data.ledger(floor,s.profile().id());
+                        if(l!=null){offscreen+=l.abstractUpdates();practice+=l.practice();completed+=l.trip().completed();if(l.trip().active())active++;}
+                    }
+                    final long total=offscreen,points=practice,trips=completed;final int travelling=active;
+                    ctx.getSource().sendSuccess(()->Component.literal("Floor "+floor+": "+roster.size()+" adventurers, "+total+" abstract activity updates, "+points+" practice points; "+travelling+" scouting, "+trips+" completed scouting trips."),false);
+                    roster.stream().sorted(java.util.Comparator.comparingInt((dev.anjo7778.sao.simulation.NpcRoster.State s)->{
+                        var l=data.ledger(floor,s.profile().id());return l==null?0:l.practice();
+                    }).reversed()).limit(5).forEach(s->{
+                        var l=data.ledger(floor,s.profile().id());
+                        ctx.getSource().sendSuccess(()->Component.literal(s.profile().name()+" | "+s.profile().combatClass()+" | practice rank "+(l==null?1:l.practiceRank())+
+                            " | fatigue "+(l==null?0:l.fatigue())+" | trip "+(l==null?"IDLE":l.trip().phase().name())+" | last "+(l==null?"IDLE":l.last().name())),false);
+                    });
+                    return 1;
+                })))
+            .then(Commands.literal("recon")
+                .then(Commands.argument("floor",LongArgumentType.longArg(1)).executes(ctx->{
+                    var server=ctx.getSource().getServer();
+                    long floor=LongArgumentType.getLong(ctx,"floor");
+                    if(!CityRules.hasCities(server.overworld())||!SaoWorldData.get(server).isUnlocked(floor)){
+                        ctx.getSource().sendFailure(Component.literal("Discovered, unlocked Aincrad capital required."));return 0;
+                    }
+                    var population=NpcPopulationData.get(server);
+                    var roster=population.roster(floor);
+                    if(roster.isEmpty()){ctx.getSource().sendFailure(Component.literal("No reports from this capital yet."));return 0;}
+                    var sim=AdventureSimulationData.get(server);
+                    for(var gate:dev.anjo7778.sao.simulation.ScoutingTrip.Gate.values()){
+                        int surveyed=0,observed=0,reports=0;
+                        int bit=dev.anjo7778.sao.simulation.SurveyJournal.bit(gate);
+                        for(var s:roster){
+                            var l=sim.ledger(floor,s.profile().id());
+                            if(l==null)continue;
+                            var journal=l.journal();
+                            if(journal.surveyed(gate))surveyed++;
+                            if(journal.observed(gate))observed++;
+                            if((journal.reported()&bit)!=0)reports++;
+                        }
+                        final int own=surveyed,physical=observed,heard=reports;
+                        ctx.getSource().sendSuccess(()->Component.literal(gate.name()+" gate | "+own+
+                            " personal surveys ("+physical+" physically observed), "+heard+" other adventurers informed"),false);
+                    }
+                    return 1;
+                })))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")

@@ -97,7 +97,7 @@ public final class FoundationTests {
     @GameTest(template="empty")
     public static void capitalTerrain(GameTestHelper helper){
         var access=helper.getLevel().registryAccess();
-        for(String name:new String[]{"floor_one_city","upper_floors_city"}){
+        for(String name:new String[]{"floor_one_city","upper_floors_city","floor_one_city_detail","upper_floors_city_detail"}){
             var key=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao",name));
             var settings=access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
             var density=RandomState.create(settings,access.lookupOrThrow(Registries.NOISE),42L).router().finalDensity();
@@ -108,6 +108,145 @@ public final class FoundationTests {
             }
             helper.assertTrue(density.compute(new DensityFunction.SinglePointContext(576,280,384))>0,"Castle outside capital preserved");
         }
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void npcPopulationRoundTrip(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        helper.assertTrue(data.discover(1,42),"First discovered capital");
+        helper.assertFalse(data.discover(1,43),"No regeneration of existing identities");
+        helper.assertTrue(data.discoveredCapitals()==1&&data.roster(2).isEmpty(),"No future capital allocation");
+        var npc=data.roster(1).getFirst();var id=npc.profile().id();
+        var actor=new java.util.UUID(1,4);
+        var memory=new dev.anjo7778.sao.simulation.AdventurerMind.Memory(new java.util.UUID(4,5),actor,3,dev.anjo7778.sao.simulation.AdventurerMind.EventType.RESCUED);
+        helper.assertTrue(data.remember(1,id,memory),"Memory stored");
+        helper.assertFalse(data.remember(1,id,memory),"Duplicate refused");
+        helper.assertTrue(data.updateNeeds(1,id,new dev.anjo7778.sao.simulation.AdventurerMind.Needs(10,100,100,100,0)),"Needs updated");
+        var registries=helper.getLevel().registryAccess();
+        var loaded=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),registries),registries);
+        helper.assertTrue(loaded.roster(1).equals(data.roster(1)),"Full roster persisted");
+        helper.assertTrue(loaded.roster(1).getFirst().relationship(actor).trust()==75,"Social memory survived");
+        helper.assertTrue(loaded.roster(1).getFirst().choose()==dev.anjo7778.sao.simulation.AdventurerMind.Action.REST,"Needs survived");
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void cityNpcEntity(GameTestHelper helper){
+        var level=helper.getLevel();
+        var state=dev.anjo7778.sao.simulation.NpcRoster.generate(42,1).getFirst();
+        var npc=dev.anjo7778.sao.entity.SaoEntities.CITY_NPC.get().create(level);
+        helper.assertTrue(npc!=null,"Entity type registered");
+        npc.bind(state);
+        helper.assertTrue(npc.getUUID().equals(state.profile().id()),"Entity uses profile identity");
+        helper.assertTrue(npc.getCustomName().getString().equals(state.profile().name()),"Entity has persistent profile name");
+        helper.assertTrue(npc.getMaxHealth()==20,"Attributes registered");
+        helper.assertTrue(!npc.getType().canSerialize(),"Projection does not persist separately");
+        npc.discard();
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void reciprocalSocialMemory(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        data.discover(1,42);data.discover(2,42);
+        var roster=data.roster(1);
+        java.util.UUID first=null,second=null;
+        dev.anjo7778.sao.simulation.NpcSocial.Encounter encounter=null;
+        outer:for(var a:roster)for(var b:roster){
+            var e=data.converse(1,a.profile().id(),b.profile().id(),5);
+            if(e.isPresent()){first=a.profile().id();second=b.profile().id();encounter=e.get();break outer;}
+        }
+        helper.assertTrue(encounter!=null,"A social pair accepted");
+        helper.assertTrue(data.state(1,first).memories().contains(encounter.first()),"First memory");
+        helper.assertTrue(data.state(1,second).memories().contains(encounter.second()),"Second memory");
+        helper.assertTrue(data.converse(1,first,second,5).isEmpty(),"Duplicate rejected");
+        helper.assertTrue(data.converse(1,first,data.roster(2).getFirst().profile().id(),5).isEmpty(),"Cross-floor rejected");
+        var registries=helper.getLevel().registryAccess();
+        var restored=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),registries),registries);
+        helper.assertTrue(restored.roster(1).equals(data.roster(1)),"Both perspectives persist");
+        helper.assertTrue(restored.converse(1,second,first,5).isEmpty(),"Reload prevents replay");
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void individualNightRoutines(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.NpcPopulationData();
+        data.discover(1,42);
+        int awake=0,rest=0,dayRest=0;
+        for(var s:data.roster(1)){
+            if(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,18000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.REST)rest++;
+            else awake++;
+            if(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,6000).activity()==dev.anjo7778.sao.simulation.NpcDailyPlan.Activity.REST)dayRest++;
+        }
+        helper.assertTrue(awake>0&&rest>0&&dayRest>0,"Not a universal bedtime");
+        var r=helper.getLevel().registryAccess();
+        var loaded=dev.anjo7778.sao.world.NpcPopulationData.load(data.save(new CompoundTag(),r),r);
+        for(var s:data.roster(1)){
+            var other=loaded.state(1,s.profile().id());
+            helper.assertTrue(dev.anjo7778.sao.simulation.NpcDailyPlan.at(s,18000).equals(dev.anjo7778.sao.simulation.NpcDailyPlan.at(other,18000)),"Routine preserved after serialization");
+        }
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void adventureLedgerRoundTrip(GameTestHelper helper){
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        var id=new java.util.UUID(8,9);
+        var mode=dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE;
+        helper.assertFalse(data.update(1,id,20,mode,true),"Discovery initializes without retroactive reward");
+        helper.assertTrue(data.update(1,id,21,mode,true),"Abstract update");
+        helper.assertFalse(data.update(1,id,21,mode,true),"Duplicate epoch rejected");
+        var ledger=data.ledger(1,id);
+        helper.assertTrue(ledger.practice()==1&&ledger.abstractUpdates()==1&&ledger.fatigue()==12,"Practice and fatigue recorded");
+        var r=helper.getLevel().registryAccess();
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(data.save(new CompoundTag(),r),r);
+        helper.assertTrue(ledger.equals(restored.ledger(1,id)),"Progress persists");
+        helper.assertFalse(restored.update(1,id,21,mode,true),"Saved epoch prevents replay");
+        helper.assertTrue(restored.update(1,id,10000,mode,false),"Single bounded later update");
+        helper.assertTrue(restored.ledger(1,id).practice()==2&&restored.ledger(1,id).abstractUpdates()==1,"No backlog reward");
+        helper.assertTrue(restored.ledger(2,id)==null,"No unrelated floor allocation");
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void legacyAdventureLedger(GameTestHelper helper){
+        var id=new java.util.UUID(12,13);
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        data.update(1,id,1,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE,true);
+        data.update(1,id,2,dev.anjo7778.sao.simulation.AdventureProgress.Mode.PRACTICE,true);
+        var r=helper.getLevel().registryAccess();
+        var n=data.save(new CompoundTag(),r);
+        n.putInt("schema",1);
+        n.getList("capitals",10).getCompound(0).getList("npcs",10).getCompound(0).remove("trip");
+        var loaded=dev.anjo7778.sao.world.AdventureSimulationData.load(n,r);
+        var l=loaded.ledger(1,id);
+        helper.assertTrue(l.practice()==1&&l.abstractUpdates()==1&&!l.trip().active(),"Old ledger migrates without losing progress");
+        helper.succeed();
+    }
+    @GameTest(template="empty")
+    public static void surveyKnowledgePersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();
+        pop.discover(1,42);pop.discover(2,42);
+        var roster=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
+        var first=roster.get(0);var second=roster.stream().filter(s->dev.anjo7778.sao.simulation.NpcSocial.offer(first,s,7).map(e->e.friendly()).orElse(false)).findFirst().orElseThrow();
+        var a=first.profile().id();var b=second.profile().id();
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        var idle=dev.anjo7778.sao.simulation.AdventureProgress.Mode.IDLE;
+        data.update(1,a,10,idle,true);data.update(1,b,10,idle,true);
+        var r=helper.getLevel().registryAccess();var tag=data.save(new CompoundTag(),r);
+        var list=tag.getList("capitals",10).getCompound(0).getList("npcs",10);
+        for(int i=0;i<list.size();i++){
+            var entry=list.getCompound(i);
+            entry.putIntArray("journal",entry.getUUID("id").equals(a)?new int[]{1,1,0}:new int[]{2,0,0});
+        }
+        var loaded=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,r);
+        helper.assertTrue(loaded.converse(pop,1,a,b,7).isPresent(),"Accepted conversation");
+        var ja=loaded.ledger(1,a).journal();var jb=loaded.ledger(1,b).journal();
+        helper.assertTrue(ja.surveyed()==1&&ja.observed()==1&&ja.reported()==2,"First firsthand and peer report");
+        helper.assertTrue(jb.surveyed()==2&&jb.observed()==0&&jb.reported()==1,"Peer observation not promoted");
+        helper.assertTrue(loaded.converse(pop,1,a,b,7).isEmpty(),"No repeat contact");
+        helper.assertTrue(loaded.converse(pop,1,a,pop.roster(2).getFirst().profile().id(),7).isEmpty(),"No cross-floor exchange");
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(loaded.save(new CompoundTag(),r),r);
+        helper.assertTrue(ja.equals(restored.ledger(1,a).journal())&&jb.equals(restored.ledger(1,b).journal()),"Journals persist");
+        var schema2=loaded.save(new CompoundTag(),r);schema2.putInt("schema",2);
+        var legacy=dev.anjo7778.sao.world.AdventureSimulationData.load(schema2,r);
+        helper.assertTrue(legacy.ledger(1,a).journal().equals(dev.anjo7778.sao.simulation.SurveyJournal.EMPTY),"Old save does not invent directional knowledge");
+        helper.assertTrue(legacy.ledger(1,a).trip().equals(loaded.ledger(1,a).trip()),"Existing trips retained");
         helper.succeed();
     }
 }

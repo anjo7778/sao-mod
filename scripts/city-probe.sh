@@ -15,7 +15,10 @@ while ((SECONDS<deadline)); do
         grep -q 'SAO_CITY_BLOCKS_OK floor=2' "$log"
         grep -q 'SAO_CITY_SAFE_ZONE_OK' "$log"
         grep -q 'SAO_CITY_GUARDIAN_AND_UPPER_OK' "$log"
-        test "$(find run-city/city-probe -name '*.png' | wc -l)" -eq 4
+        grep -q 'SAO_CITY_DETAIL_OK floor=1' "$log"
+        grep -q 'SAO_CITY_DETAIL_OK floor=2' "$log"
+        grep -q 'SAO_CITY_NPCS_OK' "$log"
+        test "$(find run-city/city-probe -name '*.png' | wc -l)" -eq 6
         grep 'SAO_CITY_' "$log"
         exit 0
     fi

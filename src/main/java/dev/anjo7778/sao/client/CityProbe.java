@@ -2,6 +2,12 @@ package dev.anjo7778.sao.client;
 
 import com.mojang.logging.LogUtils;
 import dev.anjo7778.sao.simulation.CityPlan;
+import dev.anjo7778.sao.simulation.CityArchitecture;
+import dev.anjo7778.sao.entity.CityNpc;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import dev.anjo7778.sao.world.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -41,7 +47,7 @@ public final class CityProbe {
     private CityProbe(){}
 
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
-        if(!ENABLED||phase==5)return;
+        if(!ENABLED||phase==8)return;
         Minecraft c=Minecraft.getInstance();
         if(phase==0&&c.screen instanceof TitleScreen title){
             if(Files.exists(c.gameDirectory.toPath().resolve("saves/sao-city-test")))throw new IllegalStateException("Fresh test save required");
@@ -50,6 +56,7 @@ public final class CityProbe {
             var preset=ResourceKey.create(Registries.WORLD_PRESET,ResourceLocation.fromNamespaceAndPath("sao","aincrad"));
             var rules=new GameRules();
             rules.getRule(GameRules.RULE_DOMOBSPAWNING).set(false,null);
+            rules.getRule(GameRules.RULE_DAYLIGHT).set(false,null);
             c.createWorldOpenFlows().createFreshLevel("sao-city-test",
                 new LevelSettings("SAO city test",GameType.CREATIVE,false,Difficulty.NORMAL,true,rules,WorldDataConfiguration.DEFAULT),
                 new WorldOptions(42L,true,false),
@@ -65,7 +72,7 @@ public final class CityProbe {
                 if(!c.player.onGround()||Math.abs(c.player.getX())>16||Math.abs(c.player.getZ())>16||Math.abs(c.player.getY()-97)>1)
                     throw new IllegalStateException("Player did not spawn in the plaza: "+c.player.position());
                 c.options.hideGui=true;
-                capture(c,"01-spawn");
+
                 action(c,p->{
                     verifyCapital(p.serverLevel(),1);
                     if(FloorGuardian.challenge(p)!=0)throw new IllegalStateException("Guardian accepted in safe city");
@@ -81,17 +88,38 @@ public final class CityProbe {
                         throw new IllegalStateException("City damage not blocked");
                     villager.discard();
                     LOG.info("SAO_CITY_SAFE_ZONE_OK");
-                    point(p,12.5,130,-18.5,-45,20,true);
+                    p.serverLevel().setDayTime(6000);
+                    point(p,.5,97,8.5,180,0,false);
                 });
                 phase=2;
             }
             case 2 -> {
-                capture(c,"02-capital-overview");
-                action(c,p->point(p,48.5,98,24.5,0,0,true));
+                capture(c,"01-plaza-and-arch");
+                action(c,p->{
+                    var npcs=p.serverLevel().getEntitiesOfClass(CityNpc.class,p.getBoundingBox().inflate(104),CityNpc::isAlive);
+                    if(npcs.isEmpty()||npcs.size()>NpcPresence.CAP)throw new IllegalStateException("NPC presence regression");
+                    LOG.info("SAO_CITY_NPCS_OK count={}",npcs.size());
+                    point(p,12.5,155,-18.5,-45,28,true);
+                });
                 phase=3;
             }
             case 3 -> {
+                capture(c,"02-capital-overview");
+                action(c,p->point(p,48.5,98,24.5,0,0,true));
+                phase=4;
+            }
+            case 4 -> {
                 capture(c,"03-street-and-building");
+                action(c,p->point(p,48.5,98.5,37.5,0,3,true));
+                phase=5;
+            }
+            case 5 -> {
+                capture(c,"04-furnished-forge");
+                action(c,p->point(p,290.5,108,12.5,-90,9,true));
+                phase=6;
+            }
+            case 6 -> {
+                capture(c,"05-gate-and-walls");
                 action(c,p->{
                     var level=p.serverLevel();
                     boolean moved=false;
@@ -112,14 +140,14 @@ public final class CityProbe {
                     verifyCapital(p.serverLevel(),2);
                     LOG.info("SAO_CITY_GUARDIAN_AND_UPPER_OK");
                 });
-                phase=4;
+                phase=7;
             }
-            case 4 -> {
+            case 7 -> {
                 if(!c.level.dimension().equals(FloorTravel.UPPER)||Math.abs(c.player.getY()-97)>1)
                     throw new IllegalStateException("Incorrect arrival");
-                capture(c,"04-upper-capital-arrival");
+                capture(c,"06-upper-capital-arrival");
                 LOG.info("SAO_CITY_PROBE_PASS");
-                phase=5;
+                phase=8;
             }
             default -> {}
         }
@@ -127,6 +155,7 @@ public final class CityProbe {
 
     private static void verifyCapital(ServerLevel level,long floor){
         int y=CityPlan.GROUND;
+        if(!(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen)||!gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_DETAIL:FloorTravel.UPPER_CITY_DETAIL))throw new IllegalStateException("Wrong architecture version");
         for(int[] pos:new int[][]{{0,0},{0,80},{48,48},{48,31},{63,48},{30,CityPlan.half(floor)-1},{0,CityPlan.half(floor)-1}})
             level.getChunk(pos[0]>>4,pos[1]>>4);
         var capital=ResourceKey.create(Registries.BIOME,ResourceLocation.fromNamespaceAndPath("sao","capital"));
@@ -145,6 +174,23 @@ public final class CityProbe {
         int h=CityPlan.half(floor);
         if(level.getBlockState(new BlockPos(30,y+4,h-1)).isAir()||
             !level.getBlockState(new BlockPos(0,y+2,h-1)).isAir())throw new IllegalStateException("Missing wall/gate");
+        int bx=plot.x()-plot.width()+3,bz=plot.z()+plot.depth()-3;
+        level.getChunk(bx>>4,bz>>4);level.getChunk(bx>>4,(bz-1)>>4);
+        var head=level.getBlockState(new BlockPos(bx,y+1,bz));
+        var foot=level.getBlockState(new BlockPos(bx,y+1,bz-1));
+        if(!(head.getBlock() instanceof BedBlock)||head.getValue(BedBlock.PART)!=BedPart.HEAD||
+            !(foot.getBlock() instanceof BedBlock)||foot.getValue(BedBlock.PART)!=BedPart.FOOT)
+            throw new IllegalStateException("Missing actual bed pair: "+head+" / "+foot);
+        boolean alongZ=CityArchitecture.ridgeAlongZ(plot);
+        int rx=alongZ?plot.x()-plot.width():plot.x(),rz=alongZ?plot.z():plot.z()-plot.depth();
+        level.getChunk(rx>>4,rz>>4);
+        var roof=level.getBlockState(new BlockPos(rx,y+CityArchitecture.roofY(plot,rx-plot.x(),rz-plot.z()),rz));
+        if(!(roof.getBlock() instanceof StairBlock))throw new IllegalStateException("Missing sloped stair roof: "+roof);
+        if(level.getBlockState(new BlockPos(0,y+8,h-1)).isAir())
+            throw new IllegalStateException("Missing gate lintel");
+        if(level.getBlockState(new BlockPos(0,y+8,-28)).isAir())
+            throw new IllegalStateException("Missing plaza arch");
+        LOG.info("SAO_CITY_DETAIL_OK floor={} style={} bed={} roof={}",floor,CityArchitecture.style(plot),head,roof);
         LOG.info("SAO_CITY_BLOCKS_OK floor={} role={}",floor,plot.role());
     }
 

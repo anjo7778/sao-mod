@@ -16,12 +16,15 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
     public CapitalFeature(){super(NoneFeatureConfiguration.CODEC);}
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx){
         if(!(ctx.chunkGenerator() instanceof NoiseBasedChunkGenerator gen))return false;
-        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY);
-        if(!upper&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
+        boolean detailed=gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
+        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
+        if(!upper&&!detailed&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
         int ox=ctx.origin().getX()&~15,oz=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(ox,oz):1;
         if(!FloorLayout.supported(floor))return false;
-        var palette=palette(FloorCatalog.themeFor(floor));
+        var theme=FloorCatalog.themeFor(floor);
+        var palette=palette(theme);
+        var detail=detailed?new DetailedCapitalPalette(theme):null;
         var level=ctx.level();var pos=new BlockPos.MutableBlockPos();
         boolean changed=false;
         for(int dx=0;dx<16;dx++)for(int dz=0;dz<16;dz++){
@@ -29,9 +32,8 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
             var col=CityPlan.column(floor,upper?FloorLayout.local(x):x,upper?FloorLayout.local(z):z);
             if(col.zone()==CityPlan.Zone.OUTSIDE)continue;
             for(int y=93;y<CityPlan.GROUND;y++)level.setBlock(pos.set(x,y,z),palette.get(CityPlan.Piece.FOUNDATION),2);
-            for(int y=0;y<=17;y++){
-                var piece=CityPlan.piece(col,y);
-                var state=palette.get(piece);
+            for(int y=0;y<=(detailed?CityArchitecture.MAX_HEIGHT:17);y++){
+                var state=detailed?detail.state(CityArchitecture.piece(col,y),col.plot()):palette.get(CityPlan.piece(col,y));
                 pos.set(x,CityPlan.GROUND+y,z);
                 if(!level.getBlockState(pos).equals(state))level.setBlock(pos,state,2);
             }
