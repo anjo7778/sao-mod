@@ -97,7 +97,7 @@ public final class FoundationTests {
     @GameTest(template="empty")
     public static void capitalTerrain(GameTestHelper helper){
         var access=helper.getLevel().registryAccess();
-        for(String name:new String[]{"floor_one_city","upper_floors_city","floor_one_city_detail","upper_floors_city_detail"}){
+        for(String name:new String[]{"floor_one_city","upper_floors_city","floor_one_city_detail","upper_floors_city_detail","floor_one_city_templates","upper_floors_city_templates","floor_one_city_templates_v2","upper_floors_city_templates_v2"}){
             var key=ResourceKey.create(Registries.NOISE_SETTINGS,ResourceLocation.fromNamespaceAndPath("sao",name));
             var settings=access.registryOrThrow(Registries.NOISE_SETTINGS).getOrThrow(key);
             var density=RandomState.create(settings,access.lookupOrThrow(Registries.NOISE),42L).router().finalDensity();

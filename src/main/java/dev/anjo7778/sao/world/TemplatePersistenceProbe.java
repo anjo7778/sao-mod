@@ -4,6 +4,7 @@ import dev.anjo7778.sao.simulation.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -30,6 +31,7 @@ public final class TemplatePersistenceProbe {
         server.halt(false);
     }
     private static String inspect(ServerLevel level,long floor,boolean reading){
+        require(level.getChunkSource().getGenerator() instanceof NoiseBasedChunkGenerator gen&&gen.generatorSettings().is(floor==1?FloorTravel.FIRST_CITY_TEMPLATES_V2:FloorTravel.UPPER_CITY_TEMPLATES_V2),"Wrong template version");
         var map=new EnumMap<CityArchitecture.Style,CityPlan.Plot>(CityArchitecture.Style.class);
         int limit=CityPlan.half(floor)/CityPlan.LOT;
         for(int x=-limit;x<=limit;x++)for(int z=-limit;z<=limit;z++){

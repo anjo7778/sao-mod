@@ -16,3 +16,7 @@ Eight standalone layouts: cottage, townhouse, inn, market, guildhall, forge, cli
 ## Status
 
 v1 templates are **candidates**. Programmatic geometry and actual Minecraft checks must run. No finished rotation, shop UI, autonomous bed use or functioning NPC economy claimed.
+
+## v1 evidence and v2 revision
+
+v1 actual client acceptance failed at inn block light (5; threshold 6). Cottage and townhouse passed block-state/path/light checks, but visual review found sparse interiors and wide open lots. v1 real restart passed 134,224 block states on two floors. v2 is a separate candidate library: all original files remain in v1, new assets are under templates/v2, and new worldgen keys explicitly select v2. Minimum conservative modeled block light 8 at walkable floor positions; actual client threshold must not be weakened. The inn uses separated sleeping alcoves and added common-room furniture. Repeat actual runtime and restart acceptance; no approved models yet.
