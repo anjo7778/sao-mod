@@ -4,7 +4,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:floor_one_city_landmarks",
+        "settings": "sao:floor_one_city_regional",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": false,
@@ -23,7 +23,8 @@
             "minecraft:badlands",
             "minecraft:meadow"
           ],
-          "capital": "sao:capital"
+          "capital": "sao:capital",
+          "regional": true
         }
       }
     },
@@ -52,7 +53,7 @@
       "type": "minecraft:overworld",
       "generator": {
         "type": "minecraft:noise",
-        "settings": "sao:upper_floors_city_landmarks",
+        "settings": "sao:upper_floors_city_regional",
         "biome_source": {
           "type": "sao:floor_biomes",
           "upper": true,
@@ -71,7 +72,8 @@
             "minecraft:badlands",
             "minecraft:meadow"
           ],
-          "capital": "sao:capital"
+          "capital": "sao:capital",
+          "regional": true
         }
       }
     }

@@ -354,3 +354,11 @@ tasks.register('verifyFloorMigration', JavaExec) {
     mainClass = 'dev.anjo7778.sao.simulation.FloorMigrationChecks'
 }
 tasks.named('check') { dependsOn tasks.named('verifyFloorMigration') }
+
+tasks.register('verifyRegionalSettlements', JavaExec) {
+    group = 'verification'
+    dependsOn tasks.named('simulationCheckClasses')
+    classpath = sourceSets.simulationCheck.runtimeClasspath
+    mainClass = 'dev.anjo7778.sao.simulation.RegionalSettlementChecks'
+}
+tasks.named('check') { dependsOn tasks.named('verifyRegionalSettlements') }

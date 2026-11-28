@@ -16,12 +16,13 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
     public CapitalFeature(){super(NoneFeatureConfiguration.CODEC);}
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx){
         if(!(ctx.chunkGenerator() instanceof NoiseBasedChunkGenerator gen))return false;
-        boolean landmarks=gen.generatorSettings().is(FloorTravel.FIRST_CITY_LANDMARKS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
+        boolean regional=gen.generatorSettings().is(FloorTravel.FIRST_CITY_REGIONAL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_REGIONAL);
+        boolean landmarks=regional||gen.generatorSettings().is(FloorTravel.FIRST_CITY_LANDMARKS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
         boolean districts=landmarks||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS);
         boolean templateV2=districts||gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2);
         boolean templates=templateV2||gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
         boolean detailed=templates||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
-        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS);
+        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DISTRICTS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_LANDMARKS)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_REGIONAL);
         if(!upper&&!detailed&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
         int ox=ctx.origin().getX()&~15,oz=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(ox,oz):1;
@@ -31,6 +32,26 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
         var detail=detailed?new DetailedCapitalPalette(theme):null;
         var templatePalette=templates?new TemplateCapitalPalette(theme):null;
         var level=ctx.level();var pos=new BlockPos.MutableBlockPos();
+        var site=regional?RegionalSettlements.at(floor,upper?FloorLayout.local(ox):ox,upper?FloorLayout.local(oz):oz):null;
+        if(site!=null){
+            var buildings=RegionalSettlements.buildings(site);
+            for(int dx=0;dx<16;dx++)for(int dz=0;dz<16;dz++){
+                int x=ox+dx,z=oz+dz,lx=upper?FloorLayout.local(x):x,lz=upper?FloorLayout.local(z):z;
+                if(!site.contains(lx,lz))continue;
+                for(int y=93;y<CityPlan.GROUND;y++)level.setBlock(pos.set(x,y,z),palette.get(CityPlan.Piece.FOUNDATION),2);
+                var b=RegionalSettlements.buildingAt(buildings,lx,lz);
+                for(int y=0;y<=CityArchitecture.MAX_HEIGHT;y++){
+                    BlockState state;
+                    if(b!=null){
+                        char symbol=b.model().at(lx-b.x(),y,lz-b.z());
+                        state=y==0&&symbol=='.'?detail.state(RegionalSettlements.surface(site,buildings,lx,lz),null):templatePalette.state(symbol,b.plot());
+                    }else state=detail.state(y==0?RegionalSettlements.surface(site,buildings,lx,lz):RegionalSettlements.publicPiece(site,lx,lz,y),null);
+                    pos.set(x,CityPlan.GROUND+y,z);
+                    if(!level.getBlockState(pos).equals(state))level.setBlock(pos,state,2);
+                }
+            }
+            return true;
+        }
         boolean changed=false;
         for(int dx=0;dx<16;dx++)for(int dz=0;dz<16;dz++){
             int x=ox+dx,z=oz+dz;

@@ -82,6 +82,18 @@ public final class SaoCommands {
                     }
                     return 1;
                 })))
+            .then(Commands.literal("settlements").executes(ctx->{
+                var p=ctx.getSource().getPlayerOrException();
+                var level=p.serverLevel();
+                if(!CityRules.hasRegionalSettlements(level)){ctx.getSource().sendFailure(Component.literal("Regional Aincrad world required."));return 0;}
+                long floor=FloorTravel.currentFloor(level,p.getBlockX(),p.getBlockZ());
+                var center=dev.anjo7778.sao.simulation.FloorLayout.center(floor);
+                for(var s:dev.anjo7778.sao.simulation.RegionalSettlements.sites(floor)){
+                    int x=center.x()+s.x(),z=center.z()+s.z();
+                    ctx.getSource().sendSuccess(()->Component.literal(s.name()+" | Floor "+floor+" | x="+x+" z="+z+" | "+s.kind().name()),false);
+                }
+                return 1;
+            }))
             .then(Commands.literal("challenge").executes(ctx -> FloorGuardian.challenge(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("abandon").executes(ctx -> FloorGuardian.abandon(ctx.getSource().getPlayerOrException())))
             .then(Commands.literal("travel")

@@ -1,0 +1,39 @@
+{
+  "type": "minecraft:add",
+  "argument1": {
+    "type": "minecraft:mul",
+    "argument1": "sao:floor_one_shape",
+    "argument2": {
+      "type": "sao:city_blend",
+      "upper": false,
+      "inverse": true,
+      "regional": true
+    }
+  },
+  "argument2": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "minecraft:min",
+      "argument1": {
+        "type": "minecraft:y_clamped_gradient",
+        "from_y": -48,
+        "to_y": -24,
+        "from_value": -1,
+        "to_value": 1
+      },
+      "argument2": {
+        "type": "minecraft:y_clamped_gradient",
+        "from_y": 72,
+        "to_y": 120,
+        "from_value": 1,
+        "to_value": -1
+      }
+    },
+    "argument2": {
+      "type": "sao:city_blend",
+      "upper": false,
+      "inverse": false,
+      "regional": true
+    }
+  }
+}

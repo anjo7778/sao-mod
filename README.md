@@ -10,7 +10,7 @@ Stage 1 introduces the experimental Aincrad world preset, circular floating terr
 2. Have it implement the change, check the build, and save the code to GitHub.
 3. GitHub Actions builds the mod whenever code is pushed. Pull requests also get a build check.
 4. Open **Actions → Build SAO Mod**, select a successful run, and download the **sao-mod-minecraft-1.21.1-...** artifact at the bottom of the run page.
-5. Extract the downloaded ZIP and place **sao-0.2.14.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
+5. Extract the downloaded ZIP and place **sao-0.2.15.jar** (or the newer version) in the `mods` folder of a Minecraft **1.21.1 NeoForge** instance. Restart Minecraft to load it.
 
 Java and Gradle are installed automatically on the GitHub runner. You do not need to install an IDE or run Gradle yourself to use this workflow. Minecraft still needs to be installed locally to play and test the mod. GitHub account Actions limits apply; the project does not require a paid service or API key.
 
@@ -123,3 +123,7 @@ In landmark worlds adventurers choose persistent practice, scouting or social-co
 
 ## v0.2.14 upward migration prototype
 Eligible offscreen adventurers in landmark worlds can independently relocate once to the next already discovered and unlocked capital after completing a personal goal and scout trip. Bound source and destination population; retain stable identity, needs, memories, goal/practice history, and separate local scouting journals. The lifetime ledger stays keyed to birthplace; residence is saved in the population file. No new unlock, physical portal animation, or generated terrain from migration. This is a one-way initial slice, not unrestricted floor travel. Nearby training routes avoid plaza detours; active practice/social objectives defer new scouting starts. Runtime acceptance pending.
+
+## v0.2.15 regional settlements
+
+Fresh Aincrad worlds add four regional hubs to every supported floor: Crossroads Market, Hearthvale, Ironbrook and Wayfarer's Rest. Compact town and village layouts reuse unchanged v2 templates; chunk-aligned sites blend into the terrain and have public lanes, plaza lights and safe-zone protections. `/sao settlements` lists locations on the current floor. Capital identities, city layout and prior generator settings remain unchanged. No regional residents, live trading, long-range NPC pathfinding or teleport services yet. Runtime verification required.
