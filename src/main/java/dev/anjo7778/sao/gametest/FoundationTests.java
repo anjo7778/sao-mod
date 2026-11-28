@@ -249,4 +249,29 @@ public final class FoundationTests {
         helper.assertTrue(legacy.ledger(1,a).trip().equals(loaded.ledger(1,a).trip()),"Existing trips retained");
         helper.succeed();
     }
+    @GameTest(template="empty")
+    public static void personalGoalPersistence(GameTestHelper helper){
+        var pop=new dev.anjo7778.sao.world.NpcPopulationData();pop.discover(1,42);
+        var roster=pop.roster(1).stream().filter(s->s.profile().occupation()==dev.anjo7778.sao.simulation.NpcRoster.Occupation.ADVENTURER).toList();
+        var a=roster.getFirst();var b=roster.stream().filter(s->dev.anjo7778.sao.simulation.NpcSocial.offer(a,s,8).map(e->e.friendly()).orElse(false)).findFirst().orElseThrow();
+        var data=new dev.anjo7778.sao.world.AdventureSimulationData();
+        var idle=dev.anjo7778.sao.simulation.AdventureProgress.Mode.IDLE;
+        data.update(1,a.profile().id(),10,idle,true);data.update(1,b.profile().id(),10,idle,true);
+        var r=helper.getLevel().registryAccess();var tag=data.save(new CompoundTag(),r);
+        var list=tag.getList("capitals",10).getCompound(0).getList("npcs",10);
+        for(int i=0;i<list.size();i++){
+            var g=list.getCompound(i).getCompound("goal");g.putString("kind","CONNECT");g.putInt("target",3);g.putLong("deadline",110);
+        }
+        var loaded=dev.anjo7778.sao.world.AdventureSimulationData.load(tag,r);
+        helper.assertTrue(loaded.converse(pop,1,a.profile().id(),b.profile().id(),8,11).isPresent(),"Real accepted friendly contact");
+        helper.assertTrue(loaded.ledger(1,a.profile().id()).goal().progress()==1&&loaded.ledger(1,b.profile().id()).goal().progress()==1,"Reciprocal goal credit");
+        helper.assertTrue(loaded.converse(pop,1,a.profile().id(),b.profile().id(),8,11).isEmpty(),"Repeated contact refused");
+        helper.assertTrue(loaded.ledger(1,a.profile().id()).goal().progress()==1,"No duplicate credit");
+        var restored=dev.anjo7778.sao.world.AdventureSimulationData.load(loaded.save(new CompoundTag(),r),r);
+        helper.assertTrue(restored.ledger(1,a.profile().id()).equals(loaded.ledger(1,a.profile().id())),"Goal state preserved");
+        var prior=loaded.save(new CompoundTag(),r);prior.putInt("schema",3);
+        var migrated=dev.anjo7778.sao.world.AdventureSimulationData.load(prior,r);
+        helper.assertTrue(!migrated.ledger(1,a.profile().id()).goal().active(),"Old ledger has no invented goal");
+        helper.succeed();
+    }
 }

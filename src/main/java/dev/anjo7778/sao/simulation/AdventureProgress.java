@@ -7,18 +7,22 @@ public final class AdventureProgress {
     public static final int EPOCH_TICKS=600, MAX=1_000_000_000;
     public enum Mode { IDLE, PRACTICE, REST, PREPARE, SOCIALIZE, TRAVEL, SCOUT }
     public record Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,
-                         int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal){
+                         int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal,AdventurerGoals.Goal goal){
+        public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip,SurveyJournal journal){
+            this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,AdventurerGoals.EMPTY);
+        }
         public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last,ScoutingTrip.Trip trip){
             this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,SurveyJournal.EMPTY);
         }
         public Ledger(long epoch,int practice,int fatigue,int preparations,int restSessions,int updates,int abstractUpdates,Mode last){
             this(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,ScoutingTrip.idle(epoch));
         }
-        public Ledger withTrip(ScoutingTrip.Trip t){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,t,journal);}
-        public Ledger withJournal(SurveyJournal j){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,j);}
+        public Ledger withTrip(ScoutingTrip.Trip t){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,t,journal,goal);}
+        public Ledger withJournal(SurveyJournal j){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,j,goal);}
+        public Ledger withGoal(AdventurerGoals.Goal g){return new Ledger(epoch,practice,fatigue,preparations,restSessions,updates,abstractUpdates,last,trip,journal,g);}
         public Ledger{
             if(epoch<0||practice<0||practice>MAX||fatigue<0||fatigue>100||preparations<0||preparations>MAX
-                ||restSessions<0||restSessions>MAX||updates<0||updates>MAX||abstractUpdates<0||abstractUpdates>updates||last==null||trip==null||journal==null)
+                ||restSessions<0||restSessions>MAX||updates<0||updates>MAX||abstractUpdates<0||abstractUpdates>updates||last==null||trip==null||journal==null||goal==null)
                 throw new IllegalArgumentException("Invalid adventurer progress");
         }
         public int practiceRank(){return 1+practice/20;}
@@ -60,7 +64,7 @@ public final class AdventureProgress {
         }
         int count=inc(before.updates(),1);
         return new Ledger(epoch,practice,fatigue,prep,rest,count,
-            offscreen?inc(before.abstractUpdates(),1):before.abstractUpdates(),mode,before.trip(),before.journal());
+            offscreen?inc(before.abstractUpdates(),1):before.abstractUpdates(),mode,before.trip(),before.journal(),before.goal());
     }
     private static int inc(int v,int delta){return Math.min(MAX,v+delta);}
 }

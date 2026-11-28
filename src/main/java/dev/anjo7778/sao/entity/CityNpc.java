@@ -133,8 +133,14 @@ public final class CityNpc extends PathfinderMob {
                     setHealth(getMaxHealth()*nextHp/100f);
                 }
             }
-            if(plan.activity()==Activity.TRAIN&&getNavigation().isDone()&&getRandom().nextInt(3)==0&&!getMainHandItem().isEmpty())
+            if(plan.activity()==Activity.TRAIN&&atScheduledDestination()&&getNavigation().isDone()&&getRandom().nextInt(3)==0&&!getMainHandItem().isEmpty()){
+                if(CityRules.hasLandmarks(level)){
+                    var venue=CityCourts.at(floor,plan.destination().x(),plan.destination().z());
+                    if(venue!=null&&venue.kind()==CityCourts.Kind.TRAINING_YARD)
+                        getLookControl().setLookAt(c.x()+plan.destination().x()+.5,CityPlan.GROUND+2,c.z()+venue.z()+5.5);
+                }
                 swing(InteractionHand.MAIN_HAND);
+            }
         }
         if(conversationPeer!=null){
             if(level.getGameTime()<conversationUntil&&level.getEntity(conversationPeer) instanceof CityNpc peer
@@ -153,7 +159,8 @@ public final class CityNpc extends PathfinderMob {
         if(route.isEmpty()||waypoint>=route.size()){
             double d=Math.hypot(here.x()-plan.destination().x(),here.z()-plan.destination().z());
             if(d<=2){
-                if(!getNavigation().isDone()||plan.activity()==Activity.REST||plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN)return;
+                if(!getNavigation().isDone()||plan.activity()==Activity.REST||plan.activity()==Activity.EXPLORE||plan.activity()==Activity.RETURN
+                    ||plan.activity()==Activity.TRAIN&&CityRules.hasLandmarks(level)&&CityCourts.at(floor,plan.destination().x(),plan.destination().z())!=null)return;
                 // Small local strolls at the current workplace/plaza, not fake long-distance movement.
                 int x=plan.destination().x()+getRandom().nextInt(9)-4,z=plan.destination().z()+getRandom().nextInt(9)-4;
                 Point dest=new Point(x,z);
@@ -163,7 +170,7 @@ public final class CityNpc extends PathfinderMob {
                 }
                 return;
             }
-            route=trip!=null&&trip.active()?ScoutingTrip.route(floor,trip,here,plan.destination()):NpcDailyPlan.route(floor,here,plan.destination());waypoint=0;failedAttempts=0;
+            route=CityVenueRoutine.route(floor,here,plan.destination(),trip,CityRules.hasLandmarks(level));waypoint=0;failedAttempts=0;
         }
         if(waypoint>=route.size())return;
         Point p=route.get(waypoint);
@@ -196,6 +203,8 @@ public final class CityNpc extends PathfinderMob {
             if(journal.surveyed()!=0)line+=" I've surveyed the "+SurveyJournal.directions(journal.surveyed())+" gate approaches.";
             else if(journal.reported()!=0)line+=" I've heard reports about the "+SurveyJournal.directions(journal.reported())+" gate approaches.";
         }
+        if(ledger!=null&&ledger.goal().active()&&state.relationship(p.getUUID()).trust()>=50)
+            line+=" My current goal: "+AdventurerGoals.description(ledger.goal())+".";
         p.sendSystemMessage(Component.literal(profile.name()+": "+line));
         data.remember(floor,getUUID(),NpcDialogue.greeting(getUUID(),p.getUUID(),Math.max(0,level().getDayTime()/24000)));
         getLookControl().setLookAt(p,30,30);
