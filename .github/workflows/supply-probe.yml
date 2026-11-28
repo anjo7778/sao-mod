@@ -1,7 +1,7 @@
 name: Stage 2 Physical Supply Client Probe
 on:
   push:
-    branches: ['stage2/supply-client-probe', 'stage2/supply-route-safety', 'stage2/material-trade']
+    branches: ['stage2/supply-client-probe', 'stage2/supply-route-safety', 'stage2/material-trade', 'stage2/woodland-mines-combat']
   workflow_dispatch:
 permissions:
   contents: read
