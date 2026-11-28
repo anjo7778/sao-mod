@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 public final class DeepMineProbe {
     private static final Logger LOG=LogUtils.getLogger();
     private static final boolean ENABLED=Boolean.getBoolean("sao.deepMineProbe");
+    private static final boolean EXTENDED=Boolean.getBoolean("sao.extendedMineProbe");
     private static int phase,ticks;
     private static CompletableFuture<Void> pending;
     private static UUID actor,smith;
@@ -112,7 +113,20 @@ public final class DeepMineProbe {
         // A depleted surface is an explicit test fixture. Never create mining blocks or stock.
         for(var pos:natural.keySet())level.destroyBlock(pos,false);
         natural.clear();
-        var route=GateMinePlan.route(1,ScoutingTrip.Gate.EAST);
+        // Isolated mining acceptance: disable managed woodland only in this fixture.
+        for(var tree:GateWoodlandPlan.sites(1,ScoutingTrip.Gate.EAST))
+            for(int y=CityPlan.GROUND-20;y<=CityPlan.GROUND+16;y++){
+                var at=new BlockPos(tree.x(),y,tree.z());
+                if(level.getBlockState(at).is(Blocks.ROOTED_DIRT))level.setBlockAndUpdate(at,Blocks.DIRT.defaultBlockState());
+            }
+        var route=EXTENDED?GateMineExtension.route(1,ScoutingTrip.Gate.EAST):GateMinePlan.route(1,ScoutingTrip.Gate.EAST);
+        for(var v:route)level.getChunk(v.x()>>4,v.z()>>4);
+        if(EXTENDED)for(var vein:GateMinePlan.veins(1,ScoutingTrip.Gate.EAST)){
+            var v=vein.point();level.getChunk(v.x()>>4,v.z()>>4);
+            var pos=new BlockPos(v.x(),v.y(),v.z());var b=level.getBlockState(pos);
+            if(b.is(Blocks.IRON_ORE)||b.is(Blocks.DEEPSLATE_IRON_ORE)||b.is(Blocks.COAL_ORE)||b.is(Blocks.DEEPSLATE_COAL_ORE))
+                level.destroyBlock(pos,false);
+        }
         entryY=route.getFirst().y();depthY=route.getLast().y();
         for(var v:route){
             var pos=new BlockPos(v.x(),v.y(),v.z());
@@ -120,14 +134,16 @@ public final class DeepMineProbe {
                 &&level.getBlockState(pos.above()).getCollisionShape(level,pos.above()).isEmpty()
                 &&level.getBlockState(pos.below()).isFaceSturdy(level,pos.below(),net.minecraft.core.Direction.UP),"Generated mine route blocked "+pos);
         }
-        for(var vein:GateMinePlan.veins(1,ScoutingTrip.Gate.EAST)){
-            var v=vein.point();var pos=new BlockPos(v.x(),v.y(),v.z());var state=level.getBlockState(pos);
+        var expectedVeins=EXTENDED?GateMineExtension.veins(1,ScoutingTrip.Gate.EAST):GateMinePlan.veins(1,ScoutingTrip.Gate.EAST);
+        for(var vein:expectedVeins){
+            var v=vein.point();level.getChunk(v.x()>>4,v.z()>>4);
+            var pos=new BlockPos(v.x(),v.y(),v.z());var state=level.getBlockState(pos);
             boolean match=vein.resource()==GateProspects.Resource.IRON?state.is(Blocks.IRON_ORE)||state.is(Blocks.DEEPSLATE_IRON_ORE)
                 :state.is(Blocks.COAL_ORE)||state.is(Blocks.DEEPSLATE_COAL_ORE);
             if(match)natural.put(pos,vein.resource());
         }
         require(natural.size()>=6,"Actual deep ore pockets missing");
-        LOG.info("SAO_DEEP_MINE_NATURAL_OK pockets={} depth={}",natural.size(),entryY-depthY);
+        LOG.info("SAO_DEEP_MINE_NATURAL_OK pockets={} depth={} extended={}",natural.size(),entryY-depthY,EXTENDED);
         var at=ExpeditionGround.walkable(level,1,x,z);require(at!=null,"No gate surface");
         var npc=SaoEntities.CITY_NPC.get().create(level);require(npc!=null,"NPC missing");
         npc.bind(s);npc.moveTo(at.getX()+.5,at.getY(),at.getZ()+.5,0,0);
@@ -146,7 +162,7 @@ public final class DeepMineProbe {
     }
     private static void observe(ServerPlayer p){
         var level=p.serverLevel();var server=level.getServer();var pop=NpcPopulationData.get(server);
-        require(level.getGameTime()-began<1800,"Deep mine timed out");
+        require(level.getGameTime()-began<(EXTENDED?2600:1800),"Deep mine timed out");
         require(level.getEntity(actor) instanceof CityNpc,"Physical miner vanished");
         var npc=(CityNpc)level.getEntity(actor);follow(p,npc);
         var supplies=NpcSupplyData.get(server);var cargo=supplies.cargo(actor);
