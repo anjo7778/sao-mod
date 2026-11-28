@@ -44,6 +44,7 @@ public final class SwordComboProbe {
     private static float before,first,second,third;
     private static int damage;
     private static boolean finished,visual;
+    private static net.minecraft.world.phys.Vec3 leapStart;
     private SwordComboProbe(){}
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!ENABLED||phase==3)return;
@@ -154,10 +155,66 @@ public final class SwordComboProbe {
             case 6->{
                 if(age<25)return;
                 require(mob.getHealth()==before&&p.getMainHandItem().getDamageValue()==damage,"Cooldown prevents repeated skill");
-                LOG.info("SAO_SWORD_COOLDOWN_OK");finished=true;
+                LOG.info("SAO_SWORD_COOLDOWN_OK");
+                // Test-only progression fixture for higher-mastery skills; actual hits are still native.
+                require(data.awardNext(owner,CharacterProgress.Source.COMBAT,1,CharacterProgress.Mastery.SWORD,1200),"Advanced mastery fixture");
+                require(data.state(owner).mastery(CharacterProgress.Mastery.SWORD)>=7,"Advanced skill unlocks");
+                SwordCombat.intent(p,3,0);began=level.getGameTime();stage=7;
+            }
+            case 7->{
+                if(age<4)return;
+                require(selected(p)==SwordActions.Skill.SLANT,"Cycle to Slant");
+                before=mob.getHealth();damage=p.getMainHandItem().getDamageValue();
+                SwordCombat.intent(p,4,0);require(mob.getHealth()==before,"Slant windup");
+                began=level.getGameTime();stage=8;
+            }
+            case 8->{
+                if(age<35)return;
+                LOG.info("SAO_SWORD_SLANT_OK damage={}",landed(p,mob));
+                SwordCombat.intent(p,3,0);began=level.getGameTime();stage=9;
+            }
+            case 9->{
+                if(age<4)return;
+                require(selected(p)==SwordActions.Skill.VERTICAL,"Cycle to Vertical");
+                before=mob.getHealth();damage=p.getMainHandItem().getDamageValue();
+                SwordCombat.intent(p,4,0);require(mob.getHealth()==before,"Vertical windup");
+                began=level.getGameTime();stage=10;
+            }
+            case 10->{
+                if(age<35)return;
+                LOG.info("SAO_SWORD_VERTICAL_OK damage={}",landed(p,mob));
+                SwordCombat.intent(p,3,0);
+                // Isolated test lane, not a production world-generation or resource change.
+                int x=p.getBlockX(),y=p.getBlockY(),z=p.getBlockZ();
+                for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=5;dz++){
+                    var at=new net.minecraft.core.BlockPos(x+dx,y,z+dz);
+                    level.setBlockAndUpdate(at.below(),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                    for(int dy=0;dy<3;dy++)level.setBlockAndUpdate(at.above(dy),net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+                }
+                require(p.teleportTo(level,x+.5,y,z+.5,Set.of(),0,0),"Prepare flat test lane");
+                mob.moveTo(x+.5,y,z+3.8,180,0);
+                began=level.getGameTime();stage=11;
+            }
+            case 11->{
+                if(age<8)return;
+                require(selected(p)==SwordActions.Skill.SONIC_LEAP&&p.onGround(),"Cycle to grounded advancing skill");
+                require(p.distanceToSqr(mob)>WeaponRules.Family.SWORD.reach*WeaponRules.Family.SWORD.reach,"Target begins outside ordinary reach");
+                before=mob.getHealth();damage=p.getMainHandItem().getDamageValue();leapStart=p.position();
+                SwordCombat.intent(p,4,0);require(mob.getHealth()==before,"Advancing thrust must not hit immediately");
+                began=level.getGameTime();stage=12;
+            }
+            case 12->{
+                if(age<32)return;
+                require(p.position().distanceToSqr(leapStart)>=.30*.30,"Actual player lunge displacement");
+                LOG.info("SAO_SWORD_LEAP_OK damage={}",landed(p,mob));
+                finished=true;
             }
             default->{}
         }
+    }
+    private static SwordActions.Skill selected(ServerPlayer p){
+        var entry=SwordCombatData.get(p.serverLevel().getServer()).entry(new SwordCombatData.Key(false,p.getUUID()));
+        return entry==null?SwordActions.Skill.HORIZONTAL:entry.selected();
     }
     @SubscribeEvent public static void rendered(RenderPlayerEvent.Post event){
         if(!ENABLED||phase!=2||visual||event.getEntity()!=Minecraft.getInstance().player)return;
