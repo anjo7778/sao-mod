@@ -116,6 +116,38 @@ public final class SwordActions {
         if(stamina<8){phase=Phase.RECOVERY;return Defense.NONE;}
         stamina-=8;phase=Phase.RECOVERY;return Defense.BLOCK;
     }
+    /** Durable recovery-only checkpoint. No pending hit, counter, combo, or pose survives reload. */
+    public record Saved(int stamina,long tick,int recovery,int globalCooldown,java.util.List<Integer> cooldowns){
+        public Saved{
+            cooldowns=java.util.List.copyOf(cooldowns);
+            if(stamina<0||stamina>MAX_STAMINA||tick<0||recovery<0||recovery>MAX_SKILL_COOLDOWN
+                ||globalCooldown<0||globalCooldown>GLOBAL_SKILL_DELAY||cooldowns.size()!=Skill.values().length)
+                throw new IllegalArgumentException("Invalid combat checkpoint");
+            for(int i=0;i<cooldowns.size();i++)if(cooldowns.get(i)<0||cooldowns.get(i)>Skill.values()[i].cooldown)
+                throw new IllegalArgumentException("Invalid saved skill cooldown");
+        }
+        public boolean rested(){return stamina==MAX_STAMINA&&recovery==0&&globalCooldown==0&&cooldowns.stream().allMatch(n->n==0);}
+    }
+    public Saved save(long now){
+        advance(now);
+        var cooldowns=new java.util.ArrayList<Integer>(Skill.values().length);
+        for(var skill:Skill.values())cooldowns.add((int)Math.max(0,Math.min(skill.cooldown,skillReady[skill.ordinal()]-now)));
+        int recovery=phase==Phase.IDLE?0:(int)Math.max(0,Math.min(MAX_SKILL_COOLDOWN,end-now));
+        return new Saved(stamina,now,recovery,(int)Math.max(0,Math.min(GLOBAL_SKILL_DELAY,globalSkillReady-now)),cooldowns);
+    }
+    public static SwordActions restore(Saved saved,long now){
+        if(now<0)throw new IllegalArgumentException("Invalid combat clock");
+        var clock=new SwordActions();
+        if(saved==null){clock.advance(now);return clock;}
+        long elapsed=Math.max(0,now-saved.tick());
+        clock.stamina=Math.min(MAX_STAMINA,saved.stamina()+2*(int)Math.min(MAX_STAMINA,Math.max(0,elapsed-saved.recovery())));
+        clock.last=now;
+        long remaining=Math.max(0,saved.recovery()-elapsed);
+        if(remaining>0){clock.phase=Phase.RECOVERY;clock.end=now+remaining;}
+        clock.globalSkillReady=now+Math.max(0,saved.globalCooldown()-elapsed);
+        for(var skill:Skill.values())clock.skillReady[skill.ordinal()]=now+Math.max(0,saved.cooldowns().get(skill.ordinal())-elapsed);
+        return clock;
+    }
     /** Cancel without refunding the cost or resetting recovery or skill cooldowns. */
     public void cancel(long now){
         advance(now);
