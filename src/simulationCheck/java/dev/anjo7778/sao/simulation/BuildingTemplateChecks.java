@@ -8,8 +8,8 @@ public final class BuildingTemplateChecks{
     private record P(int x,int z){}
     public static void main(String[] args){
         int beds=0,fixtures=0,cells=0;
-        for(Style style:Style.values()){
-            var b=forStyle(style);
+        for(int version=1;version<=LATEST;version++)for(Style style:Style.values()){
+            var b=forStyle(style,version);
             int hw=b.halfWidth(),hd=b.halfDepth();
             int front=0;for(int z=-hd;z<=0;z++)if(b.at(0,0,z)=='='){front=z;break;}
             check(front<0,"Front floor "+style);
@@ -62,6 +62,12 @@ public final class BuildingTemplateChecks{
             check(heads==feet&&lights>=4&&stairs>0,"Bed/light/roof counts "+style);
             if(style==Style.FORGE)check(stations>=4,"Forge equipment");
             if(style==Style.INN)check(heads>=5,"Inn beds");
+            if(version==2){
+                int min=conservativeLight(b);
+                check(min>=8,"Insufficient conservative light "+style+" "+min);
+                if(style==Style.INN){for(int x:new int[]{-7,-4,-1,2,5})check(walk(b,x,3),"Inn alcove entry");}
+                System.out.printf("PASS: v2 %s conservative block-light bound %d%n",style,min);
+            }
             beds+=heads;
             System.out.printf("PASS: %s %dx%dx%d, %d reachable floor cells, %d lights, %d bed pairs%n",style,b.width(),b.height(),b.depth(),reached.size(),lights,heads);
         }
@@ -78,7 +84,31 @@ public final class BuildingTemplateChecks{
                 lots++;
             }
         }
-        System.out.printf("PASS: %d templates, %,d layer cells, %d fixtures, %d paired beds, %d fitting lots%n",Style.values().length,cells,fixtures,beds,lots);
+        System.out.printf("PASS: %d templates, %,d layer cells, %d fixtures, %d paired beds, %d fitting lots%n",Style.values().length*LATEST,cells,fixtures,beds,lots);
+    }
+    /** Conservative air-only propagation, deliberately excluding transparent partial blocks. */
+    private static int conservativeLight(Blueprint b){
+        int w=b.width(),h=b.height(),d=b.depth(),hw=b.halfWidth(),hd=b.halfDepth();
+        int[][][] light=new int[h][d][w];
+        record V(int x,int y,int z){}
+        ArrayDeque<V> q=new ArrayDeque<>();
+        for(int y=0;y<h;y++)for(int z=0;z<d;z++)for(int x=0;x<w;x++){
+            char c=b.at(x-hw,y,z-hd);
+            int val=c=='+'?15:c=='l'||c=='H'?14:0;
+            if(val>0){light[y][z][x]=val;q.add(new V(x,y,z));}
+        }
+        int[][] delta={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+        while(!q.isEmpty()){
+            V p=q.remove();int v=light[p.y][p.z][p.x]-1;if(v<=0)continue;
+            for(int[] dir:delta){
+                int x=p.x+dir[0],y=p.y+dir[1],z=p.z+dir[2];
+                if(x<0||x>=w||y<0||y>=h||z<0||z>=d||b.at(x-hw,y,z-hd)!='.'||light[y][z][x]>=v)continue;
+                light[y][z][x]=v;q.add(new V(x,y,z));
+            }
+        }
+        int min=15;
+        for(int z=0;z<d;z++)for(int x=0;x<w;x++)if(walk(b,x-hw,z-hd))min=Math.min(min,light[1][z][x]);
+        return min;
     }
     private static boolean walk(Blueprint b,int x,int z){
         char floor=b.at(x,0,z);return (floor=='='||floor=='+'||floor=='i')&&b.at(x,1,z)=='.'&&b.at(x,2,z)=='.';

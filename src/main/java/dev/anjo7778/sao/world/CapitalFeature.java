@@ -16,9 +16,10 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
     public CapitalFeature(){super(NoneFeatureConfiguration.CODEC);}
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx){
         if(!(ctx.chunkGenerator() instanceof NoiseBasedChunkGenerator gen))return false;
-        boolean templates=gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
+        boolean templateV2=gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES_V2)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2);
+        boolean templates=templateV2||gen.generatorSettings().is(FloorTravel.FIRST_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
         boolean detailed=templates||gen.generatorSettings().is(FloorTravel.FIRST_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL);
-        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES);
+        boolean upper=gen.generatorSettings().is(FloorTravel.UPPER_CITY)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_DETAIL)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES)||gen.generatorSettings().is(FloorTravel.UPPER_CITY_TEMPLATES_V2);
         if(!upper&&!detailed&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY))return false;
         int ox=ctx.origin().getX()&~15,oz=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(ox,oz):1;
@@ -34,7 +35,7 @@ public final class CapitalFeature extends Feature<NoneFeatureConfiguration>{
             var col=CityPlan.column(floor,upper?FloorLayout.local(x):x,upper?FloorLayout.local(z):z);
             if(col.zone()==CityPlan.Zone.OUTSIDE)continue;
             for(int y=93;y<CityPlan.GROUND;y++)level.setBlock(pos.set(x,y,z),palette.get(CityPlan.Piece.FOUNDATION),2);
-            var model=templates&&col.plot()!=null?BuildingTemplates.forPlot(col.plot()):null;
+            var model=templates&&col.plot()!=null?BuildingTemplates.forPlot(col.plot(),templateV2?2:1):null;
             int lx=model==null?0:col.x()-col.plot().x(),lz=model==null?0:col.z()-col.plot().z();
             for(int y=0;y<=(detailed?CityArchitecture.MAX_HEIGHT:17);y++){
                 BlockState state;
