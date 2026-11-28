@@ -24,7 +24,7 @@ public final class CombatNetwork {
             (b,p)->{b.writeVarInt(p.action());b.writeVarInt(p.direction());},b->new Intent(b.readVarInt(),b.readVarInt()));
         @Override public Type<? extends CustomPacketPayload> type(){return TYPE;}
     }
-    public record Snapshot(UUID owner,boolean available,int stamina,int phase,int move,int combo,int skillCooldown,boolean skillUnlocked) implements CustomPacketPayload{
+    public record Snapshot(UUID owner,boolean available,int stamina,int phase,int move,int combo,int skillCooldown,boolean skillUnlocked,int pose) implements CustomPacketPayload{
         public Snapshot{
             if(owner==null||stamina<0||stamina>SwordActions.MAX_STAMINA||phase<0||phase>=SwordActions.Phase.values().length
                 ||move<0||move>=SwordActions.Move.values().length||combo<0||combo>2||skillCooldown<0||skillCooldown>SwordActions.HORIZONTAL_COOLDOWN)
@@ -33,13 +33,13 @@ public final class CombatNetwork {
         public static final Type<Snapshot> TYPE=new Type<>(ResourceLocation.fromNamespaceAndPath("sao","combat_snapshot"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Snapshot> CODEC=StreamCodec.of(
             (b,p)->{b.writeUUID(p.owner());b.writeBoolean(p.available());b.writeVarInt(p.stamina());b.writeVarInt(p.phase());
-                b.writeVarInt(p.move());b.writeVarInt(p.combo());b.writeVarInt(p.skillCooldown());b.writeBoolean(p.skillUnlocked());},
-            b->new Snapshot(b.readUUID(),b.readBoolean(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readBoolean()));
+                b.writeVarInt(p.move());b.writeVarInt(p.combo());b.writeVarInt(p.skillCooldown());b.writeBoolean(p.skillUnlocked());b.writeInt(p.pose());},
+            b->new Snapshot(b.readUUID(),b.readBoolean(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readBoolean(),b.readInt()));
         @Override public Type<? extends CustomPacketPayload> type(){return TYPE;}
     }
     public static void send(ServerPlayer p,boolean available,int stamina,SwordActions.Phase phase,SwordActions.Move move,
-            int combo,int skillCooldown,boolean skillUnlocked){
-        PacketDistributor.sendToPlayer(p,new Snapshot(p.getUUID(),available,stamina,phase.ordinal(),move.ordinal(),combo,skillCooldown,skillUnlocked));
+            int combo,int skillCooldown,boolean skillUnlocked,int pose){
+        PacketDistributor.sendToPlayer(p,new Snapshot(p.getUUID(),available,stamina,phase.ordinal(),move.ordinal(),combo,skillCooldown,skillUnlocked,pose));
     }
     public static void register(RegisterPayloadHandlersEvent event){
         var r=event.registrar("1");
