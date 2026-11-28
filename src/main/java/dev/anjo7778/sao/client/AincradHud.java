@@ -54,6 +54,7 @@ public final class AincradHud {
         float hp=ratio(p.getHealth(),p.getMaxHealth());
         hpTrail=hp>=hpTrail?hp:Math.max(hp,hpTrail-(float)(dt*.55));
         if(s.xp()>seenXp){
+            if(s.level()>seenLevel)AincradSounds.play(AincradSounds.Cue.LEVEL_UP);
             notice=s.level()>seenLevel?"LEVEL UP  /  Lv. "+s.level():"+"+(s.xp()-seenXp)+" XP";
             noticeUntil=now+3_000_000_000L;
         }

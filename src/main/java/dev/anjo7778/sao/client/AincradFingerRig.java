@@ -30,6 +30,9 @@ import java.util.WeakHashMap;
 public final class AincradFingerRig {
     private static final Map<ModelPart,Active> ACTIVE=new WeakHashMap<>();
     private static final Mesh[] MESHES=new Mesh[4];
+    private static boolean firstPerson;
+    static void beginFirstPerson(){firstPerson=true;}
+    static void endFirstPerson(){firstPerson=false;}
     private AincradFingerRig(){}
     private static final class Active{
         final WeakReference<LivingEntity> actor;
@@ -41,7 +44,7 @@ public final class AincradFingerRig {
             this.actor=new WeakReference<>(actor);this.arm=arm;this.slim=slim;this.extension=extension;
         }
     }
-    private record Mesh(ModelPart root,ModelPart[] fingers,ModelPart[] tips,ModelPart thumb,ModelPart thumbTip){}
+    private record Mesh(ModelPart root,ModelPart[] fingers,ModelPart[] tips,ModelPart thumb,ModelPart thumbTip,ModelPart forearm){}
     public static void clear(PlayerModel<?> model){
         ACTIVE.remove(model.rightArm);ACTIVE.remove(model.leftArm);
     }
@@ -83,6 +86,8 @@ public final class AincradFingerRig {
         pose.pushPose();
         part.translateAndRotate(pose);
         mesh.root.render(pose,out,light,overlay,color);
+        // Only first person extends the hidden shoulder beyond the viewport.
+        if(firstPerson){mesh.forearm.render(pose,out,light,overlay,color);}
         pose.popPose();
         active.drawn=true;
     }
@@ -97,7 +102,7 @@ public final class AincradFingerRig {
         int u=right?44:36,v=right?28:60;
         var root=new MeshDefinition();
         PartDefinition hand=root.getRoot();
-        float[] lengths={1.16f,1.28f,1.10f,.83f};
+        float[] lengths={1.48f,1.60f,1.10f,.83f};
         for(int i=0;i<4;i++){
             float x=right?max-step*(i+.5f):min+step*(i+.5f);
             float first=lengths[i],second=first*.83f;
@@ -114,10 +119,17 @@ public final class AincradFingerRig {
             PartPose.offsetAndRotation(right?max-.16f:min+.16f,9.25f,.62f,-.68f,0,-thumbSide*.60f));
         thumb.addOrReplaceChild("tip",CubeListBuilder.create().texOffs(u,v+1)
             .addBox(-.35f,0,-.36f,.70f,.70f,.72f),PartPose.offset(0,.94f,0));
+        // Two contiguous sections with ordinary arm UV, no invented skin colors.
+        // Separate mesh: the real third-person arms remain exactly the normal length.
+        var shoulderMesh=new MeshDefinition();
+        shoulderMesh.getRoot().addOrReplaceChild("extension",CubeListBuilder.create()
+            .texOffs(right?40:32,right?16:48).addBox(min,-14,-2,width,12.02f,4)
+            .texOffs(right?40:32,right?16:48).addBox(min,-26,-2,width,12.02f,4),PartPose.ZERO);
+        ModelPart forearm=LayerDefinition.create(shoulderMesh,64,64).bakeRoot();
         ModelPart baked=LayerDefinition.create(root,64,64).bakeRoot();
         ModelPart[] fingers=new ModelPart[4],tips=new ModelPart[4];
         for(int i=0;i<4;i++){fingers[i]=baked.getChild("finger"+i);tips[i]=fingers[i].getChild("tip");}
         var thumbPart=baked.getChild("thumb");
-        return MESHES[k]=new Mesh(baked,fingers,tips,thumbPart,thumbPart.getChild("tip"));
+        return MESHES[k]=new Mesh(baked,fingers,tips,thumbPart,thumbPart.getChild("tip"),forearm);
     }
 }

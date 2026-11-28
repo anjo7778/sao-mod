@@ -16,7 +16,7 @@ public final class MenuPreferences {
     }
     public static Mode mode=Mode.KEY_ONLY;
     public static Sensitivity sensitivity=Sensitivity.NORMAL;
-    public static boolean combatGuard=false,npcMenus=true,hud=true,fingers=true;
+    public static boolean combatGuard=false,npcMenus=true,hud=true,fingers=true,sounds=true;
     private static boolean loaded;
     private MenuPreferences(){}
     private static Path path(){return FMLPaths.CONFIGDIR.get().resolve("sao-menu.properties");}
@@ -30,11 +30,12 @@ public final class MenuPreferences {
             npcMenus=Boolean.parseBoolean(p.getProperty("npcMenus","true"));
             hud=Boolean.parseBoolean(p.getProperty("hud","true"));
             fingers=Boolean.parseBoolean(p.getProperty("fingers","true"));
-        }catch(Exception e){LogUtils.getLogger().warn("Invalid Aincrad preferences",e);mode=Mode.KEY_ONLY;sensitivity=Sensitivity.NORMAL;combatGuard=false;npcMenus=true;hud=true;fingers=true;}
+            sounds=Boolean.parseBoolean(p.getProperty("sounds","true"));
+        }catch(Exception e){LogUtils.getLogger().warn("Invalid Aincrad preferences",e);mode=Mode.KEY_ONLY;sensitivity=Sensitivity.NORMAL;combatGuard=false;npcMenus=true;hud=true;fingers=true;sounds=true;}
     }
     public static void save(){
         var p=new Properties();p.setProperty("mode",mode.name());p.setProperty("sensitivity",sensitivity.name());
-        p.setProperty("combatGuard",Boolean.toString(combatGuard));p.setProperty("npcMenus",Boolean.toString(npcMenus));p.setProperty("hud",Boolean.toString(hud));p.setProperty("fingers",Boolean.toString(fingers));
+        p.setProperty("combatGuard",Boolean.toString(combatGuard));p.setProperty("npcMenus",Boolean.toString(npcMenus));p.setProperty("hud",Boolean.toString(hud));p.setProperty("fingers",Boolean.toString(fingers));p.setProperty("sounds",Boolean.toString(sounds));
         try{Files.createDirectories(path().getParent());try(var out=Files.newOutputStream(path())){p.store(out,"Aincrad local menu controls");}}
         catch(Exception e){LogUtils.getLogger().warn("Could not save menu preferences",e);}
     }

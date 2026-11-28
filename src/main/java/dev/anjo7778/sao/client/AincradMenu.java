@@ -19,6 +19,9 @@ public final class AincradMenu extends Screen {
     private static final int[][] PAGE_ICON={{3,8,9,10},{4,12,3},{5},{13,11,14},{7}};
     private static final int INK=0xff45484b,FAINT=0xff737c82,WHITE=0xfffafcfc,PALE=0xd9f3f8f8,EDGE=0xd9bac1c5,ORANGE=0xffe2a126,GOLD=0xffffd582,SHADOW=0x35505b61;
     private int group,page,age,slide,scroll,closing=-1;
+    private Attribute pendingAttribute;
+    private long pendingValue,pendingPoints;
+    private int pendingAge;
     interface Painter{
         void rect(int x,int y,int w,int h,int color);
         void tile(int tile,int x,int y,int size,int tint);
@@ -37,14 +40,20 @@ public final class AincradMenu extends Screen {
         age++;slide=Math.min(5,slide+1);
         if(minecraft==null||minecraft.player==null||minecraft.level==null||!minecraft.player.isAlive()){super.onClose();return;}
         if(closing()&&++closing>=6){super.onClose();return;}
-        if(age==SUMMON)sound(1.4f);
+        if(age==SUMMON)AincradSounds.play(AincradSounds.Cue.OPEN);
+        if(pendingAttribute!=null){
+            var s=ProfileNetwork.clientSnapshot();
+            if(s!=null&&s.owner().equals(minecraft.player.getUUID())&&s.available()
+                &&s.attribute(pendingAttribute)>pendingValue&&s.unspent()<pendingPoints){
+                AincradSounds.play(AincradSounds.Cue.CONFIRM);pendingAttribute=null;
+            }else if(age-pendingAge>80)pendingAttribute=null;
+        }
         if(age%20==0)ProfileNetwork.request();
     }
     private float scale(){return Math.max(.1f,Math.min(1.15f,Math.min(width*.90f/W,height*.74f/H)));}
     private float left(){return (width-W*scale())/2;}
     private float top(){return (height-H*scale())/2+Math.min(10,height*.035f);}
-    @Override public void onClose(){if(!closing()){closing=0;sound(.85f);}}
-    private void sound(float pitch){if(minecraft!=null)minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK,pitch));}
+    @Override public void onClose(){if(!closing()){closing=0;AincradSounds.play(AincradSounds.Cue.CLOSE);}}
     private double localX(double x){return (x-left())/scale();}
     private double localY(double y){return (y-top())/scale();}
     @Override public void render(GuiGraphics g,int mx,int my,float partial){
@@ -180,19 +189,19 @@ public final class AincradMenu extends Screen {
     @Override public boolean mouseClicked(double x,double y,int button){
         if(button!=0||summoning()||closing()||reveal()<.99f)return super.mouseClicked(x,y,button);
         double mx=localX(x),my=localY(y);
-        for(int i=0;i<GROUP_ICON.length;i++){double dx=mx-92,dy=my-(23+36*i);if(dx*dx+dy*dy<=17*17){if(group!=i){group=i;page=scroll=slide=0;sound(1.2f);}return true;}}
-        for(int i=0;i<PAGES[group].length;i++)if(inside(mx,my,115,subTop()+i*19,99,17)){if(page!=i){page=i;scroll=slide=0;sound(1.2f);}return true;}
+        for(int i=0;i<GROUP_ICON.length;i++){double dx=mx-92,dy=my-(23+36*i);if(dx*dx+dy*dy<=17*17){if(group!=i){group=i;page=scroll=slide=0;AincradSounds.play(AincradSounds.Cue.SELECT);}return true;}}
+        for(int i=0;i<PAGES[group].length;i++)if(inside(mx,my,115,subTop()+i*19,99,17)){if(page!=i){page=i;scroll=slide=0;AincradSounds.play(AincradSounds.Cue.SELECT);}return true;}
         if(slide<5)return false;
         if(group==0&&page==1&&inside(mx,my,228,164,133,14)&&minecraft!=null&&minecraft.player!=null){
-            sound(1.2f);
+            AincradSounds.play(AincradSounds.Cue.SELECT);
             if(minecraft.player.isCreative()||minecraft.player.containerMenu!=minecraft.player.inventoryMenu)
                 minecraft.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(minecraft.player));
             else minecraft.setScreen(new AincradInventoryScreen(minecraft.player,this));
             return true;
         }
-        if(group==4)for(int i=0;i<5;i++)if(inside(mx,my,228,46+i*25,133,16)){MenuPreferences.cycle(i);sound(1.2f);return true;}
+        if(group==4)for(int i=0;i<5;i++)if(inside(mx,my,228,46+i*25,133,16)){MenuPreferences.cycle(i);AincradSounds.play(AincradSounds.Cue.SELECT);return true;}
         var s=ProfileNetwork.clientSnapshot();
-        if(group==0&&page==0&&s!=null&&s.available()&&s.unspent()>0)for(var a:Attribute.values())if(inside(mx,my,351,76+a.ordinal()*12,12,11)){ProfileNetwork.allocate(a);return true;}
+        if(group==0&&page==0&&s!=null&&s.available()&&s.unspent()>0)for(var a:Attribute.values())if(inside(mx,my,351,76+a.ordinal()*12,12,11)){pendingAttribute=a;pendingValue=s.attribute(a);pendingPoints=s.unspent();pendingAge=age;ProfileNetwork.allocate(a);return true;}
         return super.mouseClicked(x,y,button);
     }
     @Override public boolean mouseScrolled(double mx,double my,double sx,double sy){if(group==0&&(page==2||page==3)){scroll=Math.max(0,scroll+(sy<0?1:sy>0?-1:0));return true;}return super.mouseScrolled(mx,my,sx,sy);}

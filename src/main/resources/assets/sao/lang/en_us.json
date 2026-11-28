@@ -3,5 +3,10 @@
   "entity.sao.frenzy_boar": "Frenzy Boar",
   "item.sao.boar_tusk": "Boar Tusk",
   "key.sao.menu": "Open Aincrad Menu",
-  "key.categories.sao": "Aincrad"
+  "key.categories.sao": "Aincrad",
+  "subtitles.sao.menu_open": "Aincrad menu opens",
+  "subtitles.sao.menu_select": "Aincrad menu selection",
+  "subtitles.sao.menu_confirm": "Aincrad action confirmed",
+  "subtitles.sao.menu_close": "Aincrad menu closes",
+  "subtitles.sao.level_up": "Aincrad level up"
 }

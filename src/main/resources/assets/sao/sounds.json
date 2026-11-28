@@ -1,0 +1,47 @@
+{
+  "ui.menu_open": {
+    "subtitle": "subtitles.sao.menu_open",
+    "sounds": [
+      {
+        "name": "sao:ui/menu_open",
+        "volume": 0.85
+      }
+    ]
+  },
+  "ui.menu_select": {
+    "subtitle": "subtitles.sao.menu_select",
+    "sounds": [
+      {
+        "name": "sao:ui/menu_select",
+        "volume": 0.6
+      }
+    ]
+  },
+  "ui.menu_confirm": {
+    "subtitle": "subtitles.sao.menu_confirm",
+    "sounds": [
+      {
+        "name": "sao:ui/menu_confirm",
+        "volume": 0.85
+      }
+    ]
+  },
+  "ui.menu_close": {
+    "subtitle": "subtitles.sao.menu_close",
+    "sounds": [
+      {
+        "name": "sao:ui/menu_close",
+        "volume": 0.7
+      }
+    ]
+  },
+  "ui.level_up": {
+    "subtitle": "subtitles.sao.level_up",
+    "sounds": [
+      {
+        "name": "sao:ui/level_up",
+        "volume": 0.9
+      }
+    ]
+  }
+}

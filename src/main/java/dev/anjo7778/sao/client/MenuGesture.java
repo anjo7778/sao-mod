@@ -52,11 +52,12 @@ public final class MenuGesture {
         if(rendered!=arm)return;
         event.setCanceled(true);var pose=event.getPoseStack();pose.pushPose();
         boolean right=arm==HumanoidArm.RIGHT;float side=right?1:-1;
-        float lift=-armPitch(t)/1.9f;pose.translate(side*.54,-.82+lift*.62,-.98);
+        float lift=-armPitch(t)/1.9f;pose.translate(side*.58,-.90+lift*.62,-.92);
         pose.mulPose(Axis.YP.rotationDegrees(side*35));pose.mulPose(Axis.ZP.rotationDegrees(side*(-22-lift*20)));pose.mulPose(Axis.XP.rotationDegrees(-20-lift*48));
+        AincradFingerRig.beginFirstPerson();
         try{
             if(right)renderer.renderRightHand(pose,event.getMultiBufferSource(),event.getPackedLight(),c.player);
             else renderer.renderLeftHand(pose,event.getMultiBufferSource(),event.getPackedLight(),c.player);
-        }finally{pose.popPose();}
+        }finally{AincradFingerRig.endFirstPerson();pose.popPose();}
     }
 }

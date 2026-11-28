@@ -22,9 +22,13 @@ import org.joml.Vector4f;
 public final class AincradWorldMenu {
     private static final MultiBufferSource.BufferSource BUFFERS=MultiBufferSource.immediate(new ByteBufferBuilder(65536));
     private static final RenderType ICONS=RenderType.textSeeThrough(AincradMenu.ATLAS);
+    record ProjectedBounds(float left,float top,float right,float bottom){}
+    private static final java.util.Map<java.util.UUID,ProjectedBounds> BOUNDS=new java.util.HashMap<>();
+    static ProjectedBounds bounds(java.util.UUID id){return BOUNDS.get(id);}
     private AincradWorldMenu(){}
     @SubscribeEvent public static void render(RenderLevelStageEvent event){
         if(event.getStage()!=RenderLevelStageEvent.Stage.AFTER_LEVEL)return;
+        BOUNDS.clear();
         var c=Minecraft.getInstance();MenuPreferences.load();
         if(!MenuPreferences.npcMenus||c.player==null||c.level==null||c.options.hideGui)return;
         var camera=event.getCamera();var cam=camera.getPosition();
@@ -59,6 +63,12 @@ public final class AincradWorldMenu {
             if(point.w<=.05f||Math.abs(point.x/point.w)>1.3||Math.abs(point.y/point.w)>1.3)continue;
             var submitted=new Matrix4f(inverse).mul(matrix);
             AincradMenu.drawNpc(new WorldPainter(c.font,submitted),npc,kind);BUFFERS.endBatch();drawn++;
+            var a=clip.transform(new Vector4f(0,0,0,1));
+            var b=clip.transform(new Vector4f(AincradMenu.W,AincradMenu.H,0,1));
+            if(a.w>.05f&&b.w>.05f){
+                int w=c.getWindow().getGuiScaledWidth(),h=c.getWindow().getGuiScaledHeight();
+                BOUNDS.put(npc.getUUID(),new ProjectedBounds((a.x/a.w+1)*.5f*w,(1-a.y/a.w)*.5f*h,(b.x/b.w+1)*.5f*w,(1-b.y/b.w)*.5f*h));
+            }
         }
     }
     private static final class WorldPainter implements AincradMenu.Painter{

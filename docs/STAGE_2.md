@@ -196,3 +196,7 @@ v0.2.32 build and graphical probe passed (46101134885, 46101111905); observed NP
 ## v0.2.34 articulated menu gesture candidate
 
 [v0.2.33 build](https://github.com/anjo7778/sao-mod/actions/runs/46101530248) passed. Native inventory runtime test pending. Added gesture-only digit geometry reusing the exact arm/skin consumer, two articulated extended fingers and curled other digits, free hand selection and opt-out. Preserve original skins, held equipment, menu and simulation. New graphical acceptance required.
+
+## v0.2.35 interface completion candidate
+
+Corrected native inventory and articulated mesh tests passed individually in 46101898101, but edge-positioned NPC menu fell outside its fixed screenshot sampling region. Record actual bounded projection coordinates for visual testing. Correct detached first-person arm and package five original UI audio resources; confirmation on authoritative allocation response. Full client verification pending. Combat after interface acceptance.
