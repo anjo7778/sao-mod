@@ -17,6 +17,7 @@ public final class WeaponItems {
     private WeaponItems(){}
     public static Family classify(ItemStack stack){
         if(stack.isEmpty())return null;
+        if(stack.getItem() instanceof dev.anjo7778.sao.item.NativeSteelSword sword)return sword.family();
         Family match=null;
         for(var entry:TAGS.entrySet())if(stack.is(entry.getValue())){
             if(match!=null)return null;match=entry.getKey();

@@ -2,7 +2,16 @@
   "replace": false,
   "values": [
     "sao:steel_ingot",
+    "sao:bronze_ingot",
     "sao:tin_ingot",
-    "sao:bronze_ingot"
+    "sao:silver_ingot",
+    "sao:mithril_ingot",
+    "sao:adamantite_ingot",
+    "sao:orichalcum_ingot",
+    "sao:celestium_ingot",
+    "sao:astralite_ingot",
+    "sao:silversteel_ingot",
+    "sao:mithril_steel_ingot",
+    "sao:darksteel_ingot"
   ]
 }

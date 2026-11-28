@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "sao:silver_ore",
+    "sao:deepslate_silver_ore",
+    "sao:mithril_ore",
+    "sao:deepslate_mithril_ore"
+  ]
+}

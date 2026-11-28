@@ -667,4 +667,27 @@ public final class FoundationTests {
         helper.assertTrue(dev.anjo7778.sao.block.SaoBlocks.TIN_ORE.get().defaultBlockState().is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE),"Ore mining tool tag");
         helper.succeed();
     }
+
+    @GameTest(template="empty")
+    public static void advancedMetalsAndSteelWeapon(GameTestHelper helper){
+        var level=helper.getLevel();
+        for(var spec:dev.anjo7778.sao.simulation.MetalDeposits.ADVANCED){
+            long first=spec.material().firstFloor;
+            var c=dev.anjo7778.sao.simulation.FloorLayout.center(first);
+            var plan=dev.anjo7778.sao.simulation.MetalDeposits.plan(spec,42,first,c.x()+384,c.z()+384);
+            helper.assertTrue(!plan.isEmpty()&&plan.size()<=spec.attempts()*spec.size(),"Bounded deposits "+spec.material());
+            helper.assertTrue(dev.anjo7778.sao.simulation.MetalDeposits.plan(spec,42,first-1,c.x()+384,c.z()+384).isEmpty(),"No earlier deposits");
+            helper.assertTrue(dev.anjo7778.sao.block.SaoBlocks.material(dev.anjo7778.sao.block.SaoBlocks.ore(spec.material(),false))==spec.material(),"Actual block identity");
+            var input=new net.minecraft.world.item.crafting.SingleRecipeInput(new net.minecraft.world.item.ItemStack(dev.anjo7778.sao.item.SaoItems.raw(spec.material())));
+            var out=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.BLASTING,input,level).orElseThrow().value().assemble(input,level.registryAccess());
+            helper.assertTrue(out.is(dev.anjo7778.sao.item.SaoItems.refined(spec.material()))&&out.getCount()==1,"Refines one to one");
+        }
+        var steel=new net.minecraft.world.item.ItemStack(dev.anjo7778.sao.item.SaoItems.STEEL_INGOT.get());
+        var swordInput=net.minecraft.world.item.crafting.CraftingInput.of(1,3,java.util.List.of(steel.copy(),steel.copy(),new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK)));
+        var blade=level.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING,swordInput,level).orElseThrow().value().assemble(swordInput,level.registryAccess());
+        helper.assertTrue(blade.is(dev.anjo7778.sao.item.SaoItems.STEEL_SWORD.get())&&blade.getMaxDamage()==338,"Native sword and steel durability");
+        helper.assertTrue(dev.anjo7778.sao.world.WeaponItems.classify(blade)==dev.anjo7778.sao.simulation.WeaponRules.Family.SWORD,"Shared family");
+        helper.assertTrue(blade.getItem().isValidRepairItem(blade,steel),"Steel repairs native sword");
+        helper.succeed();
+    }
 }

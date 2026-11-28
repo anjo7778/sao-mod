@@ -2,6 +2,18 @@
   "replace": false,
   "values": [
     "sao:tin_ore",
-    "sao:deepslate_tin_ore"
+    "sao:deepslate_tin_ore",
+    "sao:silver_ore",
+    "sao:deepslate_silver_ore",
+    "sao:mithril_ore",
+    "sao:deepslate_mithril_ore",
+    "sao:adamantite_ore",
+    "sao:deepslate_adamantite_ore",
+    "sao:orichalcum_ore",
+    "sao:deepslate_orichalcum_ore",
+    "sao:celestium_ore",
+    "sao:deepslate_celestium_ore",
+    "sao:astralite_ore",
+    "sao:deepslate_astralite_ore"
   ]
 }

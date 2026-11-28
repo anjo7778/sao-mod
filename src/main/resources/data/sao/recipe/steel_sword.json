@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "S",
+    "S",
+    "H"
+  ],
+  "key": {
+    "S": {
+      "item": "sao:steel_ingot"
+    },
+    "H": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "id": "sao:steel_sword",
+    "count": 1
+  }
+}

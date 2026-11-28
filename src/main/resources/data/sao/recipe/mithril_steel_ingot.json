@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": {
+    "item": "sao:mithril_steel_blend"
+  },
+  "result": {
+    "id": "sao:mithril_steel_ingot",
+    "count": 1
+  },
+  "experience": 0.5,
+  "cookingtime": 160
+}

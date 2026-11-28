@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "sao:steel_ingot"
+    },
+    {
+      "item": "sao:steel_ingot"
+    },
+    {
+      "item": "sao:mithril_ingot"
+    }
+  ],
+  "result": {
+    "id": "sao:mithril_steel_blend",
+    "count": 3
+  }
+}

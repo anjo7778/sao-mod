@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "sao:steel_ingot"
+    },
+    {
+      "item": "sao:steel_ingot"
+    },
+    {
+      "item": "sao:adamantite_ingot"
+    },
+    {
+      "item": "minecraft:coal"
+    }
+  ],
+  "result": {
+    "id": "sao:darksteel_blend",
+    "count": 3
+  }
+}

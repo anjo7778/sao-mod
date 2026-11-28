@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": {
+    "item": "sao:darksteel_blend"
+  },
+  "result": {
+    "id": "sao:darksteel_ingot",
+    "count": 1
+  },
+  "experience": 0.5,
+  "cookingtime": 160
+}

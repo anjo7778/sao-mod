@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": {
+    "item": "sao:raw_adamantite"
+  },
+  "result": {
+    "id": "sao:adamantite_ingot",
+    "count": 1
+  },
+  "experience": 1,
+  "cookingtime": 120
+}

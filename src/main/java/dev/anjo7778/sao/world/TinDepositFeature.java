@@ -20,17 +20,23 @@ public final class TinDepositFeature extends Feature<NoneFeatureConfiguration> {
         if(!upper&&!gen.generatorSettings().is(FloorTravel.FIRST_CITY_REGIONAL))return false;
         int x=ctx.origin().getX()&~15,z=ctx.origin().getZ()&~15;
         long floor=upper?FloorLayout.floorAt(x,z):1;
-        return placeDeposit(ctx.level(),ctx.level().getSeed(),floor,x,z)>0;
+        int placed=placeDeposit(ctx.level(),ctx.level().getSeed(),floor,x,z);
+        for(var spec:dev.anjo7778.sao.simulation.MetalDeposits.ADVANCED)
+            placed+=placePoints(ctx.level(),spec.material(),dev.anjo7778.sao.simulation.MetalDeposits.plan(spec,ctx.level().getSeed(),floor,x,z));
+        return placed>0;
     }
     public static int placeDeposit(WorldGenLevel level,long seed,long floor,int originX,int originZ){
+        return placePoints(level,dev.anjo7778.sao.simulation.MaterialRules.Material.TIN,TinDeposits.plan(seed,floor,originX,originZ));
+    }
+    private static int placePoints(WorldGenLevel level,dev.anjo7778.sao.simulation.MaterialRules.Material material,java.util.List<TinDeposits.Point> points){
         int placed=0;
-        for(var point:TinDeposits.plan(seed,floor,originX,originZ)){
+        for(var point:points){
             var pos=new BlockPos(point.x(),point.y(),point.z());
             var old=level.getBlockState(pos);
             if(old.is(Blocks.STONE)){
-                if(level.setBlock(pos,SaoBlocks.TIN_ORE.get().defaultBlockState(),2))placed++;
+                if(level.setBlock(pos,SaoBlocks.ore(material,false).defaultBlockState(),2))placed++;
             }else if(old.is(Blocks.DEEPSLATE)){
-                if(level.setBlock(pos,SaoBlocks.DEEPSLATE_TIN_ORE.get().defaultBlockState(),2))placed++;
+                if(level.setBlock(pos,SaoBlocks.ore(material,true).defaultBlockState(),2))placed++;
             }
         }
         return placed;

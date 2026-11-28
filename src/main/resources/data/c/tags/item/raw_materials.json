@@ -1,6 +1,12 @@
 {
   "replace": false,
   "values": [
-    "sao:raw_tin"
+    "sao:raw_tin",
+    "sao:raw_silver",
+    "sao:raw_mithril",
+    "sao:raw_adamantite",
+    "sao:raw_orichalcum",
+    "sao:raw_celestium",
+    "sao:raw_astralite"
   ]
 }

@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "sao:adamantite_ore",
+    "sao:deepslate_adamantite_ore",
+    "sao:orichalcum_ore",
+    "sao:deepslate_orichalcum_ore",
+    "sao:celestium_ore",
+    "sao:deepslate_celestium_ore",
+    "sao:astralite_ore",
+    "sao:deepslate_astralite_ore"
+  ]
+}

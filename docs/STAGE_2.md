@@ -208,3 +208,7 @@ User approved ore and material design before the first native one-handed sword. 
 ## v0.2.37 Tin/bronze candidate
 
 v0.2.36 steel tests all passed (28). Introduce actual tin ore, raw/refined items, copper-tin alloy chain, native assets, safe bounded floor-aware worldgen and recipe/drop definitions. Add tests for deterministic plan, floor range, protection, recipes and tags. Runtime chunk evidence, harvest/drop verification, professions and more ores remain pending.
+
+## v0.2.38 expanded material candidate
+
+Tin actual worldgen passed on allowed floors and capital/out-of-range exclusion; native harvest failed. Fix custom ore properties, add silver/mithril/adamantite/orichalcum/celestium/astralite and ordinary advanced alloys, native steel sword/recipe/model. Vanilla materials remain in use. Player and NPC profession progression, higher-quality production, dragonsteel, special boss loot and full combat pending. Build and runtime checks required.
