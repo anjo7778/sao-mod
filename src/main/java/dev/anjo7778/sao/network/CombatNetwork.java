@@ -24,23 +24,23 @@ public final class CombatNetwork {
             (b,p)->{b.writeVarInt(p.action());b.writeVarInt(p.direction());},b->new Intent(b.readVarInt(),b.readVarInt()));
         @Override public Type<? extends CustomPacketPayload> type(){return TYPE;}
     }
-    public record Snapshot(UUID owner,boolean available,int stamina,int phase,int move,int combo,int skillCooldown,boolean skillUnlocked,int pose,int selectedSkill) implements CustomPacketPayload{
+    public record Snapshot(UUID owner,boolean available,int stamina,int phase,int move,int combo,int skillCooldown,boolean skillUnlocked,int pose,int selectedSkill,int landedHits) implements CustomPacketPayload{
         public Snapshot{
             if(owner==null||stamina<0||stamina>SwordActions.MAX_STAMINA||phase<0||phase>=SwordActions.Phase.values().length
                 ||move<0||move>=SwordActions.Move.values().length||combo<0||combo>2||skillCooldown<0||skillCooldown>SwordActions.MAX_SKILL_COOLDOWN
-                ||SwordActions.Skill.fromIndex(selectedSkill)==null)
+                ||SwordActions.Skill.fromIndex(selectedSkill)==null||landedHits<0||landedHits>SwordActions.Move.values()[move].hits)
                 throw new IllegalArgumentException("Invalid combat snapshot");
         }
         public static final Type<Snapshot> TYPE=new Type<>(ResourceLocation.fromNamespaceAndPath("sao","combat_snapshot"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Snapshot> CODEC=StreamCodec.of(
             (b,p)->{b.writeUUID(p.owner());b.writeBoolean(p.available());b.writeVarInt(p.stamina());b.writeVarInt(p.phase());
-                b.writeVarInt(p.move());b.writeVarInt(p.combo());b.writeVarInt(p.skillCooldown());b.writeBoolean(p.skillUnlocked());b.writeInt(p.pose());b.writeVarInt(p.selectedSkill());},
-            b->new Snapshot(b.readUUID(),b.readBoolean(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readBoolean(),b.readInt(),b.readVarInt()));
+                b.writeVarInt(p.move());b.writeVarInt(p.combo());b.writeVarInt(p.skillCooldown());b.writeBoolean(p.skillUnlocked());b.writeInt(p.pose());b.writeVarInt(p.selectedSkill());b.writeVarInt(p.landedHits());},
+            b->new Snapshot(b.readUUID(),b.readBoolean(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readVarInt(),b.readBoolean(),b.readInt(),b.readVarInt(),b.readVarInt()));
         @Override public Type<? extends CustomPacketPayload> type(){return TYPE;}
     }
     public static void send(ServerPlayer p,boolean available,int stamina,SwordActions.Phase phase,SwordActions.Move move,
-            int combo,int skillCooldown,boolean skillUnlocked,int pose,int selectedSkill){
-        PacketDistributor.sendToPlayer(p,new Snapshot(p.getUUID(),available,stamina,phase.ordinal(),move.ordinal(),combo,skillCooldown,skillUnlocked,pose,selectedSkill));
+            int combo,int skillCooldown,boolean skillUnlocked,int pose,int selectedSkill,int landedHits){
+        PacketDistributor.sendToPlayer(p,new Snapshot(p.getUUID(),available,stamina,phase.ordinal(),move.ordinal(),combo,skillCooldown,skillUnlocked,pose,selectedSkill,landedHits));
     }
     public static void register(RegisterPayloadHandlersEvent event){
         var r=event.registrar("1");
