@@ -25,6 +25,7 @@ public final class TinDepositFeature extends Feature<NoneFeatureConfiguration> {
             placed+=placePoints(ctx.level(),spec.material(),dev.anjo7778.sao.simulation.MetalDeposits.plan(spec,ctx.level().getSeed(),floor,x,z));
         placed+=GateProspectFeature.place(ctx.level(),floor,x,z);
         placed+=GateMineFeature.place(ctx.level(),floor,x,z);
+        placed+=GateWoodlandFeature.place(ctx.level(),floor,x,z);
         return placed>0;
     }
     public static int placeDeposit(WorldGenLevel level,long seed,long floor,int originX,int originZ){
