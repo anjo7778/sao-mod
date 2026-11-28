@@ -176,3 +176,7 @@ v0.2.26 build and [client probe 46097100943](https://github.com/anjo7778/sao-mod
 ## v0.2.29 HUD/menu candidate
 
 V2 client test passed input and profile but screenshot review found invisible world panel. See AINCRAD_UI.md for corrected render stage/model-view and visual acceptance gate. Added native survival HUD with real HP, hunger/air, hotbar, XP notices, target HP and clock; new original geometric lettering and compact animated menu. Test build and graphical pixel evidence pending. Preserve working combat/leveling. No new combat features.
+
+## v0.2.30 exact-reference health gauge candidate
+
+[v0.2.29 build](https://github.com/anjo7778/sao-mod/actions/runs/46099212169) and [corrected client test](https://github.com/anjo7778/sao-mod/actions/runs/46099639755) passed; visible world menu amber pixels and green/red HUD verified in controlled client. User supplied specific health gauge design; replace health panel with faithful charcoal/stepped bar geometry, clipped gradient and fitted white numeric labels. Preserve existing input, menu, XP and hunger. New screenshot test pending.

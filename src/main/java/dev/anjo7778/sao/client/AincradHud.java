@@ -23,7 +23,7 @@ import java.util.Locale;
 @EventBusSubscriber(modid="sao",value=Dist.CLIENT)
 public final class AincradHud {
     static final int WHITE=0xfff6faf9,INK=0xff3c4b50,GRAY=0xff64747b,EDGE=0xffa5b7bc,PALE=0xe8edf4f3,
-        DARK=0xd936474e,AMBER=0xffeda726,GREEN=0xff77ba48,YELLOW=0xffe8c451,RED=0xffd65a55,BLUE=0xff70b2cd;
+        DARK=0xd936474e,AMBER=0xffeda726,GREEN=0xff86cb18,YELLOW=0xffe8c451,RED=0xffd65a55,BLUE=0xff70b2cd;
     private static Object priorPlayer,priorLevel;
     private static long seenXp=-1,seenLevel=-1,noticeUntil,lastFrame;
     private static String notice="";
@@ -56,20 +56,14 @@ public final class AincradHud {
             noticeUntil=now+3_000_000_000L;
         }
         seenXp=s.xp();seenLevel=s.level();
-        int x=9,y=8,w=Math.min(150,Math.max(76,width/3));
-        chamfer(g,x+1,y+1,w,33,7,0x4051656c);
-        chamfer(g,x,y,w,32,7,PALE);
-        chamfer(g,x,y,w,12,5,WHITE);
-        text(g,s.name(),x+5,y+2,INK,w-49);
-        String lv="Lv. "+s.level();right(g,lv,x+w-9,y+2,INK,42);
-        gauge(g,x+4,y+13,w-9,9,hp,hpTrail,healthColor(hp));
+        int x=9,y=8,w=AincradHealthGauge.width(width);
+        String value=number(p.getHealth())+"/"+number(p.getMaxHealth());
+        AincradHealthGauge.draw(g,x,y,w,s.name(),s.level(),value,hp,hpTrail,ratio(p.getAbsorptionAmount(),p.getMaxHealth()));
+        int info=y+AincradHealthGauge.height(w)+4;
         if(p.getAbsorptionAmount()>0){
-            int gold=(int)((w-14)*ratio(p.getAbsorptionAmount(),p.getMaxHealth()));
-            g.fill(x+6,y+20,x+6+gold,y+22,AMBER);
+            small(g,x,info,Math.min(w,150),"ABSORB","+"+number(p.getAbsorptionAmount()),ratio(p.getAbsorptionAmount(),p.getMaxHealth()),AMBER);info+=16;
         }
-        String value=number(p.getHealth())+" / "+number(p.getMaxHealth())+(p.getAbsorptionAmount()>0?" +"+number(p.getAbsorptionAmount()):"");
-        text(g,value,x+5,y+24,INK,w-51);right(g,"Floor "+s.floor(),x+w-8,y+24,GRAY,48);
-        int info=y+36;
+        w=Math.min(w,150);
         int food=p.getFoodData().getFoodLevel();
         if(food<20){
             small(g,x,info,w,"HUNGER",food+"/20",ratio(food,20),food<=6?RED:AMBER);info+=16;
