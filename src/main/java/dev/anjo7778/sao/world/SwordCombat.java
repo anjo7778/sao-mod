@@ -34,6 +34,7 @@ public final class SwordCombat {
         Vec3 dodgeStart;
         boolean resolving,shown;
         long lastIntent=-100;
+        int lastPose;
         void capture(LivingEntity actor,ServerLevel world){
             level=world;main=actor.getMainHandItem().copy();off=actor.getOffhandItem().copy();
         }
@@ -106,9 +107,10 @@ public final class SwordCombat {
     }
     private static void endResolve(Session s){s.resolving=false;s.resolvingTarget=null;}
     private static void sync(ServerPlayer p,Session s,boolean available){
+        int pose=available?s.clock.visualCode(now(p.serverLevel()),p.serverLevel().getGameTime()):0;
         CombatNetwork.send(p,available,s.clock.stamina(),s.clock.phase(),s.clock.move(),
-            s.clock.combo(),s.clock.skillCooldown(now(p.serverLevel())),mastery(p,p.serverLevel())>=SwordActions.HORIZONTAL_MASTERY);
-        s.shown=available;
+            s.clock.combo(),s.clock.skillCooldown(now(p.serverLevel())),mastery(p,p.serverLevel())>=SwordActions.HORIZONTAL_MASTERY,pose);
+        s.shown=available;s.lastPose=pose;
     }
     public static void attack(AttackEntityEvent event){
         if(event.isCanceled()||!(event.getEntity() instanceof ServerPlayer p)||!eligible(p))return;
@@ -145,7 +147,7 @@ public final class SwordCombat {
             // The native hit may have changed real durability. Recovery still applies.
             s.capture(p,level);
         }
-        if(available&&(p.tickCount%5==0||!s.shown)||!available&&s.shown){
+        if(available&&(p.tickCount%5==0||!s.shown||s.lastPose!=s.clock.visualCode(now(level),level.getGameTime()))||!available&&s.shown){
             sync(p,s,available);
         }
     }
@@ -219,7 +221,7 @@ public final class SwordCombat {
     /** Restore stamina during ordinary represented NPC rest, not only while in combat. */
     public static void npcTick(EntityTickEvent.Post event){
         if(!(event.getEntity() instanceof CityNpc npc)||!(npc.level() instanceof ServerLevel level))return;
-        var s=SESSIONS.get(npc);if(s==null)return;
+        var s=SESSIONS.get(npc);if(s==null){if(npc.combatPose()!=0)npc.setCombatPose(0);return;}
         advance(s,npc,level);
         if(s.clock.phase()==Phase.WINDUP||s.clock.phase()==Phase.GUARD||s.clock.phase()==Phase.DODGE){
             var contract=NpcPopulationData.get(level.getServer()).hunt(npc.getUUID());
@@ -227,6 +229,7 @@ public final class SwordCombat {
                 s.clock.cancel(now(level));s.target=null;s.dodgeStart=null;
             }
         }
+        npc.setCombatPose(s.clock.visualCode(now(level),level.getGameTime()));
     }
     public static void damage(LivingIncomingDamageEvent event){
         if(event.isCanceled()||!(event.getEntity().level() instanceof ServerLevel level))return;
