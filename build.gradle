@@ -58,6 +58,12 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        migrationProbe {
+            server()
+            gameDirectory = project.file('run-migration')
+            programArgument '--nogui'
+            systemProperty 'sao.migrationProbe', providers.gradleProperty('migrationPhase').getOrElse('off')
+        }
         server {
             server()
             programArgument '--nogui'
