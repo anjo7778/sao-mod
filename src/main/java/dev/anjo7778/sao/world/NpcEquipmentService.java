@@ -7,6 +7,8 @@ import dev.anjo7778.sao.simulation.*;
 import dev.anjo7778.sao.simulation.NpcRoster.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.*;
+import net.minecraft.world.Container;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import java.util.*;
 
@@ -15,7 +17,7 @@ import java.util.*;
  * No abstract stock or offscreen gear awards. */
 public final class NpcEquipmentService {
     private NpcEquipmentService(){}
-    private record Offer(Profile seller,int slot,ItemStack item,int price,NpcDailyPlan.Plan destination){}
+    private record Offer(Profile seller,int slot,ItemStack item,int price,NpcDailyPlan.Plan destination,boolean repair){}
     private static int price(ItemStack item){
         return item.is(SaoItems.STEEL_SWORD.get())?32+8*NativeSteelSword.quality(item).ordinal():12;
     }
@@ -26,7 +28,10 @@ public final class NpcEquipmentService {
             if(cargo.pickUses()<=NpcSupplyData.REPLACE_AT)return Items.IRON_PICKAXE;
             if(cargo.axeUses()<=NpcSupplyData.REPLACE_AT)return Items.IRON_AXE;
         }
-        return HuntContract.melee(s.profile())&&pop.blade(s.profile().id()).isEmpty()?SaoItems.STEEL_SWORD.get():null;
+        if(!HuntContract.melee(s.profile()))return null;
+        var blade=pop.blade(s.profile().id());
+        if(blade.isEmpty())return SaoItems.STEEL_SWORD.get();
+        return NativeSteelSword.needsNpcRepair(blade)?SaoItems.STEEL_INGOT.get():null;
     }
     private static Offer offer(ServerLevel level,State s){
         if(s.profile().occupation()!=Occupation.ADVENTURER||s.needs().health()<35||s.needs().supplies()<35
@@ -39,15 +44,18 @@ public final class NpcEquipmentService {
             .sorted(Comparator.<State>comparingLong(v->{long dx=v.profile().workX()-s.profile().homeX(),dz=v.profile().workZ()-s.profile().homeZ();return dx*dx+dz*dz;})
                 .thenComparing(v->v.profile().id())).toList();
         for(var smith:choices){
-            var pos=NpcForgeWorkshop.fixtures(smith.profile()).output();
+            var fixtures=NpcForgeWorkshop.fixtures(smith.profile());
+            boolean repair=want==SaoItems.STEEL_INGOT.get();
+            var pos=repair?fixtures.stock():fixtures.output();
+            if(repair&&(!level.hasChunkAt(fixtures.anvil())||!level.getBlockState(fixtures.anvil()).is(BlockTags.ANVIL)))continue;
             if(!level.hasChunkAt(pos)||!(level.getBlockEntity(pos) instanceof BarrelBlockEntity stock))continue;
             var dest=NpcDailyPlan.at(smith,level.getDayTime()).destination();
             for(int i=0;i<stock.getContainerSize();i++){
                 var item=stock.getItem(i);
-                if(!item.is(want)||item.getCount()!=1||item.getDamageValue()!=0)continue;
-                int price=price(item);
+                if(!item.is(want)||item.isEmpty()||(!repair&&(item.getCount()!=1||item.getDamageValue()!=0)))continue;
+                int price=repair?NativeSteelSword.NPC_REPAIR_PRICE:price(item);
                 if(pop.wallet(s.profile()).col()<price+12)continue;
-                return new Offer(smith.profile(),i,item.copy(),price,new NpcDailyPlan.Plan(NpcDailyPlan.Activity.PREPARE,dest));
+                return new Offer(smith.profile(),i,item.copy(),price,new NpcDailyPlan.Plan(NpcDailyPlan.Activity.PREPARE,dest),repair);
             }
         }
         return null;
@@ -65,11 +73,22 @@ public final class NpcEquipmentService {
             ||smith.originFloor()!=buyer.originFloor()||!smith.atScheduledDestination()
             ||!smith.matchesPlan(new NpcDailyPlan.Plan(NpcDailyPlan.Activity.WORK,offer.destination().destination()))
             ||buyer.distanceToSqr(smith)>36||!buyer.hasLineOfSight(smith))return false;
-        var pos=NpcForgeWorkshop.fixtures(offer.seller()).output();
+        var fixtures=NpcForgeWorkshop.fixtures(offer.seller());
+        var pos=offer.repair()?fixtures.stock():fixtures.output();
+        if(offer.repair()&&(!level.hasChunkAt(fixtures.anvil())||!CityRules.isSafeZone(level,fixtures.anvil().getX(),fixtures.anvil().getZ())
+            ||!level.getBlockState(fixtures.anvil()).is(BlockTags.ANVIL)))return false;
         if(!level.hasChunkAt(pos)||!CityRules.isSafeZone(level,pos.getX(),pos.getZ())
             ||!(level.getBlockEntity(pos) instanceof BarrelBlockEntity stock)
             ||!ItemStack.matches(stock.getItem(offer.slot()),offer.item())
             ||level.players().stream().anyMatch(p->p.containerMenu!=p.inventoryMenu&&p.distanceToSqr(smith)<400))return false;
+        long epoch=Math.max(0,level.getServer().overworld().getGameTime()/AdventureProgress.EPOCH_TICKS);
+        if(offer.repair()){
+            if(!repairFromStock(pop,buyer.originFloor(),buyer.getUUID(),smith.getUUID(),stock,offer.slot(),offer.item(),level.getDayTime(),epoch))return false;
+            smith.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            buyer.updateDisplayItem();
+            buyer.reviewMenu(new NpcMenuReview(NpcMenuReview.Kind.PURCHASE,"Sword repaired|"+offer.price()+" Col"));
+            return true;
+        }
         var supplies=NpcSupplyData.get(level.getServer());var cargo=supplies.cargo(buyer.getUUID());
         NpcSupplyData.Cargo replacement=null;
         if(offer.item().is(Items.IRON_PICKAXE)||offer.item().is(Items.IRON_AXE)){
@@ -78,12 +97,21 @@ public final class NpcEquipmentService {
             int remaining=offer.item().getMaxDamage()-offer.item().getDamageValue();
             try{replacement=cargo.replacement(r,remaining);}catch(IllegalArgumentException noNeed){return false;}
         }
-        long epoch=Math.max(0,level.getServer().overworld().getGameTime()/AdventureProgress.EPOCH_TICKS);
         if(!pop.buyGoods(buyer.originFloor(),buyer.getUUID(),smith.getUUID(),offer.item(),offer.price(),level.getDayTime(),epoch))return false;
         stock.removeItemNoUpdate(offer.slot());stock.setChanged();
         if(replacement!=null)supplies.store(buyer.getUUID(),replacement);
         buyer.updateDisplayItem();
         buyer.reviewMenu(new NpcMenuReview(NpcMenuReview.Kind.PURCHASE,offer.item().getHoverName().getString()+"|"+offer.price()+" Col"));
         return true;
+    }
+    /** Server-thread transaction on the designated workshop input stock.
+     * The caller establishes physical presence, fixtures and exclusive access. */
+    static boolean repairFromStock(NpcPopulationData pop,long floor,UUID buyer,UUID seller,Container stock,int slot,ItemStack expected,long time,long epoch){
+        if(slot<0||slot>=stock.getContainerSize()||expected==null||expected.isEmpty()
+            ||!expected.is(SaoItems.STEEL_INGOT.get())||!ItemStack.matches(stock.getItem(slot),expected))return false;
+        var after=expected.copy();after.shrink(1);
+        var blade=pop.blade(buyer);
+        if(!pop.repairBlade(floor,buyer,seller,blade,time,epoch))return false;
+        stock.setItem(slot,after);stock.setChanged();return true;
     }
 }
