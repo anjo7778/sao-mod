@@ -10,7 +10,10 @@ public final class SwordPose {
         COUNTER(2,12,-1.15f,-.18f,.10f,-1.55f,.10f,.03f),
         HORIZONTAL(7,23,-1.05f,-1.10f,.40f,-1.10f,1.10f,-.55f),
         GUARD(3,14,-1.15f,-.42f,.14f,-1.15f,-.42f,.14f),
-        DODGE(3,18,-.60f,-.30f,.35f,-.75f,-.20f,.28f);
+        DODGE(3,18,-.60f,-.30f,.35f,-.75f,-.20f,.28f),
+        SLANT(5,18,-2.10f,-.75f,.72f,-.70f,.58f,-.62f),
+        VERTICAL(10,28,-2.90f,.04f,.06f,-.25f,.02f,-.12f),
+        SONIC_LEAP(9,29,-.95f,-.25f,.08f,-1.58f,.05f,.02f);
         public final int impact,duration;
         final float wx,wy,wz,hx,hy,hz;
         Kind(int impact,int duration,float wx,float wy,float wz,float hx,float hy,float hz){
