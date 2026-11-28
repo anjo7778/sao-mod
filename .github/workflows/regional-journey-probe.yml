@@ -1,0 +1,36 @@
+name: Stage 2 Regional Journey Server Probe
+on:
+  push:
+    branches: ['stage2/regional-journey-probe']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: regional-journey-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - name: Verify autonomous trip, no chunk loads and exact restart
+        run: bash scripts/regional-journey-probe.sh
+      - name: Archive evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: sao-regional-journey-probe-${{ github.run_number }}
+          path: |
+            build/regional-journey-probe/
+            run-regional-journey/logs/
+            run-regional-journey/crash-reports/
+          if-no-files-found: warn
+          retention-days: 14
