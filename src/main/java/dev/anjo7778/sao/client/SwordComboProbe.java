@@ -45,6 +45,10 @@ public final class SwordComboProbe {
     private static int damage;
     private static boolean finished,visual;
     private static net.minecraft.world.phys.Vec3 leapStart;
+    private static int squareSeen;
+    private static float squareLastHealth;
+    private static ItemStack interruptedSword;
+    private static boolean horizontalSquareVisual,verticalSquareVisual;
     private SwordComboProbe(){}
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!ENABLED||phase==3)return;
@@ -71,7 +75,7 @@ public final class SwordComboProbe {
         if(phase!=2)return;
         require(ticks<1500,"Combat client probe timed out");
         if(finished){
-            require(visual,"No synchronized Horizontal model pose rendered");
+            require(visual&&horizontalSquareVisual&&verticalSquareVisual,"Missing synchronized sword-skill model pose");
             LOG.info("SAO_SWORD_COMBO_PROBE_PASS");phase=3;return;
         }
         action(c,SwordComboProbe::observe);
@@ -207,27 +211,103 @@ public final class SwordComboProbe {
                 if(age<32)return;
                 require(p.position().distanceToSqr(leapStart)>=.30*.30,"Actual player lunge displacement");
                 LOG.info("SAO_SWORD_LEAP_OK damage={}",landed(p,mob));
-                finished=true;
+                require(data.awardNext(owner,CharacterProgress.Source.COMBAT,1,CharacterProgress.Mastery.SWORD,4000),"Square mastery fixture");
+                require(data.state(owner).mastery(CharacterProgress.Mastery.SWORD)>=11,"Both square skills learned in fixture");
+                // Reuse the flat test lane and ensure an undamaged, stationary target.
+                require(p.teleportTo(level,mob.getX(),mob.getY(),mob.getZ()-2,Set.of(),0,0),"Reset square fixture position");
+                mob.setHealth(mob.getMaxHealth());began=level.getGameTime();stage=13;
+            }
+            case 13->{
+                if(age<80)return;
+                SwordCombat.intent(p,3,0);began=level.getGameTime();stage=14;
+            }
+            case 14->{
+                if(age<4)return;
+                require(selected(p)==SwordActions.Skill.HORIZONTAL_SQUARE,"Select Horizontal Square");
+                startSquare(p,mob);stage=15;
+            }
+            case 15->{
+                if(!observeSquare(p,mob,SwordActions.Skill.HORIZONTAL_SQUARE,age))return;
+                LOG.info("SAO_SWORD_HORIZONTAL_SQUARE_OK hits={} damage={}",squareSeen,before-mob.getHealth());
+                began=level.getGameTime();stage=16;
+            }
+            case 16->{
+                if(age<80)return;
+                SwordCombat.intent(p,3,0);began=level.getGameTime();stage=17;
+            }
+            case 17->{
+                if(age<4)return;
+                require(selected(p)==SwordActions.Skill.VERTICAL_SQUARE,"Select Vertical Square");
+                startSquare(p,mob);stage=18;
+            }
+            case 18->{
+                if(!observeSquare(p,mob,SwordActions.Skill.VERTICAL_SQUARE,age))return;
+                LOG.info("SAO_SWORD_VERTICAL_SQUARE_OK hits={} damage={}",squareSeen,before-mob.getHealth());
+                began=level.getGameTime();stage=19;
+            }
+            case 19->{
+                if(age<270)return;
+                startSquare(p,mob);stage=20;
+            }
+            case 20->{
+                if(p.getMainHandItem().getDamageValue()==damage)return;
+                require(p.getMainHandItem().getDamageValue()==damage+1&&mob.getHealth()<before,"First real strike before interruption");
+                interruptedSword=p.getMainHandItem().copy();before=mob.getHealth();
+                p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);
+                began=level.getGameTime();stage=21;
+            }
+            case 21->{
+                if(age<80)return;
+                require(mob.getHealth()==before,"Interrupted sequence cannot land remaining hits");
+                p.setItemInHand(InteractionHand.MAIN_HAND,interruptedSword);
+                var checkpoint=SwordCombatData.get(level.getServer()).entry(new SwordCombatData.Key(false,p.getUUID()));
+                require(checkpoint!=null&&checkpoint.clock().cooldowns().get(SwordActions.Skill.VERTICAL_SQUARE.ordinal())>0,"Interruption retains paid skill cooldown");
+                LOG.info("SAO_SWORD_SQUARE_INTERRUPT_OK");finished=true;
             }
             default->{}
         }
+    }
+    private static void startSquare(ServerPlayer p,Husk mob){
+        before=mob.getHealth();squareLastHealth=before;damage=p.getMainHandItem().getDamageValue();squareSeen=0;
+        SwordCombat.intent(p,4,0);
+        require(mob.getHealth()==before&&p.getMainHandItem().getDamageValue()==damage,"Square has actual windup");
+        began=p.serverLevel().getGameTime();
+    }
+    private static boolean observeSquare(ServerPlayer p,Husk mob,SwordActions.Skill skill,long age){
+        int hits=p.getMainHandItem().getDamageValue()-damage;
+        require(hits>=squareSeen&&hits<=4,"Bounded native strike count");
+        if(hits>squareSeen){
+            require(hits==squareSeen+1&&mob.getHealth()<squareLastHealth,"Separate native damage and durability transaction");
+            require(age>=skill.move.windup+squareSeen*skill.move.spacing,"No early strike");
+            squareSeen=hits;squareLastHealth=mob.getHealth();
+            LOG.info("SAO_SWORD_SQUARE_STRIKE skill={} strike={} age={} health={}",skill,hits,age,squareLastHealth);
+        }else require(mob.getHealth()==squareLastHealth,"No extra damage between sword windows");
+        if(age<skill.move.duration()+2)return false;
+        require(squareSeen==4&&mob.getHealth()<before,"All four real native strikes");
+        return true;
     }
     private static SwordActions.Skill selected(ServerPlayer p){
         var entry=SwordCombatData.get(p.serverLevel().getServer()).entry(new SwordCombatData.Key(false,p.getUUID()));
         return entry==null?SwordActions.Skill.HORIZONTAL:entry.selected();
     }
     @SubscribeEvent public static void rendered(RenderPlayerEvent.Post event){
-        if(!ENABLED||phase!=2||visual||event.getEntity()!=Minecraft.getInstance().player)return;
-        var snap=CombatNetwork.snapshot();if(snap==null||SwordPose.kind(snap.pose())!=SwordPose.Kind.HORIZONTAL)return;
+        if(!ENABLED||phase!=2||event.getEntity()!=Minecraft.getInstance().player)return;
+        var snap=CombatNetwork.snapshot();if(snap==null)return;
+        var kind=SwordPose.kind(snap.pose());
+        if(kind==null||kind==SwordPose.Kind.HORIZONTAL&&visual||kind==SwordPose.Kind.HORIZONTAL_SQUARE&&horizontalSquareVisual
+            ||kind==SwordPose.Kind.VERTICAL_SQUARE&&verticalSquareVisual)return;
+        if(kind!=SwordPose.Kind.HORIZONTAL&&kind!=SwordPose.Kind.HORIZONTAL_SQUARE&&kind!=SwordPose.Kind.VERTICAL_SQUARE)return;
         int age=SwordPose.age(snap.pose(),event.getEntity().level().getGameTime());
-        if(age<4||age>10)return;
+        if(age<4||age>kind.impact+3)return;
         var model=event.getRenderer().getModel();
         var arm=event.getEntity().getMainArm()==net.minecraft.world.entity.HumanoidArm.RIGHT?model.rightArm:model.leftArm;
         if(Math.abs(arm.yRot)<.35f)return;
-        visual=true;LOG.info("SAO_SWORD_POSE_OK age={} yaw={}",age,arm.yRot);
+        if(kind==SwordPose.Kind.HORIZONTAL){visual=true;LOG.info("SAO_SWORD_POSE_OK age={} yaw={}",age,arm.yRot);}
+        else if(kind==SwordPose.Kind.HORIZONTAL_SQUARE){horizontalSquareVisual=true;LOG.info("SAO_SWORD_HORIZONTAL_SQUARE_POSE_OK");}
+        else {verticalSquareVisual=true;LOG.info("SAO_SWORD_VERTICAL_SQUARE_POSE_OK");}
         try{
             var c=Minecraft.getInstance();var dir=c.gameDirectory.toPath().resolve("sword-combo-probe");Files.createDirectories(dir);
-            try(var img=Screenshot.takeScreenshot(c.getMainRenderTarget())){img.writeToFile(dir.resolve("horizontal.png"));}
+            try(var img=Screenshot.takeScreenshot(c.getMainRenderTarget())){img.writeToFile(dir.resolve(kind.name().toLowerCase(java.util.Locale.ROOT)+".png"));}
         }catch(Exception ex){throw new IllegalStateException(ex);}
     }
     private static void action(Minecraft c,java.util.function.Consumer<ServerPlayer> a){
