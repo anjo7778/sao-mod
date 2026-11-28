@@ -192,3 +192,7 @@ Add synced NPC role/level projection, depth-tested nearby NPC/targeted enemy dia
 ## v0.2.33 native inventory candidate
 
 v0.2.32 build and graphical probe passed (46101134885, 46101111905); observed NPC menu from actual epoch 1 preparation and goal decision. Implement styled InventoryMenu screen preserving authoritative slots and native transfer behavior, owner menu return, NPC panel readability and smooth gesture holding. Test item conservation, shift-equipping, close with a carried stack, and screenshots. No new multiplayer implementation.
+
+## v0.2.34 articulated menu gesture candidate
+
+[v0.2.33 build](https://github.com/anjo7778/sao-mod/actions/runs/46101530248) passed. Native inventory runtime test pending. Added gesture-only digit geometry reusing the exact arm/skin consumer, two articulated extended fingers and curled other digits, free hand selection and opt-out. Preserve original skins, held equipment, menu and simulation. New graphical acceptance required.

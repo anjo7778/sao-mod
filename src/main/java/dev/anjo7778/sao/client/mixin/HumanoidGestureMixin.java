@@ -1,5 +1,9 @@
 package dev.anjo7778.sao.client.mixin;
 import dev.anjo7778.sao.client.MenuGesture;
+import dev.anjo7778.sao.client.AincradFingerRig;
+import dev.anjo7778.sao.client.MenuPreferences;
+import dev.anjo7778.sao.simulation.NpcMenuReview;
+import net.minecraft.world.entity.HumanoidArm;
 import dev.anjo7778.sao.entity.CityNpc;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
@@ -14,17 +18,26 @@ public abstract class HumanoidGestureMixin {
     @Inject(method="setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",at=@At("TAIL"))
     private void sao$gesture(LivingEntity entity,float swing,float amount,float age,float yaw,float pitch,CallbackInfo ci){
         if(!((Object)this instanceof PlayerModel<?> model))return;
+        AincradFingerRig.clear(model);
         float partial=Math.max(0,Math.min(1,age-entity.tickCount));
-        if(entity instanceof CityNpc npc&&npc.menuOpen()){
-            float pitchValue=MenuGesture.npcPitch(npc,partial);
+        HumanoidArm hand=MenuGesture.freeArm(entity);
+        if(hand==null)return;
+        float pitchValue,extension;
+        if(entity instanceof CityNpc npc&&npc.menuOpen()&&MenuPreferences.npcMenus){
+            pitchValue=MenuGesture.npcPitch(npc,partial);
             if(!Float.isFinite(pitchValue))return;
-            // Prefer the empty hand rather than pretending a held weapon is unequipped.
-            boolean left=!npc.getMainHandItem().isEmpty()&&npc.getOffhandItem().isEmpty();
-            var arm=left?model.leftArm:model.rightArm;
-            arm.xRot=pitchValue;arm.yRot=left?.17f:-.17f;arm.zRot=left?-.14f:.14f;
+            int elapsed=npc.menuAge();
+            if(elapsed<NpcMenuReview.SUMMON)extension=Math.min(1,(elapsed+partial)/(NpcMenuReview.SUMMON*.26f));
+            else if(elapsed>=NpcMenuReview.SUMMON+NpcMenuReview.HOLD)
+                extension=Math.max(0,(NpcMenuReview.DURATION-elapsed-partial)/NpcMenuReview.CLOSE);
+            else extension=1;
         }else if(entity==Minecraft.getInstance().player){
             float t=MenuGesture.progress(partial);if(t<0)return;
-            model.rightArm.xRot=MenuGesture.armPitch(t);model.rightArm.yRot=-.17f;model.rightArm.zRot=.14f;
-        }
+            pitchValue=MenuGesture.armPitch(t);extension=AincradFingerRig.extension(t);
+        }else return;
+        boolean right=hand==HumanoidArm.RIGHT;
+        var arm=right?model.rightArm:model.leftArm;
+        arm.xRot=pitchValue;arm.yRot=right?-.17f:.17f;arm.zRot=right?.14f:-.14f;
+        AincradFingerRig.arm(model,entity,hand,extension);
     }
 }
